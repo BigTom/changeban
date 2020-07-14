@@ -1,0 +1,11 @@
+{application,changeban,
+             [{applications,[kernel,stdlib,elixir,logger]},
+              {description,"changeban"},
+              {modules,['Elixir.Changeban','Elixir.Changeban.Game',
+                        'Elixir.Changeban.GameDisplay',
+                        'Elixir.Changeban.GameServer',
+                        'Elixir.Changeban.GameSupervisor',
+                        'Elixir.Changeban.Item']},
+              {registered,[]},
+              {vsn,"0.1.0"},
+              {mod,{'Elixir.Changeban',[]}}]}.
