@@ -23,7 +23,7 @@ defmodule ChangebanGameTest do
     assert Game.get_item(game, 4).owner == 1
   end
 
-  test "Start game" do
+  test "Start Game" do
     game =
       Game.new()
       |> Game.start_game([0,1,2,3])

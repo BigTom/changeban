@@ -19,7 +19,7 @@ defmodule Changeban.Game do
   """
 
   @enforce_keys [:items]
-  defstruct players: [], items: []
+  defstruct state: :not_started, players: [], items: []
 
   alias Changeban.{Game, Item}
 
@@ -28,7 +28,7 @@ defmodule Changeban.Game do
   end
 
   def start_game(%Game{} = game, players) when is_list(players) do
-    %{game | players: players}
+    %{game | state: :started}
   end
 
   def start_item(%Game{} = game, id, player) do
@@ -127,6 +127,12 @@ defmodule Changeban.Game do
     {:help, [move: move, unblock: unblock]}
   end
 
+  @doc"""
+    This changes an identified item based on the function provided and the player_id.
+    The game is then updated with the new item replacing its old version
+
+    This is a DRY change for the :handle_move :act, :help & :block methods in GameServer
+  """
   def exec_action(game, fun, item_id, player_id) do
     new_item =
       Game.get_item(game, item_id)

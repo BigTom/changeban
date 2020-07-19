@@ -30,21 +30,35 @@ defmodule GamesRoomWeb.ChangebanLive do
       Presence.list(@presence_topic)
       |> map_size
 
-    game_id =
-      if Map.get(params,"id") do
-        Map.get(params,"id")
-      else
-        id = gen_game_name()
-        GameSupervisor.start_game(id)
-        id
-      end
+      IO.puts "Before: Mounted Socket Assigns: #{inspect socket.assigns}"
 
-    {:ok, assign(socket,
-              val: Counter.current(),
-              game_id: game_id,
-              items: GameServer.view(game_id),
-              present: initial_present,
-              username: username) }
+      game_id =
+        if Map.get(socket.assigns, :game_id) do
+          IO.puts "have id"
+          socket.assigns.game_id
+        else
+          IO.puts "don't have id"
+          if Map.get(params,"id") do
+            Map.get(params,"id")
+          else
+            id = gen_game_name()
+            GameSupervisor.start_game(id)
+            id
+          end
+        end
+
+    new_socket =
+      assign(socket,
+        val: Counter.current(),
+        game_id: game_id,
+        player_id: 0,
+        items: GameServer.view(game_id),
+        present: initial_present,
+        username: username)
+
+    IO.puts "After: Mounted Socket Assigns: #{inspect new_socket.assigns}"
+
+    {:ok, new_socket }
   end
 
   @impl true
@@ -58,13 +72,18 @@ defmodule GamesRoomWeb.ChangebanLive do
 
     @impl true
   def handle_event("inc", _, socket) do
-    IO.puts("GamesRoomWeb.ChangeBanLive.handle_event - inc ---------------------------------------")
     {:noreply, assign(prep_assigns(socket), :val, Counter.incr())}
   end
 
   @impl true
   def handle_event("dec", _, socket) do
-    IO.puts("GamesRoomWeb.ChangeBanLive.handle_event - dec ---------------------------------------")
+    {:noreply, assign(prep_assigns(socket), :val, Counter.decr())}
+  end
+
+  @impl true
+  def handle_event("move", %{"id" => id}, socket) do
+    IO.puts("GamesRoomWeb.ChangeBanLive.handle_event - move #{id} ---------------------------------------")
+    GameServer.move(socket.assigns.game_id, :act, String.to_integer(id), socket.assigns.player_id)
     {:noreply, assign(prep_assigns(socket), :val, Counter.decr())}
   end
 
@@ -99,18 +118,18 @@ defmodule GamesRoomWeb.ChangebanLive do
       </p>
 
       <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
-        <%= changeban_headers(assigns) %>
+        <%= headers(assigns) %>
         <div class="col-start-1 row-start-3 row-span-5 border border-gray-800">
-            <%= changeban_items(assigns, 0) %>
+            <%= au_items(assigns) %>
         </div>
         <div class="col-start-2 row-start-3 row-span-5 border border-gray-800">
-          <%= changeban_items(assigns, 1) %>
+          <%= active_items(assigns, 1) %>
         </div>
         <div class="col-start-3 row-start-3 row-span-5 border border-gray-800">
-          <%= changeban_items(assigns, 2) %>
+          <%= active_items(assigns, 2) %>
         </div>
         <div class="col-start-4 row-start-3 row-span-5 border border-gray-800">
-          <%= changeban_items(assigns, 3) %>
+          <%= active_items(assigns, 3) %>
         </div>
 
         <div class="col-start-5 col-span-4 row-start-4 border border-gray-800">
@@ -134,14 +153,39 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  def render_item(assigns) do
+  def render_au_item(assigns) do
     # IO.puts("render_item: #{inspect assigns}")
     ~L"""
       <%= if @type == :task do %>
-        <div class="border bg-green-500 border-green-700 w-8 px-1 py-3 m-1" phx-click="dec"><%= @id %></div>
+        <div class="border bg-green-500 border-green-700 w-8 px-1 py-3 m-1"
+             phx-click="move"
+             phx-value-id="<%= @id %>">
+      </div>
       <% else %>
-        <div class="border bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1" phx-click="inc"><%= @id %></div>
+        <div class="border bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
+             phx-click="move"
+             phx-value-id="<%= @id %>">
+        </div>
       <% end %>
+    """
+  end
+
+  def render_active_item(assigns) do
+    # IO.puts("render_item: #{inspect assigns}")
+    ~L"""
+      <%= if @type == :task do %>
+        <div class="border bg-green-500 border-green-700 w-8 px-1 py-3 m-1"
+             phx-click="move"
+             phx-value-id="<%= @id %>">
+          <%= @id %>
+        </div>
+      <% else %>
+        <div class="border bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
+             phx-click="move"
+            phx-value-id="<%= @id %>">
+        <%= @id %>
+      </div>
+    <% end %>
     """
   end
 
@@ -156,11 +200,21 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  def changeban_items(assigns, state) do
+  def au_items(assigns) do
+    ~L"""
+    <div class="flex flex-wrap">
+      <%= for item <- Map.get(assigns.items, 0, []) do %>
+        <%= render_au_item(item) %>
+      <% end %>
+    </div>
+    """
+  end
+
+  def active_items(assigns, state) do
     ~L"""
     <div class="flex flex-wrap">
       <%= for item <- Map.get(assigns.items, state, []) do %>
-        <%= render_item(item) %>
+        <%= render_active_item(item) %>
       <% end %>
     </div>
     """
@@ -176,7 +230,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  def changeban_headers(assigns) do
+  def headers(assigns) do
     ~L"""
     <div class="col-start-1 row-start-1 row-span-2 border border-gray-800">Agree Urgency</div>
     <div class="col-start-2 col-span-3 row-start-1 border border-gray-800 py-3">In progress</div>

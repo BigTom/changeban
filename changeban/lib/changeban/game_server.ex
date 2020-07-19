@@ -51,7 +51,6 @@ defmodule Changeban.GameServer do
   # Server Callbacks
 
   def init(game_name) do
-
     game =
       case :ets.lookup(:games_table, game_name) do
         [] ->
@@ -99,10 +98,13 @@ defmodule Changeban.GameServer do
   end
   def terminate(_reason, _game), do: :ok
 
+  @doc"""
+    This is a DRY method for the :handle_move :act, :help & :block methods
+  """
   def make_move(move_fun, item_id, player_id, game) do
-    new_game = Game.exec_action(game, move_fun, item_id, player_id)
-    :ets.insert(:games_table, {my_game_name(), new_game})
-    {:reply, view_game(new_game), new_game, @timeout}
+    updated_game = Game.exec_action(game, move_fun, item_id, player_id)
+    :ets.insert(:games_table, {my_game_name(), updated_game})
+    {:reply, view_game(updated_game), updated_game, @timeout}
   end
 
   def view_game(game) do
