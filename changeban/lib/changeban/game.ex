@@ -17,18 +17,29 @@ defmodule Changeban.Game do
     moves - the list of :red and :black moves
     turn - current turn number
   """
+  @max_player_id 4
 
   @enforce_keys [:items]
-  defstruct state: :not_started, players: [], items: []
+  defstruct players: [], items: []
 
-  alias Changeban.{Game, Item}
+  alias Changeban.{Game, Item, Player}
 
   def new() do
     %Game{items: (for id <- 0..15, do: Item.new(id))}
   end
 
-  def start_game(%Game{} = game, players) when is_list(players) do
-    %{game | state: :started}
+  def add_player(%Game{players: players} = game) do
+    new_player_id = Enum.count(players)
+    if new_player_id <= @max_player_id do
+      new_player = Player.new(new_player_id)
+      %{game | players: [new_player | players]}
+    else
+      raise "Already at max players"
+    end
+  end
+
+  def player_count(%Game{players: players}) do
+    Enum.count(players)
   end
 
   def start_item(%Game{} = game, id, player) do

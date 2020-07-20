@@ -7,6 +7,11 @@ defmodule Changeban.Player do
     :state must be :act, :help or :cancel
 
   """
+  alias Changeban.Player
 
   defstruct id: nil, turn_type: nil, state: nil
+
+  def new(id) do
+     %Player{id: id}
+  end
 end

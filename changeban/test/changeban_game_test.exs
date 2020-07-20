@@ -1,7 +1,7 @@
 defmodule ChangebanGameTest do
   use ExUnit.Case
   doctest Changeban.Game
-  alias Changeban.{Game, Item}
+  alias Changeban.{Game, Item, Player}
 
   test "New game test number of items" do
     game = Game.new()
@@ -23,24 +23,47 @@ defmodule ChangebanGameTest do
     assert Game.get_item(game, 4).owner == 1
   end
 
-  test "Start Game" do
-    game =
-      Game.new()
-      |> Game.start_game([0,1,2,3])
-    assert game.players == [0,1,2,3]
+  test "score at start" do
+    assert 0 == Game.new() |> Game.calculate_score()
   end
 
-  test "score at start" do
-    assert 0 == Game.calculate_score(Game.new() |> Game.start_game([]))
+  test "add a player" do
+    game = Game.new() |> Game.add_player()
+    assert 1 == Game.player_count(game)
+    assert 0 == Enum.find(game.players, &(&1.id == 0)).id
+  end
+
+  test "add five players" do
+    game = Game.new()
+      |> Game.add_player()
+      |> Game.add_player()
+      |> Game.add_player()
+      |> Game.add_player()
+      |> Game.add_player()
+    assert 5 == Game.player_count(game)
+    assert 4 == Enum.find(game.players, &(&1.id == 4)).id
+  end
+
+  test "don't add more than five players" do
+    game = Game.new()
+      |> Game.add_player()
+      |> Game.add_player()
+      |> Game.add_player()
+      |> Game.add_player()
+      |> Game.add_player()
+
+    assert_raise RuntimeError, "Already at max players", fn -> Game.add_player(game) end
+    assert 5 == Game.player_count(game)
+    assert 4 == Enum.find(game.players, &(&1.id == 4)).id
   end
 
   test "player_red_moves_at_start" do
-    game = Game.new() |> Game.start_game([0,1,2,3])
+    game = Game.new()
     assert {:act, [move: [], unblock: [], start: Enum.to_list(0..15)]} == Game.red_options(game, 0)
   end
 
   test "player_black_moves_at_start" do
-    game = Game.new() |> Game.start_game([0,1,2,3])
+    game = Game.new()
     assert {:act, [block: [], start: Enum.to_list(0..15)]} == Game.black_options(game, 0)
   end
 

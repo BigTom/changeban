@@ -34,7 +34,7 @@ defmodule Changeban.GameDisplay do
   end
 
   def print_items(game) do
-    items = Game.partition_items_by_state_and_type(game)
+    items = partition_items_by_state_and_type(game)
     max = max_items_in_partition(items) - 1
     for line <- 0..max, do: print_line(items, line)
   end
