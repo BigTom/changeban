@@ -20,7 +20,7 @@ defmodule Changeban.Game do
   @max_player_id 4
 
   @enforce_keys [:items]
-  defstruct players: [], items: []
+  defstruct players: [], items: [], score: 0, turn: 0
 
   alias Changeban.{Game, Item, Player}
 
@@ -42,22 +42,29 @@ defmodule Changeban.Game do
     Enum.count(players)
   end
 
-  def start_item(%Game{} = game, id, player) do
-    started_item = get_item(game, id) |> Item.start(player)
-    change_item(game, started_item)
+  def new_turn(%Game{players: players} = game) do
+      %{game | players: Enum.map(players, &(%{&1 | machine: Enum.random([:red, :black]), state: :new}))}
+      |> recalculate_state
   end
 
   def get_item(%Game{items: items}, id) do
     items |> Enum.find(& ( &1.id == id))
   end
 
-  def change_item(%Game{items: items} = game, %Item{} = new_item) do
-    new_items =
+  def update_game(%Game{items: items, players: players} = game, %Item{} = item_, %Player{} = player_) do
+    items_ =
       items
-      |> Enum.filter(& ( &1.id != new_item.id))
-      |> List.insert_at(0, new_item)
-      |> Enum.sort_by(& &1.id)
-    %{game | items: new_items}
+      |> Enum.filter(& ( &1.id != item_.id))    # Take out existing version
+      |> List.insert_at(0, item_)               # insert new version
+      |> Enum.sort_by(& &1.id)                  # make sure the order is maintained
+
+    players_ =
+      players
+      |> Enum.filter(& ( &1.id != player_.id))  # Take out existing version
+      |> List.insert_at(0, player_)             # insert new version
+      |> Enum.sort_by(& &1.id)                  # make sure the order is maintained
+
+      Game.recalculate_state(%{game | items: items_, players: players_})
   end
 
   def calculate_score(%Game{items: items}) do
@@ -79,6 +86,39 @@ defmodule Changeban.Game do
     score + bonus
   end
 
+  def recalculate_state(game) do
+    score = calculate_score(game)
+    players = recalculate_all_player_options(game)
+
+    # turn_completed = Enum.find(players, &(&1.state != :done))
+
+    game
+    |> Map.put(:score, score)
+    |> Map.put(:players, players)
+  end
+
+  def recalculate_all_player_options(%Game{players: players} = game) do
+
+    # TODO Players could be :red, :black, :done, :helping
+    Enum.map(players, &(calculate_player_options(game, &1)))
+  end
+
+  def calculate_player_options(%Game{items: items}, %Player{machine: machine, state: state} = player) do
+    if state == :reject do
+      rejectable_items = for %{id: id} = item <- items, Item.active?(item), do: id
+      %{player | options: rejectable_items }
+    else
+      {machine_, state_, options} =
+        case machine do
+          :red -> red_options(items, player)
+          :black -> black_options(items, player)
+          :help -> help_options(items, player)
+        end
+
+      %{player | machine: machine_, state: state_, options: options }
+      end
+  end
+
   @doc"""
   Identifies teh possible actions for a player on a "red" turn.any()
 
@@ -91,16 +131,18 @@ defmodule Changeban.Game do
     EITHER: move ONE of your unblocked items ONE column right
     OR:     unblock ONE of your blocked items
     OR:     start ONE new item (if any remain)
-"""
-  def red_options(%Game{items: items}, player) do
+
+  If you cannot do ANY of these, then HELP someone
+  """
+  def red_options(items, %Player{id: pid} = player) do
     start = for %{id: id} = item <- items, Item.can_start?(item), do: id
-    move = for %{id: id} = item <- items, Item.can_move?(item, player), do: id
-    unblock = for %{id: id} = item <- items, Item.can_unblock?(item, player), do: id
+    move = for %{id: id} = item <- items, Item.can_move?(item, pid), do: id
+    unblock = for %{id: id} = item <- items, Item.can_unblock?(item, pid), do: id
 
     if Enum.empty?(start) && Enum.empty?(move) && Enum.empty?(start) do
       help_options(items, player)
     else
-      {:act, [move: move, unblock: unblock, start: start]}
+      {:red, :act, [move: move, unblock: unblock, start: start]}
     end
   end
 
@@ -110,19 +152,25 @@ defmodule Changeban.Game do
   {:act, [block: block, start: start]}
   {:help, [move: move, :unblock unblock]}
 
-  YOU MUST BOTH:
+  BLACK MOVES
+  BOTH:
     BLOCK:    block ONE unblocked item, if you own one
     AND START: start ONE new item (if any remain)
+
+  If you cannot START, then HELP someone
   """
 
-  def black_options(%Game{items: items}, player) do
-    block = for %{id: id} = item <- items, Item.can_block?(item, player), do: id
+  def black_options(items, %Player{id: pid, state: state} = player) do
+    block = for %{id: id} = item <- items, Item.can_block?(item, pid), do: id
     start = for %{id: id} = item <- items, Item.can_start?(item), do: id
 
-    if Enum.empty?(start) && Enum.empty?(block)do
-      help_options(items, player)
-    else
-      {:act, [block: block, start: start]}
+    case state do
+      :new -> cond do
+          Enum.empty?(start) && Enum.empty?(block) -> help_options(items, player)
+          Enum.empty?(block) && ! Enum.empty?(start) -> {:black, :start, [block: block, start: start]}
+          Enum.empty?(start) && ! Enum.empty?(block) -> {:black, :block, [block: block, start: start]}
+        end
+      :done -> {:black, :done, [block: [], start: []]}
     end
   end
   @doc"""
@@ -132,23 +180,39 @@ defmodule Changeban.Game do
     Returns:
     {:help, [move: move, :unblock unblock]}
   """
-  def help_options(items, player) do
-    move = for %{id: id} = item <- items, Item.can_help_move?(item, player), do: id
-    unblock = for %{id: id} = item <- items, Item.can_help_unblock?(item, player), do: id
-    {:help, [move: move, unblock: unblock]}
+  def help_options(items, %Player{id: pid}) do
+    move = for %{id: id} = item <- items, Item.can_help_move?(item, pid), do: id
+    unblock = for %{id: id} = item <- items, Item.can_help_unblock?(item, pid), do: id
+
+    if Enum.empty?(move) && Enum.empty?(unblock) do
+      {:help, :done, [move: move, unblock: unblock]}
+    else
+      {:help, :act, [move: move, unblock: unblock]}
+    end
   end
 
-  @doc"""
-    This changes an identified item based on the function provided and the player_id.
-    The game is then updated with the new item replacing its old version
+  def exec_action(%{players: players} = game, act, item_id, player_id) do
+    item = Game.get_item(game, item_id)
+    player = Enum.find(players, &(&1.id == player_id))
 
-    This is a DRY change for the :handle_move :act, :help & :block methods in GameServer
-  """
-  def exec_action(game, fun, item_id, player_id) do
-    new_item =
-      Game.get_item(game, item_id)
-      |> fun.(player_id)
-    Game.change_item(game, new_item)
+    {item_, player_} = action(act, item, player)
+
+    update_game(game, item_, player_)
   end
 
+  def action(:start, item, player), do: { Item.start(item, player.id), %{player | state: :done } }
+  def action(:block, item, player), do: { Item.block(item, player.id), %{player | state: :done } }
+  def action(:unblock, item, player), do: { Item.unblock(item), %{player | state: :done } }
+  def action(:reject, item, player), do: { Item.reject(item), %{player | state: :done } }
+  def action(:move, item, player) do
+    item_ = Item.move_right(item)
+    player_ =
+      if Item.complete?(item_) do
+        %{player | state: :reject }
+      else
+        %{player | state: :done }
+      end
+    {item_, player_}
+  end
+  def action(act, _, _), do: raise "invalid action: #{inspect act}"
 end

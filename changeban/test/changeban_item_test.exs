@@ -52,11 +52,14 @@ defmodule ChangebanItemTest do
 
   test "block failure modes test" do
     item = Item.new(1)
-    assert_raise RuntimeError, "User 0 cannot block %Changeban.Item{blocked: false, id: 1, owner: nil, state: 0, type: :change} ", fn -> Item.block(item, 0) end
-    item = Item.new(1) |> Item.start(0) |> Item.move_right |> Item.move_right |> Item.move_right
-    assert_raise RuntimeError, "User 0 cannot block %Changeban.Item{blocked: false, id: 1, owner: 0, state: 4, type: :change} ", fn -> Item.block(item, 0) end
+
+    assert_raise RuntimeError, "Player 0 cannot block %Changeban.Item{blocked: false, id: 1, owner: nil, state: 0, type: :change} ", fn -> Item.block(item, 0) end
+    item = Item.new(1) |> Item.start(0
+    ) |> Item.move_right |> Item.move_right |> Item.move_right
+    assert_raise RuntimeError, "Player 0 cannot block %Changeban.Item{blocked: false, id: 1, owner: 0, state: 4, type: :change} ", fn -> Item.block(item, 0) end
     item = Item.new(1) |> Item.reject
-    assert_raise RuntimeError, "User 0 cannot block %Changeban.Item{blocked: false, id: 1, owner: nil, state: 5, type: :change} ", fn -> Item.block(item, 0) end
+
+    assert_raise RuntimeError, "Player 0 cannot block %Changeban.Item{blocked: false, id: 1, owner: nil, state: 5, type: :change} ", fn -> Item.block(item, 0) end
   end
 
   test "basic unblock test" do

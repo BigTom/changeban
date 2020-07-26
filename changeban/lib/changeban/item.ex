@@ -36,33 +36,16 @@ defmodule Changeban.Item do
     end
   end
 
-  def progress(%Item{owner: owner} = item, user_id) do
-    cond do
-      in_agree_urgency?(item) -> start(item, user_id)
-      blocked?(item) && owner == user_id -> unblock(item)
-      in_progress?(item) && owner == user_id -> move_right(item)
-      true -> raise "User #{user_id} cannot progress #{inspect(item)} "
-    end
-  end
-
-  def help(%Item{owner: owner} = item, user_id) do
-    cond do
-      blocked?(item) && owner != user_id -> unblock(item)
-      in_progress?(item) && owner != user_id -> move_right(item)
-      true -> raise "User #{user_id} cannot help #{inspect(item)} "
-    end
-  end
-
-  def block(%Item{blocked: false} = item, user_id) do
-    if in_progress?(item) && item.owner == user_id do
+  def block(%Item{blocked: false} = item, player_id) do
+    if in_progress?(item) && item.owner == player_id do
       %{item | blocked: true }
     else
-      raise "User #{user_id} cannot block #{inspect(item)} "
+      raise "Player #{player_id} cannot block #{inspect(item)} "
     end
   end
 
   def unblock(%Item{blocked: true} = item), do: %{item | blocked: false }
-  def unblock(item, _player_id), do: unblock(item)
+  def unblock(item, _player_id), do: item
 
   def in_agree_urgency?(%Item{state: state}), do: state == 0
   def in_progress?(%Item{state: state}), do: 0 < state && state < 4
@@ -96,7 +79,8 @@ defmodule Changeban.Item do
     Item.in_agree_urgency?(item)
   end
   def can_move?(%Item{owner: owner, blocked: blocked} = item, player) do
-    Item.in_progress?(item) && owner == player && ! blocked
+    answer = Item.in_progress?(item) && owner == player && ! blocked
+    answer
   end
   def can_unblock?(%Item{owner: owner, blocked: blocked} = item, player) do
     Item.in_progress?(item) && owner == player && blocked

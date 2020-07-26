@@ -17,9 +17,13 @@ defmodule ChangebanGameTest do
   end
 
   test "New game test number of changes" do
+    players = [
+      %Player{id: 0, machine: :black, state: :new, options: nil},
+      %Player{id: 1, machine: :black, state: :new, options: nil}
+    ]
     game =
-      Game.new()
-      |> Game.start_item(4, 1)
+      %{Game.new() | players: players}
+      |> Game.exec_action(:start, 4, 1)
     assert Game.get_item(game, 4).owner == 1
   end
 
@@ -58,25 +62,37 @@ defmodule ChangebanGameTest do
   end
 
   test "player_red_moves_at_start" do
-    game = Game.new()
-    assert {:act, [move: [], unblock: [], start: Enum.to_list(0..15)]} == Game.red_options(game, 0)
+    game = Game.new() |> Game.add_player()
+    player = Enum.at(game.players, 0)
+    assert {:red, :act, [ move: [], unblock: [], start: Enum.to_list(0..15)]} == Game.red_options(game.items, player)
   end
 
   test "player_black_moves_at_start" do
-    game = Game.new()
-    assert {:act, [block: [], start: Enum.to_list(0..15)]} == Game.black_options(game, 0)
+    player = %Player{id: 0, machine: :black, state: :new, options: nil}
+    game = %{Game.new() | players: [player]}
+
+    assert {:black, :start, [block: [], start: Enum.to_list(0..15)]} == Game.black_options(game.items, player)
   end
 
   test "help response 1 move, 1 unblock" do
-    assert {:help, [move: [0], unblock: [1]]} == Game.help_options(s1b1c1r1_game().items, 0)
+    player = %Player{id: 0, machine: :black, state: :new, options: nil}
+    game = %{s1b1c1r1_game() | players: [player]}
+
+    assert {:help, :act, [move: [0], unblock: [1]]} == Game.help_options(game.items, player)
   end
 
   test "black_options response 1 move, 1 unblock" do
-    assert {:help, [move: [0], unblock: [1]]} == Game.black_options(s1b1c1r1_game(), 0)
+    player = %Player{id: 0, machine: :black, state: :new, options: nil}
+    game = %{s1b1c1r1_game() | players: [player]}
+
+    assert {:help, :act, [move: [0], unblock: [1]]} == Game.black_options(game.items, player)
   end
 
   test "red_options response 1 move, 1 unblock" do
-    assert {:help, [move: [0], unblock: [1]]} == Game.red_options(s1b1c1r1_game(), 0)
+    player = %Player{id: 0, machine: :black, state: :new, options: nil}
+    game = %{s1b1c1r1_game() | players: [player]}
+
+    assert {:help, :act, [move: [0], unblock: [1]]} == Game.red_options(game.items, player)
   end
 
   test "max score" do
@@ -87,34 +103,98 @@ defmodule ChangebanGameTest do
      assert 10 == Game.calculate_score(min_score_game())
   end
 
-  test "change_item" do
+#   test "new turn" do
+#     game =
+#       Game.new()
+#       |> Game.add_player()
+#       |> Game.add_player()
+
+#     player = Enum.fetch(game.players, 0)
+
+#     assert :new == player.state
+#  end
+
+  test "calculate red turn player options" do
+    player = %Player{id: 0, machine: :red, state: :new, options: nil}
+    game =
+      %{Game.new() | players: [player]}
+
+    expected_player = %Player{id: 0, machine: :red, state: :act, options: [move: [], unblock: [], start: Enum.to_list(0..15)]}
+    assert expected_player == Game.calculate_player_options(game, player)
+  end
+
+  test "calculate red turn player options with nothing to move" do
+    game = min_score_game()
+    player = Enum.at(game.players, 0)
+    expected_player = %Player{id: 0, machine: :help, state: :done, options: [move: [], unblock: []]}
+    assert expected_player == Game.calculate_player_options(game, player)
+  end
+
+  test "calculate help turn player options with nothing to move" do
+    game = min_score_game()
+    player = %Player{id: 0, machine: :help, state: :help, options: []}
+    expected_player = %Player{id: 0, machine: :help, state: :done, options: [move: [], unblock: []]}
+    assert expected_player == Game.calculate_player_options(game, player)
+  end
+
+  test "calculate black turn player start options" do
+    player = %Player{id: 0, machine: :black, state: :new, options: nil}
+    game =
+      %{Game.new() | players: [player]}
+
+    expected_player = %Player{id: 0, machine: :black, state: :start, options: [block: [], start: Enum.to_list(0..15)]}
+    assert expected_player == Game.calculate_player_options(game, player)
+  end
+
+  test "calculate black turn player block options" do
+    player = %Player{id: 0, machine: :black, state: :new, options: nil}
+    game =
+      %Game{
+        items: [
+          %Changeban.Item{blocked: true, id: 0, owner: 1, state: 2, type: :task},
+          %Changeban.Item{blocked: false, id: 1, owner: 0, state: 1, type: :task}
+        ],
+        players: [player]
+      }
+
+    expected_player = %Player{id: 0, machine: :black, state: :block, options: [block: [1], start: []]}
+    assert expected_player == Game.calculate_player_options(game, player)
+  end
+
+  test "update_item" do
     changed_item = %Changeban.Item{blocked: false, id: 0, owner: 0, state: 1, type: :task}
-    game = Game.new() |> Game.change_item(changed_item)
+    changed_player = %Changeban.Player{id: 0, machine: :red, state: :done, options: nil}
+    game =
+      Game.new()
+      |> Game.add_player()
+      |> Game.update_game(changed_item, changed_player)
     assert changed_item == Game.get_item(game, changed_item.owner)
   end
 
   test "exec_action, block" do
     item_id = 1
-    game = Game.exec_action(all_states_game(), &Item.block/2, item_id, 1)
+    game = Game.exec_action(all_states_game(), :block, item_id, 1)
     assert Game.get_item(game, item_id) |> Item.blocked?
   end
+
   test "exec_action, unblock" do
     item_id = 2
-    game = Game.exec_action(all_states_game(), &Item.unblock/2, item_id, 1)
+    game = Game.exec_action(all_states_game(), :unblock, item_id, 1)
     refute Game.get_item(game, item_id) |> Item.blocked?
   end
   test "exec_action, progress to start" do
     item_id = 0
-    game = Game.exec_action(all_states_game(), &Item.progress/2, item_id, 1)
+    game = Game.exec_action(all_states_game(), :start, item_id, 0)
     assert Game.get_item(game, item_id) |> Item.in_progress?
   end
   test "exec_action, progress to complete" do
     item_id = 1
-    game = Game.exec_action(all_states_game(), &Item.progress/2, item_id, 1)
+    player = %Player{id: 0, machine: :red, state: :new, options: nil}
+    game =
+      %{all_states_game() | players: [player]}
+      |> Game.exec_action(:move, item_id, 0)
     assert Game.get_item(game, item_id) |> Item.complete?()
   end
-
-
 
   defp won_game() do
     %Game{
@@ -136,7 +216,13 @@ defmodule ChangebanGameTest do
         %Changeban.Item{blocked: false, id: 14, owner: 0, state: 8, type: :task},
         %Changeban.Item{blocked: false, id: 15, owner: 0, state: 8, type: :change}
       ],
-      players: [0,1,2,3,4]
+      players: [
+        %Changeban.Player{id: 0, machine: :red, state: :done, options: nil},
+        %Changeban.Player{id: 1, machine: :black, state: :done, options: nil},
+        %Changeban.Player{id: 2, machine: :black, state: :done, options: nil},
+        %Changeban.Player{id: 3, machine: :black, state: :done, options: nil},
+        %Changeban.Player{id: 4, machine: :black, state: :done, options: nil}
+      ]
     }
   end
 
@@ -160,7 +246,10 @@ defmodule ChangebanGameTest do
         %Changeban.Item{blocked: false, id: 14, owner: 0, state: 8, type: :task},
         %Changeban.Item{blocked: false, id: 15, owner: 0, state: 8, type: :change}
       ],
-      players: []
+      players: [
+        %Changeban.Player{id: 0, machine: :red, state: :done, options: nil},
+        %Changeban.Player{id: 1, machine: :black, state: :done, options: nil}
+      ]
     }
   end
 
@@ -172,7 +261,10 @@ defmodule ChangebanGameTest do
         %Changeban.Item{blocked: false, id: 2, owner: 1, state: 4, type: :task},
         %Changeban.Item{blocked: false, id: 3, owner: 1, state: 5, type: :task},
       ],
-      players: []
+      players: [
+        %Changeban.Player{id: 0, machine: :red, state: :done, options: nil},
+        %Changeban.Player{id: 1, machine: :black, state: :done, options: nil}
+      ]
     }
   end
 
@@ -185,7 +277,12 @@ defmodule ChangebanGameTest do
         %Changeban.Item{blocked: false, id: 3, owner: 1, state: 4, type: :task},    # completed
         %Changeban.Item{blocked: false, id: 4, owner: 1, state: 5, type: :task},    # rejected
       ],
-      players: []
+      players: [
+        %Changeban.Player{id: 0, machine: :red, state: :done, options: nil},
+        %Changeban.Player{id: 1, machine: :black, state: :done, options: nil},
+        %Changeban.Player{id: 2, machine: :black, state: :done, options: nil},
+        %Changeban.Player{id: 3, machine: :black, state: :done, options: nil}
+      ]
     }
   end
 end

@@ -1,7 +1,7 @@
 defmodule Changeban.GameServer do
   use GenServer
 
-  alias Changeban.{Game, Item}
+  alias Changeban.{Game}
 
   require Logger
   @timeout :timer.hours(1)
@@ -25,7 +25,7 @@ defmodule Changeban.GameServer do
   end
 
   def move(game_name, type, item_id, player_id) do
-    GenServer.call(via_tuple(game_name), {:move, type, item_id, player_id})
+    GenServer.call(via_tuple(game_name), {:act, type, item_id, player_id})
   end
 
   @doc """
@@ -74,14 +74,11 @@ defmodule Changeban.GameServer do
     {:reply, Game.black_options(game, player_id), game, @timeout}
   end
 
-  def handle_call({:move, :act, item_id, player_id}, _from, game) do
-    make_move(&Item.progress/2, item_id, player_id, game)
-  end
-  def handle_call({:move, :help, item_id, player_id}, _from, game) do
-    make_move(&Item.help/2, item_id, player_id, game)
-  end
-  def handle_call({:move, :block, item_id, player_id}, _from, game) do
-    make_move(&Item.block/2, item_id, player_id, game)
+  # :start, :move, :block, :unblock, :reject
+  def handle_call({:act, act, item_id, player_id}, _from, game) do
+    updated_game = Game.exec_action(game, act, item_id, player_id)
+    :ets.insert(:games_table, {my_game_name(), updated_game})
+    {:reply, view_game(updated_game), updated_game, @timeout}
   end
 
   def handle_call(:view, _from, game) do
@@ -97,15 +94,6 @@ defmodule Changeban.GameServer do
     :ok
   end
   def terminate(_reason, _game), do: :ok
-
-  @doc"""
-    This is a DRY method for the :handle_move :act, :help & :block methods
-  """
-  def make_move(move_fun, item_id, player_id, game) do
-    updated_game = Game.exec_action(game, move_fun, item_id, player_id)
-    :ets.insert(:games_table, {my_game_name(), updated_game})
-    {:reply, view_game(updated_game), updated_game, @timeout}
-  end
 
   def view_game(game) do
     Enum.group_by(game.items, &(&1.state))

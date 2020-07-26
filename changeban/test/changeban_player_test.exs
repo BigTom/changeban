@@ -5,6 +5,6 @@ defmodule ChangebanPlayerTest do
   alias Changeban.Player
 
   test "New item" do
-    assert %Player{id: 0, turn_type: nil, state: nil} == Player.new(0)
+    assert %Player{id: 0, machine: nil, state: nil, options: nil} == Player.new(0)
   end
 end
