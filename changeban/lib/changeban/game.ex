@@ -32,7 +32,7 @@ defmodule Changeban.Game do
     new_player_id = Enum.count(players)
     if new_player_id <= @max_player_id do
       new_player = Player.new(new_player_id)
-      %{game | players: [new_player | players]}
+      {:ok, new_player_id, %{game | players: [new_player | players]}}
     else
       raise "Already at max players"
     end
@@ -191,9 +191,11 @@ defmodule Changeban.Game do
     end
   end
 
-  def exec_action(%{players: players} = game, act, item_id, player_id) do
+  def get_player(%Game{players: players}, player_id), do: Enum.find(players, &(&1.id == player_id))
+
+  def exec_action(%Game{} = game, act, item_id, player_id) do
     item = Game.get_item(game, item_id)
-    player = Enum.find(players, &(&1.id == player_id))
+    player = Game.get_player(game, player_id)
 
     {item_, player_} = action(act, item, player)
 

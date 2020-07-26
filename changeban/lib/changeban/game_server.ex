@@ -17,11 +17,12 @@ defmodule Changeban.GameServer do
     GenServer.call(via_tuple(game_name), :view)
   end
 
-  def get_red_options(game_name, player_id) do
-    GenServer.call(via_tuple(game_name), {:get_red_options, player_id})
+  def get_player(game_name, player_id) do
+    GenServer.call(via_tuple(game_name), {:get_player_options, player_id})
   end
-  def get_black_options(game_name, player_id) do
-    GenServer.call(via_tuple(game_name), {:get_black_options, player_id})
+
+  def add_player(game_name) do
+    GenServer.call(via_tuple(game_name), {:add_player})
   end
 
   def move(game_name, type, item_id, player_id) do
@@ -67,11 +68,14 @@ defmodule Changeban.GameServer do
     {:ok, game, @timeout}
   end
 
-  def handle_call({:get_red_options, player_id}, _from, game) do
-    {:reply, Game.red_options(game, player_id), game, @timeout}
+  def handle_call({:add_player}, _from, game) do
+    {:ok, player_id, updated_game} = Game.add_player(game)
+
+    {:reply, player_id, updated_game, @timeout}
   end
-  def handle_call({:get_black_options, player_id}, _from, game) do
-    {:reply, Game.black_options(game, player_id), game, @timeout}
+
+  def handle_call({:get_player, player_id}, _from, game) do
+    {:reply, Game.get_player(game, player_id), game, @timeout}
   end
 
   # :start, :move, :block, :unblock, :reject

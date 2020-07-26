@@ -1,5 +1,5 @@
 defmodule ChangebanGameTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   doctest Changeban.Game
   alias Changeban.{Game, Item, Player}
 
@@ -32,29 +32,34 @@ defmodule ChangebanGameTest do
   end
 
   test "add a player" do
-    game = Game.new() |> Game.add_player()
+    {:ok, player_id, game} = Game.new() |> Game.add_player()
     assert 1 == Game.player_count(game)
-    assert 0 == Enum.find(game.players, &(&1.id == 0)).id
+    assert 0 == player_id
+  end
+
+  def add_player_helper(game) do
+    {:ok, player_id, game} = Game.add_player(game)
+    game
   end
 
   test "add five players" do
     game = Game.new()
-      |> Game.add_player()
-      |> Game.add_player()
-      |> Game.add_player()
-      |> Game.add_player()
-      |> Game.add_player()
+      |> add_player_helper()
+      |> add_player_helper()
+      |> add_player_helper()
+      |> add_player_helper()
+      |> add_player_helper()
     assert 5 == Game.player_count(game)
     assert 4 == Enum.find(game.players, &(&1.id == 4)).id
   end
 
   test "don't add more than five players" do
     game = Game.new()
-      |> Game.add_player()
-      |> Game.add_player()
-      |> Game.add_player()
-      |> Game.add_player()
-      |> Game.add_player()
+      |> add_player_helper()
+      |> add_player_helper()
+      |> add_player_helper()
+      |> add_player_helper()
+      |> add_player_helper()
 
     assert_raise RuntimeError, "Already at max players", fn -> Game.add_player(game) end
     assert 5 == Game.player_count(game)
@@ -62,8 +67,8 @@ defmodule ChangebanGameTest do
   end
 
   test "player_red_moves_at_start" do
-    game = Game.new() |> Game.add_player()
-    player = Enum.at(game.players, 0)
+    {:ok, player_id, game} = Game.new() |> Game.add_player()
+    player = Enum.at(game.players, player_id)
     assert {:red, :act, [ move: [], unblock: [], start: Enum.to_list(0..15)]} == Game.red_options(game.items, player)
   end
 
@@ -166,7 +171,7 @@ defmodule ChangebanGameTest do
     changed_player = %Changeban.Player{id: 0, machine: :red, state: :done, options: nil}
     game =
       Game.new()
-      |> Game.add_player()
+      |> add_player_helper()
       |> Game.update_game(changed_item, changed_player)
     assert changed_item == Game.get_item(game, changed_item.owner)
   end

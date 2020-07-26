@@ -2,22 +2,23 @@ defmodule ChangebanGameServerTest do
   use ExUnit.Case, async: true
   # doctest Changeban.GameServer
 
-  # setup do
-  #   server = start_supervised(child_spec = %{
-  #     id: GameServer,
-  #     start: {GameServer, :start_link, ["111111"]},
-  #     restart: :transient
-  #   })
-  # end
+  alias Changeban.{GameSupervisor, GameServer, Player}
 
-  # test "initial state", %{game_server: game_server} do
+  setup do
+    game_name = "#{Enum.random(0..999999)}"
 
-  # end
+    on_exit fn ->
+      IO.puts("exiting game: #{game_name}")
+      GameSupervisor.stop_game(game_name)
+    end
 
-  # test "New game test number of items" do
-  #   game = Game.new()
-  #   assert Enum.count(game.items) == 16
-  # end
+    IO.puts("starting game: #{game_name}")
+    GameSupervisor.start_game(game_name)
 
+    {:ok, game_name: game_name}
+  end
 
+  test "add player to game", %{game_name: game_name} do
+    assert 0 == GameServer.add_player(game_name)
+  end
 end
