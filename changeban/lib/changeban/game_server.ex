@@ -25,6 +25,10 @@ defmodule Changeban.GameServer do
     GenServer.call(via_tuple(game_name), {:add_player})
   end
 
+  def start_game(game_name) do
+    GenServer.call(via_tuple(game_name), {:start_game})
+  end
+
   def move(game_name, type, item_id, player_id) do
     GenServer.call(via_tuple(game_name), {:act, type, item_id, player_id})
   end
@@ -69,24 +73,30 @@ defmodule Changeban.GameServer do
   end
 
   def handle_call({:add_player}, _from, game) do
-    {:ok, player_id, updated_game} = Game.add_player(game)
-
-    {:reply, player_id, updated_game, @timeout}
+    case Game.add_player(game) do
+      {:ok, player_id, updated_game} -> {:reply, {:ok, player_id, updated_game}, updated_game, @timeout}
+      {:error, msg} -> {:reply, {:error, msg}, game, @timeout}
+    end
   end
 
   def handle_call({:get_player, player_id}, _from, game) do
     {:reply, Game.get_player(game, player_id), game, @timeout}
   end
 
+  def handle_call({:start_game}, _from, game) do
+    game_ = Game.start_game(game)
+    {:reply, game_, game_, @timeout}
+  end
+
   # :start, :move, :block, :unblock, :reject
   def handle_call({:act, act, item_id, player_id}, _from, game) do
     updated_game = Game.exec_action(game, act, item_id, player_id)
     :ets.insert(:games_table, {my_game_name(), updated_game})
-    {:reply, view_game(updated_game), updated_game, @timeout}
+    {:reply, updated_game, updated_game, @timeout}
   end
 
   def handle_call(:view, _from, game) do
-    {:reply, view_game(game), game, @timeout}
+    {:reply, game, game, @timeout}
   end
 
   def handle_info(:timeout, game) do

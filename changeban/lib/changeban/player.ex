@@ -15,16 +15,16 @@ defmodule Changeban.Player do
     If you cannot do ANY of these, then HELP someone
 
     :red state machine
-    before  after    act       + found available acts
-    ------  -------  ------    --------------------------------------
-    :new    :act     *calc     self n start|move|unblock
-    :new    ->help   *calc     self 0 start|move|unblock
-    :act    :act     *calc     self n start|move|unblock    recalcs after another player moves
-    :act    ->help   *calc     self 0 start|move|unblock    recalcs after another player moves
-    :act    :done    ! accept  -
-    :act    :reject  accept    all n rejectable
-    :act    :done    accept    all 0 rejectable             game is probably over
-    :done   :done    *calc     -
+    before   act       after      + found available acts
+    ------   ------    -------    -------------------------
+    -        new_turn  :act       self n start|move|unblock
+    -        new_turn  ->help     self 0 start|move|unblock
+    :act     *calc     :act       self n start|move|unblock
+    :act     *calc     ->help     self 0 start|move|unblock
+    :act     ! accept  :done      -
+    :act     accept    :reject    all n rejectable
+    :act     accept    :done      all 0 rejectable
+    :done    *calc     :done      -
 
     BLACK MOVES
     BOTH:
@@ -34,31 +34,32 @@ defmodule Changeban.Player do
     If you cannot START, then HELP someone
 
     :black state machine
-    before  after    act       + found available acts
-    ------  -------  ------    --------------------------------------
-    :new    :start   *calc     n starts, 0 blocks
-    :new    :block   *calc     0 starts, n blocks
-    :new    ->help   *calc     0 starts, 0 blocks
-    :start  :done    start     -
-    :block  :help    block     other n start|move|unblock
-    :block  :done    block     other 0 start|move|unblock   game is probably over
-    :done   :done    *calc     -
+    before   act       after      + found available acts
+    ------   ------    -------    --------------------------------------
+    :new     *calc     ->help     0 starts, 0 blocks
+    :new     *calc     :start     n starts, 0 blocks
+    :new     *calc     :block     0 starts, n blocks
+    :new     *calc     :both      n starts, n blocks
+    :start   start     :done      -
+    :block   block     :help      n start
+    :block   block     :done      other 0 start|move|unblock   game is probably over
+    :done    *calc     :done      -
 
 
     If you cannot MOVE, HELP someone!
     Advance or unblock ONE item from another player
 
     :help state machine
-    before  after    act       + found available acts
-    ------  -------  ------    --------------------------------------
-    -       :act     ->help    other n start|move|unblock
-    -       :done    ->help    other 0 start|move|unblock   game is probably over
-    :act    :reject  accept    n rejectable (all players)
-    :act    :done    ! accept  -
-    :act    :done    accept    0 rejectable (all player)    game is probably over
-    :help   :help    *calc     other n start|move|unblock
-    :help   :done    *calc     other 0 start|move|unblock   game is probably over
-    :done   :done    *calc     -
+    before   act       after      + found available acts
+    ------   ------    -------    --------------------------------------
+    -        ->help    :act       other n start|move|unblock
+    -        ->help    :done      other 0 start|move|unblock   game is probably over
+    :act     accept    :reject    n rejectable (all players)
+    :act     ! accept  :done      -
+    :act     accept    :done      0 rejectable (all player)    game is probably over
+    :help    *calc     :help      other n start|move|unblock
+    :help    *calc     :done      other 0 start|move|unblock   game is probably over
+    :done    *calc     :done      -
 
     at start of turn is calculated as :red or :black
     if :red, after moving state goes to done (unless move was accept)
@@ -67,7 +68,7 @@ defmodule Changeban.Player do
   """
   alias Changeban.Player
 
-  defstruct id: nil, machine: nil, state: nil, options: nil
+  defstruct id: nil, machine: nil, state: nil, past: nil, options: nil
 
   def new(id) do
      %Player{id: id}

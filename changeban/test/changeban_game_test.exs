@@ -38,7 +38,7 @@ defmodule ChangebanGameTest do
   end
 
   def add_player_helper(game) do
-    {:ok, player_id, game} = Game.add_player(game)
+    {:ok, _player_id, game} = Game.add_player(game)
     game
   end
 
@@ -61,43 +61,63 @@ defmodule ChangebanGameTest do
       |> add_player_helper()
       |> add_player_helper()
 
-    assert_raise RuntimeError, "Already at max players", fn -> Game.add_player(game) end
+    assert {:error, "Already at max players"} == Game.add_player(game)
     assert 5 == Game.player_count(game)
     assert 4 == Enum.find(game.players, &(&1.id == 4)).id
   end
 
-  test "player_red_moves_at_start" do
+  test "player_red_move_options_at_start" do
     {:ok, player_id, game} = Game.new() |> Game.add_player()
     player = Enum.at(game.players, player_id)
-    assert {:red, :act, [ move: [], unblock: [], start: Enum.to_list(0..15)]} == Game.red_options(game.items, player)
+    expected_response = %Changeban.Player{id: 0, machine: nil, options: [move: [], unblock: [], start: Enum.to_list(0..15)], past: nil, state: :act}
+
+    assert expected_response == Game.red_options(game.items, player)
   end
 
-  test "player_black_moves_at_start" do
+  test "player_black_move_options_at_start" do
     player = %Player{id: 0, machine: :black, state: :new, options: nil}
     game = %{Game.new() | players: [player]}
+    expected_response = %Player{id: 0, machine: :black, options: [block: [], start: Enum.to_list(0..15)], past: nil, state: :act}
 
-    assert {:black, :start, [block: [], start: Enum.to_list(0..15)]} == Game.black_options(game.items, player)
+    assert expected_response == Game.black_options(game.items, player)
+  end
+
+  test "player_options_after_start_game" do
+    game = %{Game.new() | players: [%Player{id: 0}]}
+    game_ = Game.start_game(game)
+    actual_player = Game.get_player(game_, 0)
+
+    expected_player =
+      if (actual_player.machine == :red) do
+        %Player{id: 0, machine: :red, state: :act, options: [move: [], unblock: [], start: Enum.to_list(0..15)]}
+      else
+        %Player{id: 0, machine: :black, state: :act, options: [block: [], start: Enum.to_list(0..15)]}
+      end
+    assert expected_player == actual_player
   end
 
   test "help response 1 move, 1 unblock" do
     player = %Player{id: 0, machine: :black, state: :new, options: nil}
     game = %{s1b1c1r1_game() | players: [player]}
+    expected_response = %Player{id: 0, machine: :black, options: [move: [0], unblock: [1]], past: nil, state: :act}
 
-    assert {:help, :act, [move: [0], unblock: [1]]} == Game.help_options(game.items, player)
+    assert expected_response == Game.help_options(game.items, player)
   end
 
   test "black_options response 1 move, 1 unblock" do
     player = %Player{id: 0, machine: :black, state: :new, options: nil}
     game = %{s1b1c1r1_game() | players: [player]}
+    expected_response = %Player{id: 0, machine: :black, options: [block: [], start: []], past: nil, state: :act}
 
-    assert {:help, :act, [move: [0], unblock: [1]]} == Game.black_options(game.items, player)
+    assert expected_response == Game.black_options(game.items, player)
   end
 
   test "red_options response 1 move, 1 unblock" do
     player = %Player{id: 0, machine: :black, state: :new, options: nil}
     game = %{s1b1c1r1_game() | players: [player]}
+    expected_response = %Player{id: 0, machine: :black, options: [move: [0], unblock: [1]], past: nil, state: :act}
 
-    assert {:help, :act, [move: [0], unblock: [1]]} == Game.red_options(game.items, player)
+    assert expected_response == Game.red_options(game.items, player)
   end
 
   test "max score" do
@@ -125,21 +145,21 @@ defmodule ChangebanGameTest do
       %{Game.new() | players: [player]}
 
     expected_player = %Player{id: 0, machine: :red, state: :act, options: [move: [], unblock: [], start: Enum.to_list(0..15)]}
-    assert expected_player == Game.calculate_player_options(game, player)
+    assert expected_player == Game.calculate_player_options(game.items, player)
   end
 
   test "calculate red turn player options with nothing to move" do
     game = min_score_game()
     player = Enum.at(game.players, 0)
-    expected_player = %Player{id: 0, machine: :help, state: :done, options: [move: [], unblock: []]}
+    expected_player = %Player{id: 0, machine: :red, state: :done, options: nil}
     assert expected_player == Game.calculate_player_options(game, player)
   end
 
   test "calculate help turn player options with nothing to move" do
     game = min_score_game()
-    player = %Player{id: 0, machine: :help, state: :help, options: []}
-    expected_player = %Player{id: 0, machine: :help, state: :done, options: [move: [], unblock: []]}
-    assert expected_player == Game.calculate_player_options(game, player)
+    player = %Player{id: 0, machine: :red, state: :new, options: []}
+    expected_player = %Player{id: 0, machine: :red, state: :done, options: nil}
+    assert expected_player == Game.calculate_player_options(game.items, player)
   end
 
   test "calculate black turn player start options" do
@@ -147,8 +167,8 @@ defmodule ChangebanGameTest do
     game =
       %{Game.new() | players: [player]}
 
-    expected_player = %Player{id: 0, machine: :black, state: :start, options: [block: [], start: Enum.to_list(0..15)]}
-    assert expected_player == Game.calculate_player_options(game, player)
+    expected_player = %Player{id: 0, machine: :black, state: :act, options: [block: [], start: Enum.to_list(0..15)]}
+    assert expected_player == Game.calculate_player_options(game.items, player)
   end
 
   test "calculate black turn player block options" do
@@ -162,8 +182,8 @@ defmodule ChangebanGameTest do
         players: [player]
       }
 
-    expected_player = %Player{id: 0, machine: :black, state: :block, options: [block: [1], start: []]}
-    assert expected_player == Game.calculate_player_options(game, player)
+    expected_player = %Player{id: 0, machine: :black, state: :act, options: [block: [1], start: []]}
+    assert expected_player == Game.calculate_player_options(game.items, player)
   end
 
   test "update_item" do
@@ -187,9 +207,14 @@ defmodule ChangebanGameTest do
     game = Game.exec_action(all_states_game(), :unblock, item_id, 1)
     refute Game.get_item(game, item_id) |> Item.blocked?
   end
-  test "exec_action, progress to start" do
+  test "exec_action, start an item" do
     item_id = 0
     game = Game.exec_action(all_states_game(), :start, item_id, 0)
+    assert Game.get_item(game, item_id) |> Item.in_progress?
+  end
+  test "exec_action, move an item but do not complete" do
+    item_id = 3
+    game = Game.exec_action(all_states_game(), :move, item_id, 0)
     assert Game.get_item(game, item_id) |> Item.in_progress?
   end
   test "exec_action, progress to complete" do
@@ -277,10 +302,11 @@ defmodule ChangebanGameTest do
     %Game{
       items: [
         %Changeban.Item{blocked: false, id: 0, owner: nil, state: 0, type: :task},  # in_agree_urgency
-        %Changeban.Item{blocked: false, id: 1, owner: 1, state: 3, type: :task},    # in_progress
+        %Changeban.Item{blocked: false, id: 1, owner: 1, state: 3, type: :task},    # ready to complete
         %Changeban.Item{blocked: true, id: 2, owner: 1, state: 1, type: :task},     # blocked
-        %Changeban.Item{blocked: false, id: 3, owner: 1, state: 4, type: :task},    # completed
-        %Changeban.Item{blocked: false, id: 4, owner: 1, state: 5, type: :task},    # rejected
+        %Changeban.Item{blocked: false, id: 3, owner: 1, state: 1, type: :task},     # in_progress
+        %Changeban.Item{blocked: false, id: 4, owner: 1, state: 4, type: :task},    # completed
+        %Changeban.Item{blocked: false, id: 5, owner: 1, state: 5, type: :task},    # rejected
       ],
       players: [
         %Changeban.Player{id: 0, machine: :red, state: :done, options: nil},
