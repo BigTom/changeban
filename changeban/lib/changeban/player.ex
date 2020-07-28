@@ -83,11 +83,11 @@ defmodule Changeban.Player do
         %{player | options: rejectable_items }
       end
     else
-        case machine do
-          :red -> red_options(items, player)
-          :black -> black_options(items, player)
-        end
+      case machine do
+        :red -> red_options(items, player)
+        :black -> black_options(items, player)
       end
+    end
   end
 
   @doc"""

@@ -113,17 +113,6 @@ defmodule ChangebanGameTest do
      assert 10 == Game.calculate_score(min_score_game())
   end
 
-#   test "new turn" do
-#     game =
-#       Game.new()
-#       |> Game.add_player()
-#       |> Game.add_player()
-
-#     player = Enum.fetch(game.players, 0)
-
-#     assert :new == player.state
-#  end
-
   test "calculate red turn player options" do
     player = %Player{id: 0, machine: :red, state: :new, options: nil}
     game =
@@ -195,6 +184,56 @@ defmodule ChangebanGameTest do
       %{all_states_game() | players: [player]}
       |> Game.exec_action(:move, item_id, 0)
     assert Game.get_item(game, item_id) |> Item.complete?()
+  end
+
+  test "test black blocks then starts" do
+    game =
+      Game.exec_action(game_1(), :start, 1, 0)
+      |> Game.exec_action(:block, 1, 0)
+
+    %{options: options, state: state} = Game.get_player(game, 0)
+    assert 2 == game.turn
+    assert :done == state
+    assert nil == options
+  end
+
+  test "test black starts then blocks" do
+    game =
+      Game.exec_action(game_1(), :block, 0, 0)
+      |> Game.exec_action(:start, 1, 0)
+
+    %{options: options, state: state} = Game.get_player(game, 0)
+    assert 2 == game.turn
+    assert :done == state
+    assert nil == options
+  end
+
+  test "turn changes after black two part move" do
+    game =
+      Game.exec_action(game_1(), :block, 0, 0)
+      |> Game.exec_action(:start, 2, 1)
+      |> Game.exec_action(:start, 1, 0)
+
+    %{state: state} = Game.get_player(game, 0)
+    assert 3 == game.turn
+    assert :act == state
+  end
+
+  defp game_1() do
+    %Game{
+      items: [
+        %Changeban.Item{blocked: false, id: 0, owner: 0, state: 1, type: :task},
+        %Changeban.Item{blocked: false, id: 1, owner: nil, state: 0, type: :change},
+        %Changeban.Item{blocked: false, id: 2, owner: nil, state: 0, type: :task},
+      ],
+      players: [
+        %Changeban.Player{id: 0, machine: :black, options: [block: [0], start: [1, 2]], past: nil, state: :act},
+        %Changeban.Player{id: 1, machine: :red, options: [block: [0], start: [1, 2]], past: nil, state: :act}
+      ],
+      turn: 2,
+      score: 0,
+      max_players: 5
+    }
   end
 
   defp won_game() do

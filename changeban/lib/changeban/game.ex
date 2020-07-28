@@ -59,6 +59,10 @@ defmodule Changeban.Game do
     |> recalculate_state
   end
 
+  def red_or_black() do
+    Enum.random([:red, :black])
+  end
+
   def get_item(%Game{items: items}, id) do
     items |> Enum.find(& ( &1.id == id))
   end
@@ -129,14 +133,24 @@ defmodule Changeban.Game do
   def action(:unblock, item, player), do: { Item.unblock(item), %{player | state: :done } }
   def action(:reject, item, player), do: { Item.reject(item), %{player | state: :done } }
   def action(:start, item, %Player{machine: machine} = player) do
-    item_ = Item.start(item, player.id)
     player_ = case machine do
       :red -> %{player | state: :done }
-      :black -> %{player | past: :started }
+      :black ->
+        case player.past do
+          :blocked -> %{player | state: :done}
+          _        -> %{player | past: :started}
+        end
     end
-    { item_, player_ }
+    { Item.start(item, player.id), player_ }
   end
-  def action(:block, item, player), do: { Item.block(item, player.id), %{player | past: :blocked } }
+  def action(:block, item, player) do
+    player_ =
+      case player.past do
+        :started -> %{player | state: :done}
+        _        -> %{player | past: :blocked}
+      end
+    { Item.block(item, player.id), player_}
+  end
   def action(:move, item, player) do
     item_ = Item.move_right(item)
     player_ =

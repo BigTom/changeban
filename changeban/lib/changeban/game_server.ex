@@ -18,7 +18,7 @@ defmodule Changeban.GameServer do
   end
 
   def get_player(game_name, player_id) do
-    GenServer.call(via_tuple(game_name), {:get_player_options, player_id})
+    GenServer.call(via_tuple(game_name), {:get_player, player_id})
   end
 
   def add_player(game_name) do

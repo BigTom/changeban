@@ -33,4 +33,16 @@ defmodule ChangebanPlayerTest do
 
     assert expected_response == Player.black_options(items, player)
   end
+
+  test "player black moves in early game" do
+    items = [
+      %Changeban.Item{blocked: true, id: 0, owner: 0, state: 1, type: :task},
+      %Changeban.Item{blocked: false, id: 1, owner: 0, state: 1, type: :change},
+      %Changeban.Item{blocked: false, id: 2, owner: 1, state: 1, type: :task}
+    ]
+    player = %Player{id: 1, machine: :black, state: :act, options: nil}
+    expected_response = %Player{id: 1, machine: :black, past: nil, state: :act, options: [block: [2], start: []]}
+
+    assert expected_response == Player.black_options(items, player)
+  end
 end
