@@ -14,8 +14,10 @@ defmodule GamesRoomWeb.ChangebanLive do
     Only called if user is already created
 
     creates user presence in game
-    If there is a game_id in the socket - carry on
-    If there is no game_id create a game
+    If there is a game_name
+     in the socket - carry on
+    If there is no game_name
+     create a game
   """
   @impl true
   def mount(params, %{"username" => username}, socket) do
@@ -26,33 +28,40 @@ defmodule GamesRoomWeb.ChangebanLive do
     Presence.track(self(), @presence_topic, socket.id, %{})
     GamesRoomWeb.Endpoint.subscribe(@presence_topic)
 
-    initial_present =
-      Presence.list(@presence_topic)
-      |> map_size
+    initial_present = Presence.list(@presence_topic) |> map_size
 
-      IO.puts "Before: Mounted Socket Assigns: #{inspect socket.assigns}"
+    IO.puts "Before: Mounted Socket Assigns: #{inspect socket.assigns}"
 
-      game_id =
-        if Map.get(socket.assigns, :game_id) do
-          IO.puts "have id"
-          socket.assigns.game_id
+    game_name =
+      if Map.get(socket.assigns, :game_name) do
+        socket.assigns.game_name
+      else
+        if Map.get(params,"id") do
+          Map.get(params,"id")
         else
-          IO.puts "don't have id"
-          if Map.get(params,"id") do
-            Map.get(params,"id")
-          else
-            id = gen_game_name()
-            GameSupervisor.start_game(id)
-            id
-          end
+          new_name = gen_game_name()
+          GameSupervisor.start_game(new_name)
+          new_name
         end
+      end
 
-    new_socket =
-      assign(socket,
+    {:ok, player_id, _} = GameServer.add_player(game_name)
+    GameServer.start_game(game_name)
+
+    {items, players, turn, score} = GameServer.view(game_name)
+    IO.puts("MOUNTING: id:    #{inspect player_id, pretty: true}")
+    IO.puts("MOUNTING: items: #{inspect items, pretty: true}")
+    IO.puts("MOUNTING: turn:  #{inspect turn, pretty: true}")
+    IO.puts("MOUNTING: score: #{inspect score, pretty: true}")
+
+    new_socket = assign(socket,
         val: Counter.current(),
-        game_id: game_id,
-        player_id: 0,
-        items: GameServer.view(game_id),
+        game_name: game_name,
+        player_id: player_id,
+        items: items,
+        player: Enum.at(players, player_id),
+        turn: turn,
+        score: score,
         present: initial_present,
         username: username)
 
@@ -65,12 +74,13 @@ defmodule GamesRoomWeb.ChangebanLive do
   def mount(params, _session, socket) do
     IO.puts("Redirecting from GamesRoomWeb.ChangebanLive.mount ---------------------------------------")
     # put_flash(socket, :info, "test_game")
-    game_id = Map.get(params,"id", "")
-    {:ok, push_redirect(socket, to: "/login/#{game_id}")}
+    game_name
+     = Map.get(params,"id", "")
+    {:ok, push_redirect(socket, to: "/login/#{game_name
+    }")}
   end
 
-
-    @impl true
+  @impl true
   def handle_event("inc", _, socket) do
     {:noreply, assign(prep_assigns(socket), :val, Counter.incr())}
   end
@@ -83,7 +93,13 @@ defmodule GamesRoomWeb.ChangebanLive do
   @impl true
   def handle_event("move", %{"id" => id}, socket) do
     IO.puts("GamesRoomWeb.ChangeBanLive.handle_event - move #{id} ---------------------------------------")
-    GameServer.move(socket.assigns.game_id, :act, String.to_integer(id), socket.assigns.player_id)
+    GameServer.move(socket.assigns.game_name, :move, String.to_integer(id), socket.assigns.player_id)
+    {:noreply, assign(prep_assigns(socket), :val, Counter.decr())}
+  end
+
+  def handle_event("start", %{"id" => id}, socket) do
+    IO.puts("GamesRoomWeb.ChangeBanLive.handle_event - move #{id} ---------------------------------------")
+    GameServer.move(socket.assigns.game_name, :start, String.to_integer(id), socket.assigns.player_id)
     {:noreply, assign(prep_assigns(socket), :val, Counter.decr())}
   end
 
@@ -103,7 +119,13 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   defp prep_assigns(socket) do
-    assign(socket, :items, GameServer.view(socket.assigns.game_id))
+    {items, players, turn, score} = GameServer.view(socket.assigns.game_name
+    )
+    assign(socket,
+      items: items,
+      player: players.at(socket.player_id),
+      turn: turn,
+      score: score)
   end
 
   @impl true
@@ -153,17 +175,21 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
+  def collect_item_data(item, _player) do
+    item
+  end
+
   def render_au_item(assigns) do
     # IO.puts("render_item: #{inspect assigns}")
     ~L"""
       <%= if @type == :task do %>
         <div class="border bg-green-500 border-green-700 w-8 px-1 py-3 m-1"
-             phx-click="move"
+             phx-click="start"
              phx-value-id="<%= @id %>">
       </div>
       <% else %>
         <div class="border bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
-             phx-click="move"
+             phx-click="start"
              phx-value-id="<%= @id %>">
         </div>
       <% end %>
@@ -204,7 +230,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     ~L"""
     <div class="flex flex-wrap">
       <%= for item <- Map.get(assigns.items, 0, []) do %>
-        <%= render_au_item(item) %>
+        <%= render_au_item(collect_item_data(item, @player)) %>
       <% end %>
     </div>
     """

@@ -96,7 +96,7 @@ defmodule Changeban.GameServer do
   end
 
   def handle_call(:view, _from, game) do
-    {:reply, game, game, @timeout}
+    {:reply, view_game(game), game, @timeout}
   end
 
   def handle_info(:timeout, game) do
@@ -110,7 +110,10 @@ defmodule Changeban.GameServer do
   def terminate(_reason, _game), do: :ok
 
   def view_game(game) do
-    Enum.group_by(game.items, &(&1.state))
+    {Enum.group_by(game.items, &(&1.state)),
+     game.players,
+     game.turn,
+     game.score}
   end
 
   defp my_game_name do
