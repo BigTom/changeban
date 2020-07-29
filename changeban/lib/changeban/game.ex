@@ -54,7 +54,7 @@ defmodule Changeban.Game do
   end
 
   def new_turn(%Game{players: players, turn: turn} = game) do
-    %{game | players: Enum.map(players, &(%{&1 | machine: Enum.random([:red, :black]), state: :act})),
+    %{game | players: Enum.map(players, &(%{&1 | machine: red_or_black(), state: :act})),
               turn: turn + 1}
     |> recalculate_state
   end

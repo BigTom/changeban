@@ -5,7 +5,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   alias GamesRoom.Counter
   alias Phoenix.PubSub
   alias GamesRoom.Presence
-  alias Changeban.{GameServer, GameSupervisor}
+  alias Changeban.{GameServer, GameSupervisor, Player, Item}
 
   @topic Counter.topic
   @presence_topic "presence"
@@ -49,10 +49,10 @@ defmodule GamesRoomWeb.ChangebanLive do
     GameServer.start_game(game_name)
 
     {items, players, turn, score} = GameServer.view(game_name)
-    IO.puts("MOUNTING: id:    #{inspect player_id, pretty: true}")
-    IO.puts("MOUNTING: items: #{inspect items, pretty: true}")
-    IO.puts("MOUNTING: turn:  #{inspect turn, pretty: true}")
-    IO.puts("MOUNTING: score: #{inspect score, pretty: true}")
+    IO.puts("MOUNTING: id:        #{inspect player_id, pretty: true}")
+    IO.puts("MOUNTING: items:     #{inspect items, pretty: true}")
+    IO.puts("MOUNTING: turn:      #{inspect turn, pretty: true}")
+    IO.puts("MOUNTING: score:     #{inspect score, pretty: true}")
 
     new_socket = assign(socket,
         val: Counter.current(),
@@ -65,7 +65,8 @@ defmodule GamesRoomWeb.ChangebanLive do
         present: initial_present,
         username: username)
 
-    IO.puts "After: Mounted Socket Assigns: #{inspect new_socket.assigns}"
+        IO.puts "After: player_id:              #{inspect new_socket.assigns.player_id}"
+        IO.puts "After: Mounted Socket Assigns: #{inspect new_socket.assigns}"
 
     {:ok, new_socket }
   end
@@ -98,7 +99,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def handle_event("start", %{"id" => id}, socket) do
-    IO.puts("GamesRoomWeb.ChangeBanLive.handle_event - move #{id} ---------------------------------------")
+    IO.puts("GamesRoomWeb.ChangeBanLive.handle_event - start #{id} ---------------------------------------")
     GameServer.move(socket.assigns.game_name, :start, String.to_integer(id), socket.assigns.player_id)
     {:noreply, assign(prep_assigns(socket), :val, Counter.decr())}
   end
@@ -119,11 +120,11 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   defp prep_assigns(socket) do
-    {items, players, turn, score} = GameServer.view(socket.assigns.game_name
-    )
+    {items, players, turn, score} = GameServer.view(socket.assigns.game_name)
+    IO.puts("PREP_ASSIGNS #{inspect socket.assigns, pretty: true}")
     assign(socket,
       items: items,
-      player: players.at(socket.player_id),
+      player: Enum.at(players, socket.assigns.player_id),
       turn: turn,
       score: score)
   end
@@ -138,6 +139,8 @@ defmodule GamesRoomWeb.ChangebanLive do
         <button class="border-2 border-gray-800 w-5 rounded-md bg-blue-400" phx-click="inc">+</button>
         Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
       </p>
+
+      <p>Turn: <%= @turn %></p>
 
       <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
         <%= headers(assigns) %>
@@ -175,44 +178,85 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  def collect_item_data(item, _player) do
-    item
+  def collect_item_data(%Item{id: item_id, type: type}, %Player{id: player_id, options: options}) do
+    new_assigns = %{id: item_id, type: type, player_id: player_id, items: options}
+    IO.puts("au_data: #{inspect new_assigns}")
+    new_assigns
   end
 
-  def render_au_item(assigns) do
-    # IO.puts("render_item: #{inspect assigns}")
-    ~L"""
-      <%= if @type == :task do %>
-        <div class="border bg-green-500 border-green-700 w-8 px-1 py-3 m-1"
-             phx-click="start"
-             phx-value-id="<%= @id %>">
-      </div>
-      <% else %>
-        <div class="border bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
-             phx-click="start"
-             phx-value-id="<%= @id %>">
-        </div>
-      <% end %>
-    """
+  def render_au_item(%{id: item_id, items: items} = assigns) do
+    if (Enum.find(items[:start], &(&1 == item_id)) == nil) do
+      ~L"""
+        <%= if @type == :task do %>
+          <div class="border bg-green-500 border-green-500 w-8 px-1 py-3 m-1"></div>
+        <% else %>
+          <div class="border bg-yellow-300 border-yellow-300 w-8 px-1 py-3 m-1"></div>
+        <% end %>
+      """
+    else
+      ~L"""
+        <%= if @type == :task do %>
+          <div class="border bg-green-500 border-green-700 w-8 px-1 py-3 m-1"
+                phx-click="start"
+                phx-value-id="<%= @id %>"
+        ></div>
+        <% else %>
+          <div class="border bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
+                phx-click="start"
+                phx-value-id="<%= @id %>"
+          ></div>
+        <% end %>
+      """
+    end
   end
 
-  def render_active_item(assigns) do
+#   def item_border(type) do
+#     if type == :task, do: "border-green-700", else: "border-yellow-300"
+#   end
+#   def item_bg(type) do
+#     if type == :task, do: "bg-green-500", else: "bg-yellow-300"
+#   end
+#   def act(color, blocked) do
+#     cond do
+#       color == :black && blocked, do: "phx-click='block'", else: "phx-click='move'"
+#     end color == :black, do: "phx-click='block'", else: "phx-click='move'"
+#   end
+
+#   def moving_item(assigns) do
+#     <div class="border <%= item_bg(@type) %> <%= item_border(@type) %> w-8 px-1 py-3 m-1"
+#     <%= item_bg(@type) %>
+#     phx-value-id="<%= @id %>">
+#   <%= @id %>
+# </div>
+#   end
+
+  def render_active_item(%{id: item_id, items: items} = assigns) do
     # IO.puts("render_item: #{inspect assigns}")
-    ~L"""
-      <%= if @type == :task do %>
-        <div class="border bg-green-500 border-green-700 w-8 px-1 py-3 m-1"
-             phx-click="move"
-             phx-value-id="<%= @id %>">
+    if (Enum.find(items[:move], &(&1 == item_id)) == nil) do
+      ~L"""
+          <%= if @type == :task do %>
+            <div class="border bg-green-500 border-green-500 w-8 px-1 py-3 m-1"></div>
+          <% else %>
+            <div class="border bg-yellow-300 border-yellow-300 w-8 px-1 py-3 m-1"></div>
+          <% end %>
+        """
+    else
+      ~L"""
+        <%= if @type == :task do %>
+          <div class="border bg-green-500 border-green-700 w-8 px-1 py-3 m-1"
+              phx-click="move"
+              phx-value-id="<%= @id %>">
+            <%= @id %>
+          </div>
+        <% else %>
+          <div class="border bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
+              phx-click="move"
+              phx-value-id="<%= @id %>">
           <%= @id %>
         </div>
-      <% else %>
-        <div class="border bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
-             phx-click="move"
-            phx-value-id="<%= @id %>">
-        <%= @id %>
-      </div>
-    <% end %>
-    """
+      <% end %>
+      """
+    end
   end
 
   def render_finished_item(assigns) do
@@ -240,7 +284,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     ~L"""
     <div class="flex flex-wrap">
       <%= for item <- Map.get(assigns.items, state, []) do %>
-        <%= render_active_item(item) %>
+        <%= render_active_item(collect_item_data(item, @player)) %>
       <% end %>
     </div>
     """

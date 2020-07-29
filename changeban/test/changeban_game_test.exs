@@ -18,8 +18,8 @@ defmodule ChangebanGameTest do
 
   test "New game test number of changes" do
     players = [
-      %Player{id: 0, machine: :black, state: :new, options: nil},
-      %Player{id: 1, machine: :black, state: :new, options: nil}
+      %Player{id: 0, machine: :black, state: :new, options: Player.empty_options()},
+      %Player{id: 1, machine: :black, state: :new, options: Player.empty_options()}
     ]
     game =
       %{Game.new() | players: players}
@@ -68,39 +68,39 @@ defmodule ChangebanGameTest do
 
 
   test "player_options_after_start_game" do
-    game = %{Game.new() | players: [%Player{id: 0}]}
+    game = %{Game.new() | players: [Player.new(0)]}
     game_ = Game.start_game(game)
     actual_player = Game.get_player(game_, 0)
 
-    expected_player =
-      if (actual_player.machine == :red) do
-        %Player{id: 0, machine: :red, state: :act, options: [move: [], unblock: [], start: Enum.to_list(0..15)]}
-      else
-        %Player{id: 0, machine: :black, state: :act, options: [block: [], start: Enum.to_list(0..15)]}
-      end
+    expected_options = %{Player.empty_options() | start: Enum.to_list(0..15)}
+    expected_player = %Player{id: 0, state: :act, machine: actual_player.machine, options: expected_options}
+
     assert expected_player == actual_player
   end
 
   test "help response 1 move, 1 unblock" do
-    player = %Player{id: 0, machine: :black, state: :new, options: nil}
+    player = %Player{id: 0, machine: :black, state: :new, options: Player.empty_options()}
     game = %{s1b1c1r1_game() | players: [player]}
-    expected_response = %Player{id: 0, machine: :black, options: [move: [0], unblock: [1]], past: nil, state: :act}
+    expected_options = %{Player.empty_options() | move: [0], unblock: [1]}
+
+    expected_response = %Player{id: 0, machine: :black, options: expected_options, past: nil, state: :act}
 
     assert expected_response == Player.help_options(game.items, player)
   end
 
   test "black_options response 1 move, 1 unblock" do
-    player = %Player{id: 0, machine: :black, state: :new, options: nil}
+    player = %Player{id: 0, machine: :black, state: :new, options: Player.empty_options()}
     game = %{s1b1c1r1_game() | players: [player]}
-    expected_response = %Player{id: 0, machine: :black, options: [block: [], start: []], past: nil, state: :act}
+    expected_response = %Player{id: 0, machine: :black, options: Player.empty_options(), past: nil, state: :act}
 
     assert expected_response == Player.black_options(game.items, player)
   end
 
   test "red_options response 1 move, 1 unblock" do
-    player = %Player{id: 0, machine: :black, state: :new, options: nil}
+    player = %Player{id: 0, machine: :black, state: :new, options: Player.empty_options()}
     game = %{s1b1c1r1_game() | players: [player]}
-    expected_response = %Player{id: 0, machine: :black, options: [move: [0], unblock: [1]], past: nil, state: :act}
+    expected_options = %{Player.empty_options() | move: [0], unblock: [1]}
+    expected_response = %Player{id: 0, machine: :black, options: expected_options, past: nil, state: :act}
 
     assert expected_response == Player.red_options(game.items, player)
   end
@@ -114,41 +114,42 @@ defmodule ChangebanGameTest do
   end
 
   test "calculate red turn player options" do
-    player = %Player{id: 0, machine: :red, state: :new, options: nil}
+    player = %Player{id: 0, machine: :red, state: :new, options: Player.empty_options()}
     game =
       %{Game.new() | players: [player]}
 
-    expected_player = %Player{id: 0,
-     machine: :red, state: :act, options: [move: [], unblock: [], start: Enum.to_list(0..15)]}
+      expected_options = %{Player.empty_options() | start: Enum.to_list(0..15)}
+      expected_player = %Player{id: 0, machine: :red, state: :act, options: expected_options}
     assert expected_player == Player.calculate_player_options(game.items, player)
   end
 
   test "calculate red turn player options with nothing to move" do
     game = min_score_game()
     player = Enum.at(game.players, 0)
-    expected_player = %Player{id: 0, machine: :red, state: :done, options: nil}
+    expected_player = %Player{id: 0, machine: :red, state: :done, options: Player.empty_options()}
     assert expected_player == Player.calculate_player_options(game, player)
   end
 
   test "calculate help turn player options with nothing to move" do
     game = min_score_game()
-    player = %Player{id: 0, machine: :red, state: :new, options: []}
-    expected_player = %Player{id: 0, machine: :red, state: :done, options: nil}
+    player = %Player{id: 0, machine: :red, state: :new, options: Player.empty_options()}
+    expected_player = %Player{id: 0, machine: :red, state: :done, options: Player.empty_options()}
     assert expected_player == Player.calculate_player_options(game.items, player)
   end
 
   test "calculate black turn player start options" do
-    player = %Player{id: 0, machine: :black, state: :new, options: nil}
+    player = %Player{id: 0, machine: :black, state: :new, options: Player.empty_options()}
     game =
       %{Game.new() | players: [player]}
 
-    expected_player = %Player{id: 0, machine: :black, state: :act, options: [block: [], start: Enum.to_list(0..15)]}
+    expected_options = %{Player.empty_options() | start: Enum.to_list(0..15)}
+    expected_player = %Player{id: 0, machine: :black, state: :act, options: expected_options}
     assert expected_player == Player.calculate_player_options(game.items, player)
   end
 
   test "update_item" do
     changed_item = %Changeban.Item{blocked: false, id: 0, owner: 0, state: 1, type: :task}
-    changed_player = %Changeban.Player{id: 0, machine: :red, state: :done, options: nil}
+    changed_player = %Changeban.Player{id: 0, machine: :red, state: :done, options: Player.empty_options()}
     game =
       Game.new()
       |> add_player_helper()
@@ -179,7 +180,7 @@ defmodule ChangebanGameTest do
   end
   test "exec_action, progress to complete" do
     item_id = 1
-    player = %Player{id: 0, machine: :red, state: :new, options: nil}
+    player = %Player{id: 0, machine: :red, state: :new, options: Player.empty_options()}
     game =
       %{all_states_game() | players: [player]}
       |> Game.exec_action(:move, item_id, 0)
@@ -194,7 +195,7 @@ defmodule ChangebanGameTest do
     %{options: options, state: state} = Game.get_player(game, 0)
     assert 2 == game.turn
     assert :done == state
-    assert nil == options
+    assert Player.empty_options() == options
   end
 
   test "test black starts then blocks" do
@@ -205,7 +206,7 @@ defmodule ChangebanGameTest do
     %{options: options, state: state} = Game.get_player(game, 0)
     assert 2 == game.turn
     assert :done == state
-    assert nil == options
+    assert Player.empty_options() == options
   end
 
   test "turn changes after black two part move" do
@@ -227,8 +228,8 @@ defmodule ChangebanGameTest do
         %Changeban.Item{blocked: false, id: 2, owner: nil, state: 0, type: :task},
       ],
       players: [
-        %Changeban.Player{id: 0, machine: :black, options: [block: [0], start: [1, 2]], past: nil, state: :act},
-        %Changeban.Player{id: 1, machine: :red, options: [block: [0], start: [1, 2]], past: nil, state: :act}
+        %Changeban.Player{id: 0, machine: :black, options: %{Player.empty_options() | start: [1, 2]}, past: nil, state: :act},
+        %Changeban.Player{id: 1, machine: :red,   options: %{Player.empty_options() | start: [1, 2]}, past: nil, state: :act}
       ],
       turn: 2,
       score: 0,
@@ -257,11 +258,11 @@ defmodule ChangebanGameTest do
         %Changeban.Item{blocked: false, id: 15, owner: 0, state: 8, type: :change}
       ],
       players: [
-        %Changeban.Player{id: 0, machine: :red, state: :done, options: nil},
-        %Changeban.Player{id: 1, machine: :black, state: :done, options: nil},
-        %Changeban.Player{id: 2, machine: :black, state: :done, options: nil},
-        %Changeban.Player{id: 3, machine: :black, state: :done, options: nil},
-        %Changeban.Player{id: 4, machine: :black, state: :done, options: nil}
+        %Changeban.Player{id: 0, machine: :red, state: :done, options: Player.empty_options()},
+        %Changeban.Player{id: 1, machine: :black, state: :done, options: Player.empty_options()},
+        %Changeban.Player{id: 2, machine: :black, state: :done, options: Player.empty_options()},
+        %Changeban.Player{id: 3, machine: :black, state: :done, options: Player.empty_options()},
+        %Changeban.Player{id: 4, machine: :black, state: :done, options: Player.empty_options()}
       ]
     }
   end
@@ -287,8 +288,8 @@ defmodule ChangebanGameTest do
         %Changeban.Item{blocked: false, id: 15, owner: 0, state: 8, type: :change}
       ],
       players: [
-        %Changeban.Player{id: 0, machine: :red, state: :done, options: nil},
-        %Changeban.Player{id: 1, machine: :black, state: :done, options: nil}
+        %Changeban.Player{id: 0, machine: :red, state: :done, options: Player.empty_options()},
+        %Changeban.Player{id: 1, machine: :black, state: :done, options: Player.empty_options()}
       ]
     }
   end
@@ -302,8 +303,8 @@ defmodule ChangebanGameTest do
         %Changeban.Item{blocked: false, id: 3, owner: 1, state: 5, type: :task},
       ],
       players: [
-        %Changeban.Player{id: 0, machine: :red, state: :done, options: nil},
-        %Changeban.Player{id: 1, machine: :black, state: :done, options: nil}
+        %Changeban.Player{id: 0, machine: :red, state: :done, options: Player.empty_options()},
+        %Changeban.Player{id: 1, machine: :black, state: :done, options: Player.empty_options()}
       ]
     }
   end
@@ -319,10 +320,10 @@ defmodule ChangebanGameTest do
         %Changeban.Item{blocked: false, id: 5, owner: 1, state: 5, type: :task},    # rejected
       ],
       players: [
-        %Changeban.Player{id: 0, machine: :red, state: :done, options: nil},
-        %Changeban.Player{id: 1, machine: :black, state: :done, options: nil},
-        %Changeban.Player{id: 2, machine: :black, state: :done, options: nil},
-        %Changeban.Player{id: 3, machine: :black, state: :done, options: nil}
+        %Changeban.Player{id: 0, machine: :red, state: :done, options: Player.empty_options()},
+        %Changeban.Player{id: 1, machine: :black, state: :done, options: Player.empty_options()},
+        %Changeban.Player{id: 2, machine: :black, state: :done, options: Player.empty_options()},
+        %Changeban.Player{id: 3, machine: :black, state: :done, options: Player.empty_options()}
       ]
     }
   end
