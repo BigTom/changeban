@@ -168,16 +168,19 @@ defmodule ChangebanGameTest do
     game = Game.exec_action(all_states_game(), :unblock, item_id, 1)
     refute Game.get_item(game, item_id) |> Item.blocked?
   end
+
   test "exec_action, start an item" do
     item_id = 0
     game = Game.exec_action(all_states_game(), :start, item_id, 0)
     assert Game.get_item(game, item_id) |> Item.in_progress?
   end
+
   test "exec_action, move an item but do not complete" do
     item_id = 3
     game = Game.exec_action(all_states_game(), :move, item_id, 0)
     assert Game.get_item(game, item_id) |> Item.in_progress?
   end
+
   test "exec_action, progress to complete" do
     item_id = 1
     player = %Player{id: 0, machine: :red, state: :new, options: Player.empty_options()}
@@ -187,37 +190,45 @@ defmodule ChangebanGameTest do
     assert Game.get_item(game, item_id) |> Item.complete?()
   end
 
-  test "test black blocks then starts" do
-    game =
-      Game.exec_action(game_1(), :start, 1, 0)
-      |> Game.exec_action(:block, 1, 0)
 
-    %{options: options, state: state} = Game.get_player(game, 0)
+  test "test black blocks then starts" do
+    game = game_1()
+    %{options: options, state: state, past: past} = Game.get_player(game, 0)
+    assert 2 == game.turn
+    assert nil == past
+
+    game = Game.exec_action(game, :start, 1, 0)
+    %{options: options, state: state, past: past} = Game.get_player(game, 0)
+    assert 2 == game.turn
+    assert :started == past
+    assert %{Player.empty_options() | start: [], block: [0,1]} == options
+
+    game = Game.exec_action(game, :block, 0, 0)
+    %{options: options, state: state, past: past} = Game.get_player(game, 0)
     assert 2 == game.turn
     assert :done == state
+    assert nil == past
     assert Player.empty_options() == options
   end
 
   test "test black starts then blocks" do
-    game =
-      Game.exec_action(game_1(), :block, 0, 0)
-      |> Game.exec_action(:start, 1, 0)
+    game = game_1()
+    %{options: options, state: state, past: past} = Game.get_player(game, 0)
+    assert 2 == game.turn
+    assert nil == past
 
-    %{options: options, state: state} = Game.get_player(game, 0)
+    game = Game.exec_action(game, :block, 0, 0)
+    %{options: options, state: state, past: past} = Game.get_player(game, 0)
+    assert 2 == game.turn
+    assert :blocked == past
+    assert %{Player.empty_options() | start: [1,2], block: []} == options
+
+    game = Game.exec_action(game, :start, 1, 0)
+    %{options: options, state: state, past: past} = Game.get_player(game, 0)
     assert 2 == game.turn
     assert :done == state
+    assert nil == past
     assert Player.empty_options() == options
-  end
-
-  test "turn changes after black two part move" do
-    game =
-      Game.exec_action(game_1(), :block, 0, 0)
-      |> Game.exec_action(:start, 2, 1)
-      |> Game.exec_action(:start, 1, 0)
-
-    %{state: state} = Game.get_player(game, 0)
-    assert 3 == game.turn
-    assert :act == state
   end
 
   defp game_1() do
@@ -228,7 +239,7 @@ defmodule ChangebanGameTest do
         %Changeban.Item{blocked: false, id: 2, owner: nil, state: 0, type: :task},
       ],
       players: [
-        %Changeban.Player{id: 0, machine: :black, options: %{Player.empty_options() | start: [1, 2]}, past: nil, state: :act},
+        %Changeban.Player{id: 0, machine: :black, options: %{Player.empty_options() | start: [1, 2], block: [0]}, past: nil, state: :act},
         %Changeban.Player{id: 1, machine: :red,   options: %{Player.empty_options() | start: [1, 2]}, past: nil, state: :act}
       ],
       turn: 2,
@@ -306,7 +317,7 @@ defmodule ChangebanGameTest do
         %Changeban.Player{id: 0, machine: :red, state: :done, options: Player.empty_options()},
         %Changeban.Player{id: 1, machine: :black, state: :done, options: Player.empty_options()}
       ]
-    }
+    } |> Game.start_game()
   end
 
   def all_states_game() do
@@ -325,6 +336,6 @@ defmodule ChangebanGameTest do
         %Changeban.Player{id: 2, machine: :black, state: :done, options: Player.empty_options()},
         %Changeban.Player{id: 3, machine: :black, state: :done, options: Player.empty_options()}
       ]
-    }
+    } |> Game.start_game()
   end
 end

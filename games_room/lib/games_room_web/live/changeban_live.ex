@@ -92,15 +92,10 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   @impl true
-  def handle_event("move", %{"id" => id}, socket) do
-    IO.puts("GamesRoomWeb.ChangeBanLive.handle_event - move #{id} ---------------------------------------")
-    GameServer.move(socket.assigns.game_name, :move, String.to_integer(id), socket.assigns.player_id)
-    {:noreply, assign(prep_assigns(socket), :val, Counter.decr())}
-  end
-
-  def handle_event("start", %{"id" => id}, socket) do
-    IO.puts("GamesRoomWeb.ChangeBanLive.handle_event - start #{id} ---------------------------------------")
-    GameServer.move(socket.assigns.game_name, :start, String.to_integer(id), socket.assigns.player_id)
+  def handle_event("move", %{"id" => id, "type" => type} = params, socket) do
+    IO.puts("GamesRoomWeb.ChangeBanLive.handle_event - move #{inspect params} ---------------------------------------")
+    type_atom = String.to_atom(type)
+    GameServer.move(socket.assigns.game_name, type_atom, String.to_integer(id), socket.assigns.player_id)
     {:noreply, assign(prep_assigns(socket), :val, Counter.decr())}
   end
 
@@ -121,7 +116,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   defp prep_assigns(socket) do
     {items, players, turn, score} = GameServer.view(socket.assigns.game_name)
-    IO.puts("PREP_ASSIGNS #{inspect socket.assigns, pretty: true}")
+    IO.puts("PREP_ASSIGNS #{inspect socket.assigns.player}")
     assign(socket,
       items: items,
       player: Enum.at(players, socket.assigns.player_id),
@@ -140,7 +135,7 @@ defmodule GamesRoomWeb.ChangebanLive do
         Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
       </p>
 
-      <p>Turn: <%= @turn %></p>
+      <p>Turn: <%= @turn %> Turn color: <%= @player.machine %></p>
 
       <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
         <%= headers(assigns) %>
@@ -178,94 +173,85 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  def collect_item_data(%Item{id: item_id, type: type}, %Player{id: player_id, options: options}) do
-    new_assigns = %{id: item_id, type: type, player_id: player_id, items: options}
-    IO.puts("au_data: #{inspect new_assigns}")
+  def collect_item_data(%Item{id: item_id, type: type, blocked: blocked}, %Player{id: player_id, options: options}) do
+    new_assigns = %{id: item_id, type: type, blocked: blocked, player_id: player_id, options: options}
+    # IO.puts("au_data: #{inspect new_assigns}")
     new_assigns
   end
 
-  def render_au_item(%{id: item_id, items: items} = assigns) do
-    if (Enum.find(items[:start], &(&1 == item_id)) == nil) do
+  def render_au_item(%{id: item_id, options: options} = assigns) do
+    if (Enum.find(options[:start], &(&1 == item_id)) == nil) do
       ~L"""
         <%= if @type == :task do %>
-          <div class="border bg-green-500 border-green-500 w-8 px-1 py-3 m-1"></div>
+          <div class="border bg-green-500 border-green-500 w-8 px-1 py-3 m-1"><%= @id %></div>
         <% else %>
-          <div class="border bg-yellow-300 border-yellow-300 w-8 px-1 py-3 m-1"></div>
+          <div class="border bg-yellow-300 border-yellow-300 w-8 px-1 py-3 m-1"><%= @id %></div>
         <% end %>
       """
     else
       ~L"""
         <%= if @type == :task do %>
-          <div class="border bg-green-500 border-green-700 w-8 px-1 py-3 m-1"
-                phx-click="start"
-                phx-value-id="<%= @id %>"
-        ></div>
+          <div class="border-2 bg-green-500 border-green-800 w-8 px-1 py-3 m-1"
+              phx-click="move"
+              phx-value-type="start"
+              phx-value-id="<%= @id %>">
+            <div><%= @id %></div>
+          </div>
         <% else %>
-          <div class="border bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
-                phx-click="start"
-                phx-value-id="<%= @id %>"
-          ></div>
+          <div class="border-2 bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
+              phx-click="move"
+              phx-value-type="start"
+              phx-value-id="<%= @id %>">
+            <div><%= @id %></div>
+          </div>
         <% end %>
       """
     end
   end
 
-#   def item_border(type) do
-#     if type == :task, do: "border-green-700", else: "border-yellow-300"
-#   end
-#   def item_bg(type) do
-#     if type == :task, do: "bg-green-500", else: "bg-yellow-300"
-#   end
-#   def act(color, blocked) do
-#     cond do
-#       color == :black && blocked, do: "phx-click='block'", else: "phx-click='move'"
-#     end color == :black, do: "phx-click='block'", else: "phx-click='move'"
-#   end
-
-#   def moving_item(assigns) do
-#     <div class="border <%= item_bg(@type) %> <%= item_border(@type) %> w-8 px-1 py-3 m-1"
-#     <%= item_bg(@type) %>
-#     phx-value-id="<%= @id %>">
-#   <%= @id %>
-# </div>
-#   end
-
-  def render_active_item(%{id: item_id, items: items} = assigns) do
-    # IO.puts("render_item: #{inspect assigns}")
-    if (Enum.find(items[:move], &(&1 == item_id)) == nil) do
-      ~L"""
+  def render_active_item(%{id: item_id, options: options} = assigns) do
+    IO.puts("render_item: #{inspect assigns}")
+    case Enum.find(options, fn ({_, v}) -> (Enum.find(v, &(&1 == item_id)) != nil) end) do
+      {type, _} ->
+        ~L"""
           <%= if @type == :task do %>
-            <div class="border bg-green-500 border-green-500 w-8 px-1 py-3 m-1"></div>
+            <div class="border-2 bg-green-500 border-green-800 w-8 px-1 py-3 m-1"
+                phx-click="move"
+                phx-value-type="<%= type %>"
+                phx-value-id="<%= @id %>">
+                <div <%= if @blocked do %> class="font-black" <% end %> ><%= @id %></div>
+            </div>
           <% else %>
-            <div class="border bg-yellow-300 border-yellow-300 w-8 px-1 py-3 m-1"></div>
+            <div class="border-2 bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
+                phx-click="move"
+                phx-value-type="<%= type %>"
+                phx-value-id="<%= @id %>">
+                <div <%= if @blocked do %> class="font-black" <% end %> ><%= @id %></div>
+            </div>
+        <% end %>
+        """
+      _ ->
+        ~L"""
+          <%= if @type == :task do %>
+            <div class="border-2 bg-green-500 border-green-500 w-8 px-1 py-3 m-1">
+              <div <%= if @blocked do %> class="font-black" <% end %> ><%= @id %></div>
+            </div>
+          <% else %>
+            <div class="border-2 bg-yellow-300 border-yellow-300 w-8 px-1 py-3 m-1">
+              <div <%= if @blocked do %> class="font-black" <% end %> ><%= @id %></div>
+            </div>
           <% end %>
         """
-    else
-      ~L"""
-        <%= if @type == :task do %>
-          <div class="border bg-green-500 border-green-700 w-8 px-1 py-3 m-1"
-              phx-click="move"
-              phx-value-id="<%= @id %>">
-            <%= @id %>
-          </div>
-        <% else %>
-          <div class="border bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
-              phx-click="move"
-              phx-value-id="<%= @id %>">
-          <%= @id %>
-        </div>
-      <% end %>
-      """
-    end
+      end
   end
 
   def render_finished_item(assigns) do
     # IO.puts("render_item: #{inspect assigns}")
     ~L"""
       <%= if @type == :task do %>
-        <div class="border bg-green-500 border-green-700 w-4 px-1 py-3 m-1"></div>
+        <div class="border-2 bg-green-500 border-green-800 w-4 px-1 py-3 m-1"></div>
       <% else %>
-        <div class="border bg-yellow-300 border-yellow-800 w-4 px-1 py-3 m-1"></div>
+        <div class="border-2 bg-yellow-300 border-yellow-800 w-4 px-1 py-3 m-1"></div>
       <% end %>
     """
   end

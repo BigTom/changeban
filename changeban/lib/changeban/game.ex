@@ -54,7 +54,7 @@ defmodule Changeban.Game do
   end
 
   def new_turn(%Game{players: players, turn: turn} = game) do
-    %{game | players: Enum.map(players, &(%{&1 | machine: red_or_black(), state: :act})),
+    %{game | players: Enum.map(players, &(%{&1 | machine: red_or_black(), state: :act, past: nil})),
               turn: turn + 1}
     |> recalculate_state
   end
@@ -125,6 +125,7 @@ defmodule Changeban.Game do
     item = Game.get_item(game, item_id)
     player = Game.get_player(game, player_id)
 
+    if player.state == :done, do: raise "OOPS"
     {item_, player_} = action(act, item, player)
 
     update_game(game, item_, player_)
@@ -137,18 +138,20 @@ defmodule Changeban.Game do
       :red -> %{player | state: :done }
       :black ->
         case player.past do
-          :blocked -> %{player | state: :done}
+          :blocked -> %{player | state: :done, past: nil}
           _        -> %{player | past: :started}
         end
-    end
-    { Item.start(item, player.id), player_ }
+      end
+      if machine == :black, do: IO.puts("START: #{inspect player.state} #{inspect player.past} -> #{inspect player_.state} #{inspect player_.past}")
+      { Item.start(item, player.id), player_ }
   end
   def action(:block, item, player) do
     player_ =
       case player.past do
-        :started -> %{player | state: :done}
+        :started -> %{player | state: :done, past: nil}
         _        -> %{player | past: :blocked}
       end
+    IO.puts("BLOCK: #{inspect player.state} #{inspect player.past} -> #{inspect player_.state} #{inspect player_.past}")
     { Item.block(item, player.id), player_}
   end
   def action(:move, item, player) do
