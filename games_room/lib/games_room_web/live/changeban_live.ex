@@ -140,7 +140,7 @@ defmodule GamesRoomWeb.ChangebanLive do
       <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
         <%= headers(assigns) %>
         <div class="col-start-1 row-start-3 row-span-5 border border-gray-800">
-            <%= au_items(assigns) %>
+        <%= active_items(assigns, 0) %>
         </div>
         <div class="col-start-2 row-start-3 row-span-5 border border-gray-800">
           <%= active_items(assigns, 1) %>
@@ -191,14 +191,14 @@ defmodule GamesRoomWeb.ChangebanLive do
     else
       ~L"""
         <%= if @type == :task do %>
-          <div class="border-2 bg-green-500 border-green-800 w-8 px-1 py-3 m-1"
+          <div class="border-2 shadow-md bg-green-500 border-green-800 w-8 px-1 py-3 m-1"
               phx-click="move"
               phx-value-type="start"
               phx-value-id="<%= @id %>">
             <div><%= @id %></div>
           </div>
         <% else %>
-          <div class="border-2 bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
+          <div class="border-2 shadow-md bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
               phx-click="move"
               phx-value-type="start"
               phx-value-id="<%= @id %>">
@@ -208,21 +208,20 @@ defmodule GamesRoomWeb.ChangebanLive do
       """
     end
   end
-
   def render_active_item(%{id: item_id, options: options} = assigns) do
     IO.puts("render_item: #{inspect assigns}")
     case Enum.find(options, fn ({_, v}) -> (Enum.find(v, &(&1 == item_id)) != nil) end) do
       {type, _} ->
         ~L"""
           <%= if @type == :task do %>
-            <div class="border-2 bg-green-500 border-green-800 w-8 px-1 py-3 m-1"
+            <div class="border-2 shadow bg-green-500 border-green-800 w-8 px-1 py-3 m-1"
                 phx-click="move"
                 phx-value-type="<%= type %>"
                 phx-value-id="<%= @id %>">
                 <div <%= if @blocked do %> class="font-black" <% end %> ><%= @id %></div>
             </div>
           <% else %>
-            <div class="border-2 bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
+            <div class="border-2 shadow bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
                 phx-click="move"
                 phx-value-type="<%= type %>"
                 phx-value-id="<%= @id %>">

@@ -79,11 +79,11 @@ defmodule Changeban.Player do
   def calculate_player_options(items, %Player{machine: machine, state: state, past: past} = player) do
     player_ = %{player | options: empty_options()}
     if state == :act && past == :completed do
-      rejectable = for %{id: id} = item <- items, Item.active?(item), into: %{}, do: id
+      rejectable = for %{id: id} = item <- items, Item.active?(item), do: id
       if Enum.empty?(rejectable) do
-        %{player_ | state: :done }
+        %{player_ | state: :done, past: nil }
       else
-        options_ = %{player.options | reject: rejectable}
+        options_ = %{Player.empty_options() | reject: rejectable }
         %{player_ | options: options_ }
       end
     else

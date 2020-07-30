@@ -183,22 +183,25 @@ defmodule ChangebanGameTest do
 
   test "exec_action, progress to complete" do
     item_id = 1
-    player = %Player{id: 0, machine: :red, state: :new, options: Player.empty_options()}
-    game =
-      %{all_states_game() | players: [player]}
-      |> Game.exec_action(:move, item_id, 0)
+    game = all_states_game()
+
+    player = %{Game.get_player(game, 0) | machine: :red, options: %{Player.empty_options | start: [0], move: [1,3]}}
+    game = %{game | players: [player]}
+    game = Game.exec_action(game, :move, item_id, 0)
     assert Game.get_item(game, item_id) |> Item.complete?()
+    expected_options = %{block: [], hlp_mv: [], hlp_unblk: [], move: [], reject: [0, 2, 3], start: [], unblock: []}
+    assert expected_options == (Game.get_player(game, 0)).options
   end
 
 
   test "test black blocks then starts" do
     game = game_1()
-    %{options: options, state: state, past: past} = Game.get_player(game, 0)
+    %{past: past} = Game.get_player(game, 0)
     assert 2 == game.turn
     assert nil == past
 
     game = Game.exec_action(game, :start, 1, 0)
-    %{options: options, state: state, past: past} = Game.get_player(game, 0)
+    %{options: options, past: past} = Game.get_player(game, 0)
     assert 2 == game.turn
     assert :started == past
     assert %{Player.empty_options() | start: [], block: [0,1]} == options
@@ -213,12 +216,12 @@ defmodule ChangebanGameTest do
 
   test "test black starts then blocks" do
     game = game_1()
-    %{options: options, state: state, past: past} = Game.get_player(game, 0)
+    %{past: past} = Game.get_player(game, 0)
     assert 2 == game.turn
     assert nil == past
 
     game = Game.exec_action(game, :block, 0, 0)
-    %{options: options, state: state, past: past} = Game.get_player(game, 0)
+    %{options: options, past: past} = Game.get_player(game, 0)
     assert 2 == game.turn
     assert :blocked == past
     assert %{Player.empty_options() | start: [1,2], block: []} == options
@@ -229,6 +232,15 @@ defmodule ChangebanGameTest do
     assert :done == state
     assert nil == past
     assert Player.empty_options() == options
+  end
+
+  test "completing" do
+    game = about_to_complete_game()
+    game = Game.exec_action(game, :move, 15, 0)
+    options = (Game.get_player(game, 0)).options
+
+    expected_options = %{block: [], hlp_mv: [], hlp_unblk: [], move: [], reject: Enum.to_list(0..14), start: [], unblock: []}
+    assert expected_options == options
   end
 
   defp game_1() do
@@ -338,4 +350,45 @@ defmodule ChangebanGameTest do
       ]
     } |> Game.start_game()
   end
+
+  def about_to_complete_game() do
+    %Game{
+      items: [
+        %Changeban.Item{blocked: true, id: 0, owner: 0, state: 1, type: :task},
+        %Changeban.Item{blocked: true, id: 1, owner: 0, state: 1, type: :change},
+        %Changeban.Item{blocked: true, id: 2, owner: 0, state: 1, type: :task},
+        %Changeban.Item{blocked: true, id: 3, owner: 0, state: 1, type: :change},
+        %Changeban.Item{blocked: true, id: 4, owner: 0, state: 1, type: :task},
+        %Changeban.Item{blocked: true, id: 5, owner: 0, state: 1, type: :change},
+        %Changeban.Item{blocked: true, id: 6, owner: 0, state: 1, type: :task},
+        %Changeban.Item{blocked: false, id: 7, owner: nil, state: 0, type: :change},
+        %Changeban.Item{blocked: false, id: 8, owner: nil, state: 1, type: :task},
+        %Changeban.Item{blocked: false, id: 9, owner: nil, state: 1, type: :change},
+        %Changeban.Item{blocked: false, id: 10, owner: nil, state: 1, type: :task},
+        %Changeban.Item{blocked: false, id: 11, owner: nil, state: 1, type: :change},
+        %Changeban.Item{blocked: false, id: 12, owner: nil, state: 1, type: :task},
+        %Changeban.Item{blocked: false, id: 13, owner: nil, state: 1, type: :change},
+        %Changeban.Item{blocked: false, id: 14, owner: nil, state: 1, type: :task},
+        %Changeban.Item{blocked: false, id: 15, owner: 0, state: 3, type: :change}
+      ],
+      players: [
+        %Changeban.Player{
+          id: 0,
+          machine: :red,
+          options: %{block: [],
+                     hlp_mv: [],
+                     hlp_unblk: [],
+                     move: [15],
+                     reject: [],
+                     start: [7, 8, 9, 10, 11, 12, 13, 14],
+                     unblock: [0, 1, 2, 3, 4, 5, 6]},
+          past: nil,
+          state: :act},
+      ],
+      turn: 11,
+      score: 0,
+      max_players: 5
+    }
+  end
+
 end

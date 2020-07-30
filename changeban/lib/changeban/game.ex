@@ -142,7 +142,6 @@ defmodule Changeban.Game do
           _        -> %{player | past: :started}
         end
       end
-      if machine == :black, do: IO.puts("START: #{inspect player.state} #{inspect player.past} -> #{inspect player_.state} #{inspect player_.past}")
       { Item.start(item, player.id), player_ }
   end
   def action(:block, item, player) do
@@ -151,7 +150,6 @@ defmodule Changeban.Game do
         :started -> %{player | state: :done, past: nil}
         _        -> %{player | past: :blocked}
       end
-    IO.puts("BLOCK: #{inspect player.state} #{inspect player.past} -> #{inspect player_.state} #{inspect player_.past}")
     { Item.block(item, player.id), player_}
   end
   def action(:move, item, player) do
@@ -162,7 +160,7 @@ defmodule Changeban.Game do
       else
         %{player | state: :done }
       end
-    {item_, player_}
+      {item_, player_}
   end
   def action(act, _, _), do: raise "invalid action: #{inspect act}"
 end

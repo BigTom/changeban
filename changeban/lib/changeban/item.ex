@@ -88,10 +88,10 @@ defmodule Changeban.Item do
   def can_block?(item, player) do
     can_move?(item, player)
   end
-  def can_help_unblock?(%Item{owner: owner, blocked: blocked} = item, player) do
-    Item.in_progress?(item) && owner != player && blocked
+  def can_help_unblock?(%Item{owner: owner, blocked: blocked} = item, player_id) do
+    Item.in_progress?(item) && owner != player_id && blocked
   end
-  def can_help_move?(%Item{owner: owner, blocked: blocked} = item, player) do
-    Item.in_progress?(item) && owner != player && ! blocked
+  def can_help_move?(%Item{owner: owner, blocked: blocked} = item, player_id) do
+    Item.in_progress?(item) && owner != player_id && ! blocked
   end
 end
