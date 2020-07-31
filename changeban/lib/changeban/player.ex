@@ -139,21 +139,22 @@ defmodule Changeban.Player do
   def black_options(items, %Player{id: pid, past: past} = player) do
     block = for %{id: id} = item <- items, Item.can_block?(item, pid), do: id
     start = for %{id: id} = item <- items, Item.can_start?(item), do: id
-
     case past do
       :blocked -> cond do
-          Enum.empty?(start) -> help_options(items, player)
-          :true -> %{player | options: %{player.options | start: start}}
-        end
+        Enum.empty?(start) -> help_options(items, player)
+        :true -> %{player | options: %{player.options | start: start}}
+      end
       :started -> cond do
-          Enum.empty?(block) -> %{player | state: :done, options: Player.empty_options()}
-          :true -> %{player | options: %{player.options | block: block}}
-        end
-      nil ->
-        options_ = %{player.options | block: block, start: start}
-        %{player | state: :act, options: options_}
+        Enum.empty?(block) -> %{player | state: :done, options: Player.empty_options()}
+        :true -> %{player | options: %{player.options | block: block}}
+      end
+      nil -> cond do
+        Enum.empty?(block) && Enum.empty?(start) -> help_options(items, player)
+        :true -> %{player | state: :act, options: %{player.options | block: block, start: start}}
+      end
     end
   end
+
   @doc"""
     If you cannot MOVE, HELP someone!
     Advance or unblock ONE item from another player
@@ -161,13 +162,13 @@ defmodule Changeban.Player do
     Returns: %Player{}
   """
   def help_options(items, %Player{id: pid} = player) do
-    move = for %{id: id} = item <- items, Item.can_help_move?(item, pid), do: id
-    unblock = for %{id: id} = item <- items, Item.can_help_unblock?(item, pid), do: id
+    hlp_mv = for %{id: id} = item <- items, Item.can_help_move?(item, pid), do: id
+    hlp_unblk = for %{id: id} = item <- items, Item.can_help_unblock?(item, pid), do: id
 
-    if Enum.empty?(move) && Enum.empty?(unblock) do
-      %{player | state: :done}
+    if Enum.empty?(hlp_mv) && Enum.empty?(hlp_unblk) do
+      %{player | state: :done, options: Player.empty_options()}
     else
-      options_ = %{player.options | move: move, unblock: unblock}
+      options_ = %{player.options | hlp_mv: hlp_mv, hlp_unblk: hlp_unblk}
       %{player | state: :act, options: options_}
     end
   end

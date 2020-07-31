@@ -135,7 +135,7 @@ defmodule GamesRoomWeb.ChangebanLive do
         Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
       </p>
 
-      <p>Turn: <%= @turn %> Turn color: <%= @player.machine %></p>
+      <p>Turn: <%= @turn %> Turn color: <%= @player.machine %> Score: <%= @score %></p>
 
       <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
         <%= headers(assigns) %>
@@ -179,35 +179,6 @@ defmodule GamesRoomWeb.ChangebanLive do
     new_assigns
   end
 
-  def render_au_item(%{id: item_id, options: options} = assigns) do
-    if (Enum.find(options[:start], &(&1 == item_id)) == nil) do
-      ~L"""
-        <%= if @type == :task do %>
-          <div class="border bg-green-500 border-green-500 w-8 px-1 py-3 m-1"><%= @id %></div>
-        <% else %>
-          <div class="border bg-yellow-300 border-yellow-300 w-8 px-1 py-3 m-1"><%= @id %></div>
-        <% end %>
-      """
-    else
-      ~L"""
-        <%= if @type == :task do %>
-          <div class="border-2 shadow-md bg-green-500 border-green-800 w-8 px-1 py-3 m-1"
-              phx-click="move"
-              phx-value-type="start"
-              phx-value-id="<%= @id %>">
-            <div><%= @id %></div>
-          </div>
-        <% else %>
-          <div class="border-2 shadow-md bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
-              phx-click="move"
-              phx-value-type="start"
-              phx-value-id="<%= @id %>">
-            <div><%= @id %></div>
-          </div>
-        <% end %>
-      """
-    end
-  end
   def render_active_item(%{id: item_id, options: options} = assigns) do
     IO.puts("render_item: #{inspect assigns}")
     case Enum.find(options, fn ({_, v}) -> (Enum.find(v, &(&1 == item_id)) != nil) end) do
@@ -252,16 +223,6 @@ defmodule GamesRoomWeb.ChangebanLive do
       <% else %>
         <div class="border-2 bg-yellow-300 border-yellow-800 w-4 px-1 py-3 m-1"></div>
       <% end %>
-    """
-  end
-
-  def au_items(assigns) do
-    ~L"""
-    <div class="flex flex-wrap">
-      <%= for item <- Map.get(assigns.items, 0, []) do %>
-        <%= render_au_item(collect_item_data(item, @player)) %>
-      <% end %>
-    </div>
     """
   end
 

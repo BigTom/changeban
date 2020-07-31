@@ -75,15 +75,16 @@ defmodule Changeban.Item do
     end
   end
 
+  def owned?(%Item{owner: owner_id}, player_id), do: owner_id == player_id
+
   def can_start?(%Item{} = item) do
     Item.in_agree_urgency?(item)
   end
-  def can_move?(%Item{owner: owner, blocked: blocked} = item, player) do
-    answer = Item.in_progress?(item) && owner == player && ! blocked
-    answer
+  def can_move?(%Item{blocked: blocked} = item, player) do
+    Item.in_progress?(item) && owned?(item, player) && ! blocked
   end
-  def can_unblock?(%Item{owner: owner, blocked: blocked} = item, player) do
-    Item.in_progress?(item) && owner == player && blocked
+  def can_unblock?(%Item{blocked: blocked} = item, player) do
+    Item.in_progress?(item) && owned?(item, player) && blocked
   end
   def can_block?(item, player) do
     can_move?(item, player)

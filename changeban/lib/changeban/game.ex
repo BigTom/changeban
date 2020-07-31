@@ -20,7 +20,7 @@ defmodule Changeban.Game do
   @max_player_id 4
 
   @enforce_keys [:items]
-  defstruct players: [], max_players: 0, items: [], score: 0, turn: 0
+  defstruct players: [], max_players: 0, items: [], score: 0, turn: 0, state: :setup
 
   alias Changeban.{Game, Item, Player}
 
@@ -46,21 +46,44 @@ defmodule Changeban.Game do
     Enum.count(players)
   end
 
-  def start_game(%Game{turn: turn} = game) do
-    cond do
-      turn == 0 -> new_turn(game)
-      :true -> {:error, "Game already started"}
-    end
+  def start_game(%Game{turn: turn, state: state} = game) do
+      cond do
+        turn == 0 && state == :setup -> %{new_turn(game) | state: :running}
+        :true -> {:error, "Game already started"}
+      end
   end
 
+  def new_turn(%Game{state: :done} = game), do: game
   def new_turn(%Game{players: players, turn: turn} = game) do
-    %{game | players: Enum.map(players, &(%{&1 | machine: red_or_black(), state: :act, past: nil})),
-              turn: turn + 1}
-    |> recalculate_state
+    if game_over?(game) do
+      %{game | state: :done}
+    else
+      %{game | players: Enum.map(players, &(%{&1 | machine: red_or_black(), state: :act, past: nil})),
+                turn: turn + 1}
+      |> recalculate_state
+    end
   end
 
   def red_or_black() do
     Enum.random([:red, :black])
+  end
+
+  def game_over?(game), do: game_over_all_done(game) || game_over_single_player_blocked(game)
+
+  def game_over_all_done(%Game{items: items}) do
+    Enum.find(items, &Item.active?/1 ) == nil
+  end
+
+  @doc"""
+    One player, all active items are blocked
+  """
+  def game_over_single_player_blocked(%Game{items: items, players: players}) do
+    active = items
+      |> Enum.filter(&Item.active?/1)
+      |> Enum.reject(&Item.blocked?/1)
+      |> Enum.count()
+
+    active == 0 && Enum.count(players) == 1
   end
 
   def get_item(%Game{items: items}, id) do
