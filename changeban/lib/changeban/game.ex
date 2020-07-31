@@ -32,10 +32,10 @@ defmodule Changeban.Game do
     for id <- 0..15, do: Item.new(id)
   end
 
-  def add_player(%Game{players: players} = game) do
+  def add_player(%Game{players: players} = game, initials) do
     new_player_id = player_count(game)
     if new_player_id <= @max_player_id do
-      new_player = Player.new(new_player_id)
+      new_player = Player.new(new_player_id, initials)
       {:ok, new_player_id, %{game | players: [new_player | players]}}
     else
       {:error, "Already at max players"}

@@ -5,7 +5,7 @@ defmodule ChangebanPlayerTest do
   alias Changeban.{Game, Player}
 
   test "New item" do
-    assert %Player{id: 0, machine: nil, state: nil, options: Player.empty_options} == Player.new(0)
+    assert %Player{id: 0, machine: nil, state: nil, options: Player.empty_options, initials: "AA"} == Player.new(0, "AA")
   end
 
   test "calculate black turn player block options" do
@@ -21,9 +21,9 @@ defmodule ChangebanPlayerTest do
 
   test "player_red_move_options_at_start" do
     items = Game.initial_items()
-    player = Player.new(0)
+    player = Player.new(0, "X")
     expected_options = %{Player.empty_options() | start: Enum.to_list(0..15)}
-    expected_response = %Changeban.Player{id: 0, machine: nil, options: expected_options, past: nil, state: :act}
+    expected_response = %Changeban.Player{id: 0, machine: nil, options: expected_options, past: nil, state: :act, initials: "X"}
 
     assert expected_response == Player.red_options(items, player)
   end

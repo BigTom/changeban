@@ -45,14 +45,10 @@ defmodule GamesRoomWeb.ChangebanLive do
         end
       end
 
-    {:ok, player_id, _} = GameServer.add_player(game_name)
+    {:ok, player_id, _} = GameServer.add_player(game_name, "TA")
     GameServer.start_game(game_name)
 
-    {items, players, turn, score} = GameServer.view(game_name)
-    IO.puts("MOUNTING: id:        #{inspect player_id, pretty: true}")
-    IO.puts("MOUNTING: items:     #{inspect items, pretty: true}")
-    IO.puts("MOUNTING: turn:      #{inspect turn, pretty: true}")
-    IO.puts("MOUNTING: score:     #{inspect score, pretty: true}")
+    {items, players, turn, score, state} = GameServer.view(game_name)
 
     new_socket = assign(socket,
         val: Counter.current(),
@@ -62,11 +58,9 @@ defmodule GamesRoomWeb.ChangebanLive do
         player: Enum.at(players, player_id),
         turn: turn,
         score: score,
+        state: state,
         present: initial_present,
         username: username)
-
-        IO.puts "After: player_id:              #{inspect new_socket.assigns.player_id}"
-        IO.puts "After: Mounted Socket Assigns: #{inspect new_socket.assigns}"
 
     {:ok, new_socket }
   end
@@ -74,11 +68,9 @@ defmodule GamesRoomWeb.ChangebanLive do
   @impl true
   def mount(params, _session, socket) do
     IO.puts("Redirecting from GamesRoomWeb.ChangebanLive.mount ---------------------------------------")
-    # put_flash(socket, :info, "test_game")
-    game_name
-     = Map.get(params,"id", "")
-    {:ok, push_redirect(socket, to: "/login/#{game_name
-    }")}
+    put_flash(socket, :info, "test_game")
+    game_name = Map.get(params,"id", "")
+    {:ok, push_redirect(socket, to: "/login/#{game_name}")}
   end
 
   @impl true
@@ -92,8 +84,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   @impl true
-  def handle_event("move", %{"id" => id, "type" => type} = params, socket) do
-    IO.puts("GamesRoomWeb.ChangeBanLive.handle_event - move #{inspect params} ---------------------------------------")
+  def handle_event("move", %{"id" => id, "type" => type}, socket) do
     type_atom = String.to_atom(type)
     GameServer.move(socket.assigns.game_name, type_atom, String.to_integer(id), socket.assigns.player_id)
     {:noreply, assign(prep_assigns(socket), :val, Counter.decr())}
@@ -115,13 +106,14 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   defp prep_assigns(socket) do
-    {items, players, turn, score} = GameServer.view(socket.assigns.game_name)
+    {items, players, turn, score, state} = GameServer.view(socket.assigns.game_name)
     IO.puts("PREP_ASSIGNS #{inspect socket.assigns.player}")
     assign(socket,
       items: items,
       player: Enum.at(players, socket.assigns.player_id),
       turn: turn,
-      score: score)
+      score: score,
+      state: state)
   end
 
   @impl true
@@ -135,7 +127,7 @@ defmodule GamesRoomWeb.ChangebanLive do
         Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
       </p>
 
-      <p>Turn: <%= @turn %> Turn color: <%= @player.machine %> Score: <%= @score %></p>
+      <p>Game name: <%= @game_name %> Turn: <%= @turn %> Turn color: <%= @player.machine %> Score: <%= @score %> Game is: <%= @state %></p>
 
       <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
         <%= headers(assigns) %>
@@ -180,7 +172,6 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_active_item(%{id: item_id, options: options} = assigns) do
-    IO.puts("render_item: #{inspect assigns}")
     case Enum.find(options, fn ({_, v}) -> (Enum.find(v, &(&1 == item_id)) != nil) end) do
       {type, _} ->
         ~L"""

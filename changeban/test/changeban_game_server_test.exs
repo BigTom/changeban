@@ -19,25 +19,25 @@ defmodule ChangebanGameServerTest do
   end
 
   test "add player to game", %{game_name: game_name} do
-    {:ok, player_id, game} = GameServer.add_player(game_name)
+    {:ok, player_id, game} = GameServer.add_player(game_name, "X")
     assert 0 == player_id
     assert 1 = Game.player_count(game)
   end
 
   test "add too many players", %{game_name: game_name} do
-    GameServer.add_player(game_name)
-    GameServer.add_player(game_name)
-    GameServer.add_player(game_name)
-    GameServer.add_player(game_name)
-    GameServer.add_player(game_name)
-    assert {:error, "Already at max players"} == GameServer.add_player(game_name)
+    GameServer.add_player(game_name, "V")
+    GameServer.add_player(game_name, "W")
+    GameServer.add_player(game_name, "X")
+    GameServer.add_player(game_name, "Y")
+    GameServer.add_player(game_name, "Z")
+    assert {:error, "Already at max players"} == GameServer.add_player(game_name, "!!")
   end
 
   test "start game", %{game_name: game_name} do
-    GameServer.add_player(game_name)
-    GameServer.add_player(game_name)
-    GameServer.add_player(game_name)
-    GameServer.add_player(game_name)
+    GameServer.add_player(game_name, "W")
+    GameServer.add_player(game_name, "X")
+    GameServer.add_player(game_name, "Y")
+    GameServer.add_player(game_name, "Z")
 
     %Game{turn: turn, score: score, players: players} = GameServer.start_game(game_name)
     player = Enum.at(players, 1)

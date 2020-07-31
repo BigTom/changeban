@@ -32,13 +32,13 @@ defmodule ChangebanGameTest do
   end
 
   test "add a player" do
-    {:ok, player_id, game} = Game.new() |> Game.add_player()
+    {:ok, player_id, game} = Game.new() |> Game.add_player("X")
     assert 1 == Game.player_count(game)
     assert 0 == player_id
   end
 
   def add_player_helper(game) do
-    {:ok, _player_id, game} = Game.add_player(game)
+    {:ok, _player_id, game} = Game.add_player(game, "X")
     game
   end
 
@@ -61,19 +61,19 @@ defmodule ChangebanGameTest do
       |> add_player_helper()
       |> add_player_helper()
 
-    assert {:error, "Already at max players"} == Game.add_player(game)
+    assert {:error, "Already at max players"} == Game.add_player(game, "!!")
     assert 5 == Game.player_count(game)
     assert 4 == Enum.find(game.players, &(&1.id == 4)).id
   end
 
 
   test "player_options_after_start_game" do
-    game = %{Game.new() | players: [Player.new(0)]}
+    game = %{Game.new() | players: [Player.new(0, "X")]}
     game_ = Game.start_game(game)
     actual_player = Game.get_player(game_, 0)
 
     expected_options = %{Player.empty_options() | start: Enum.to_list(0..15)}
-    expected_player = %Player{id: 0, state: :act, machine: actual_player.machine, options: expected_options}
+    expected_player = %Player{id: 0, state: :act, machine: actual_player.machine, options: expected_options, initials: "X"}
 
     assert expected_player == actual_player
   end
@@ -281,7 +281,7 @@ defmodule ChangebanGameTest do
   end
 
   test "game not over, player blocked, multiple players" do
-    {:ok, _, game} = single_player_blocked_game() |> Game.add_player
+    {:ok, _, game} = single_player_blocked_game() |> Game.add_player("X")
     refute Game.game_over_single_player_blocked(game)
   end
 

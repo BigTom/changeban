@@ -68,10 +68,10 @@ defmodule Changeban.Player do
   """
   alias Changeban.{Player, Item}
 
-  defstruct id: nil, machine: nil, state: nil, past: nil, options: Map.new
+  defstruct id: nil, machine: nil, state: nil, past: nil, options: Map.new, initials: nil
 
-  def new(id) do
-     %Player{id: id, options: empty_options()}
+  def new(id, initials) do
+     %Player{id: id, options: empty_options(), initials: initials}
   end
 
   def empty_options(), do: %{start: [], move: [], unblock: [], block: [], hlp_mv: [], hlp_unblk: [], reject: []}

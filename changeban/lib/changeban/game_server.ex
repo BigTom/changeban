@@ -21,8 +21,8 @@ defmodule Changeban.GameServer do
     GenServer.call(via_tuple(game_name), {:get_player, player_id})
   end
 
-  def add_player(game_name) do
-    GenServer.call(via_tuple(game_name), {:add_player})
+  def add_player(game_name, initials) do
+    GenServer.call(via_tuple(game_name), {:add_player, initials})
   end
 
   def start_game(game_name) do
@@ -72,8 +72,8 @@ defmodule Changeban.GameServer do
     {:ok, game, @timeout}
   end
 
-  def handle_call({:add_player}, _from, game) do
-    case Game.add_player(game) do
+  def handle_call({:add_player, initials}, _from, game) do
+    case Game.add_player(game, initials) do
       {:ok, player_id, updated_game} -> {:reply, {:ok, player_id, updated_game}, updated_game, @timeout}
       {:error, msg} -> {:reply, {:error, msg}, game, @timeout}
     end
@@ -107,13 +107,15 @@ defmodule Changeban.GameServer do
     :ets.delete(:games_table, my_game_name())
     :ok
   end
+
   def terminate(_reason, _game), do: :ok
 
   def view_game(game) do
     {Enum.group_by(game.items, &(&1.state)),
      game.players,
      game.turn,
-     game.score}
+     game.score,
+     game.state}
   end
 
   defp my_game_name do
