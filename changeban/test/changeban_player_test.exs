@@ -49,4 +49,21 @@ defmodule ChangebanPlayerTest do
 
     assert expected_response == Player.black_options(items, player)
   end
+
+  test "player_red_move_options_all blocked" do
+    items = [
+      %Changeban.Item{blocked: true, id: 0, owner: 0, state: 1, type: :task},
+      %Changeban.Item{blocked: true, id: 1, owner: 0, state: 1, type: :change},
+      %Changeban.Item{blocked: true, id: 2, owner: 0, state: 1, type: :task}
+    ]
+    check = for %{id: id} = item <- items, Changeban.Item.can_unblock?(item, 0), do: id
+    IO.puts("#{inspect check}")
+
+    player = %{Player.new(0, "X") | machine: :red}
+    expected_options = %{Player.empty_options() | unblock: Enum.to_list(0..2)}
+    expected_response = %Changeban.Player{id: 0, machine: :red, options: expected_options, past: nil, state: :act, initials: "X"}
+
+    assert expected_response == Player.red_options(items, player)
+  end
+
 end

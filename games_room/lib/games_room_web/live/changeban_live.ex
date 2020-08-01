@@ -62,6 +62,9 @@ defmodule GamesRoomWeb.ChangebanLive do
         present: initial_present,
         username: username)
 
+    player = Enum.at(players,0)
+    IO.puts("INITIAL #{turn} #{player.machine} #{inspect player.past} #{inspect player.options} ")
+
     {:ok, new_socket }
   end
 
@@ -74,25 +77,8 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   @impl true
-  def handle_event("inc", _, socket) do
-    {:noreply, assign(prep_assigns(socket), :val, Counter.incr())}
-  end
-
-  @impl true
-  def handle_event("dec", _, socket) do
-    {:noreply, assign(prep_assigns(socket), :val, Counter.decr())}
-  end
-
-  @impl true
-  def handle_event("move", %{"id" => id, "type" => type}, socket) do
-    type_atom = String.to_atom(type)
-    GameServer.move(socket.assigns.game_name, type_atom, String.to_integer(id), socket.assigns.player_id)
-    {:noreply, assign(prep_assigns(socket), :val, Counter.decr())}
-  end
-
-  @impl true
   def handle_info({:count, count}, socket) do
-    {:noreply, assign(prep_assigns(socket), val: count)}
+    {:noreply, assign(socket, val: count)}
   end
 
   @impl true
@@ -101,13 +87,31 @@ defmodule GamesRoomWeb.ChangebanLive do
         %{assigns: %{present: present}} = socket
       ) do
     new_present = present + map_size(joins) - map_size(leaves)
-
-    {:noreply, assign(prep_assigns(socket), :present, new_present)}
+    {:noreply, assign(socket, :present, new_present)}
+  end
+  @impl true
+  def handle_event("inc", _, socket) do
+    {:noreply, assign(socket, :val, Counter.incr())}
   end
 
-  defp prep_assigns(socket) do
-    {items, players, turn, score, state} = GameServer.view(socket.assigns.game_name)
-    IO.puts("PREP_ASSIGNS #{inspect socket.assigns.player}")
+  @impl true
+  def handle_event("dec", _, socket) do
+    {:noreply, assign(socket, :val, Counter.decr())}
+  end
+
+
+  @impl true
+  def handle_event("move", %{"id" => id, "type" => type}, socket) do
+    type_atom = String.to_atom(type)
+    IO.puts("MOVE: item: #{id} act: #{type_atom}")
+    view = GameServer.move(socket.assigns.game_name, type_atom, String.to_integer(id), socket.assigns.player_id)
+    {:noreply, assign(prep_assigns(view, socket), :val, Counter.decr())}
+  end
+
+  defp prep_assigns({items, players, turn, score, state}, socket ) do
+    # {items, players, turn, score, state} = GameServer.view(socket.assigns.game_name)
+    player = Enum.at(players,0)
+    IO.puts("ASSIGNS #{turn} #{player.machine} #{player.state} #{inspect player.past} #{inspect player.options} ")
     assign(socket,
       items: items,
       player: Enum.at(players, socket.assigns.player_id),

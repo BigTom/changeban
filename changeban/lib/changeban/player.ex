@@ -78,7 +78,7 @@ defmodule Changeban.Player do
 
   def calculate_player_options(items, %Player{machine: machine, state: state, past: past} = player) do
     player_ = %{player | options: empty_options()}
-    if state == :act && past == :completed do
+    if (state == :act || state == :help) && past == :completed do
       rejectable = for %{id: id} = item <- items, Item.active?(item), do: id
       if Enum.empty?(rejectable) do
         %{player_ | state: :done, past: nil }
@@ -114,8 +114,7 @@ defmodule Changeban.Player do
     start = for %{id: id} = item <- items, Item.can_start?(item), do: id
     move = for %{id: id} = item <- items, Item.can_move?(item, pid), do: id
     unblock = for %{id: id} = item <- items, Item.can_unblock?(item, pid), do: id
-
-    if Enum.empty?(start) && Enum.empty?(move) && Enum.empty?(start) do
+    if Enum.empty?(start) && Enum.empty?(move) && Enum.empty?(unblock) do
       help_options(items, player)
     else
       %{player | state: :act, options: %{Player.empty_options() | move: move, unblock: unblock, start: start}}
@@ -139,6 +138,8 @@ defmodule Changeban.Player do
   def black_options(items, %Player{id: pid, past: past} = player) do
     block = for %{id: id} = item <- items, Item.can_block?(item, pid), do: id
     start = for %{id: id} = item <- items, Item.can_start?(item), do: id
+
+    IO.puts("black options: past: #{past} - startable: #{inspect start} - blockable: #{inspect block}")
     case past do
       :blocked -> cond do
         Enum.empty?(start) -> help_options(items, player)
@@ -169,7 +170,7 @@ defmodule Changeban.Player do
       %{player | state: :done, options: Player.empty_options()}
     else
       options_ = %{player.options | hlp_mv: hlp_mv, hlp_unblk: hlp_unblk}
-      %{player | state: :act, options: options_}
+      %{player | state: :help, options: options_}
     end
   end
 end

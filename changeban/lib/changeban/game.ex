@@ -28,6 +28,10 @@ defmodule Changeban.Game do
     %Game{items: initial_items(), max_players: (@max_player_id + 1)}
   end
 
+  def new_short_game_for_testing() do
+    %Game{items: (for id <- 0..3, do: Item.new(id)), max_players: (@max_player_id + 1)}
+  end
+
   def initial_items() do
     for id <- 0..15, do: Item.new(id)
   end
@@ -55,12 +59,15 @@ defmodule Changeban.Game do
 
   def new_turn(%Game{state: :done} = game), do: game
   def new_turn(%Game{players: players, turn: turn} = game) do
-    if game_over?(game) do
-      %{game | state: :done}
-    else
-      %{game | players: Enum.map(players, &(%{&1 | machine: red_or_black(), state: :act, past: nil})),
-                turn: turn + 1}
-      |> recalculate_state
+    IO.puts("In new_turn ")
+    cond do
+      game_over?(game) -> %{game | state: :done}
+      all_blocked?(game) ->
+        %{game | players: Enum.map(players, &(%{&1 | machine: :red, state: :act, past: nil})), turn: turn + 1}
+            |> recalculate_state
+      true ->
+        %{game | players: Enum.map(players, &(%{&1 | machine: red_or_black(), state: :act, past: nil})), turn: turn + 1}
+            |> recalculate_state
     end
   end
 
@@ -68,7 +75,7 @@ defmodule Changeban.Game do
     Enum.random([:red, :black])
   end
 
-  def game_over?(game), do: game_over_all_done(game) || game_over_single_player_blocked(game)
+  def game_over?(game), do: game_over_all_done(game) # || game_over_single_player_blocked(game)
 
   def game_over_all_done(%Game{items: items}) do
     Enum.find(items, &Item.active?/1 ) == nil
@@ -77,7 +84,7 @@ defmodule Changeban.Game do
   @doc"""
     One player, all active items are blocked
   """
-  def game_over_single_player_blocked(%Game{items: items, players: players}) do
+  def all_blocked?(%Game{items: items, players: players}) do
     active = items
       |> Enum.filter(&Item.active?/1)
       |> Enum.reject(&Item.blocked?/1)
@@ -107,6 +114,7 @@ defmodule Changeban.Game do
   end
 
   def recalculate_state(game) do
+    # IO.puts("In recalculate_state #{inspect game}")
     score = calculate_score(game)
     players = recalculate_all_player_options(game)
 
@@ -173,6 +181,7 @@ defmodule Changeban.Game do
         :started -> %{player | state: :done, past: nil}
         _        -> %{player | past: :blocked}
       end
+    IO.puts("blocking #{inspect player_}")
     { Item.block(item, player.id), player_}
   end
   def action(:move, item, player) do
