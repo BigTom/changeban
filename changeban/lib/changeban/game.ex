@@ -19,7 +19,7 @@ defmodule Changeban.Game do
     turn - current turn number
   """
   @max_player_id 4
-  @turns_per_player 200
+  @turn_cycle 100
 
   @enforce_keys [:items]
   defstruct players: [], max_players: 0, items: [], score: 0, turn: 0, state: :setup, turns: []
@@ -27,7 +27,7 @@ defmodule Changeban.Game do
   alias Changeban.{Game, Item, Player}
 
   def new() do
-    %Game{items: initial_items(), max_players: (@max_player_id + 1)}
+    %Game{items: initial_items(), max_players: (@max_player_id + 1), turns: turns()}
   end
 
   def new_short_game_for_testing() do
@@ -38,12 +38,15 @@ defmodule Changeban.Game do
     for id <- 0..15, do: Item.new(id)
   end
 
-  def add_player(%Game{players: players, turns: turns} = game, initials) do
+  def turns() do
+    for _ <- 1..(@turn_cycle), do: Enum.random([:red, :black])
+  end
+
+  def add_player(%Game{players: players} = game, initials) do
     new_player_id = player_count(game)
     if new_player_id <= @max_player_id do
       new_player = Player.new(new_player_id, initials)
-      extra_turns = for _ <- 1..(@turns_per_player), do: Enum.random([:red, :black])
-      {:ok, new_player_id, %{game | players: [new_player | players], turns: turns ++ extra_turns}}
+      {:ok, new_player_id, %{game | players: [new_player | players]}}
     else
       {:error, "Already at max players"}
     end
@@ -71,10 +74,9 @@ defmodule Changeban.Game do
   end
 
   def red_or_black(%Game{turns: turns, players: players}, %Player{id: player_id}, turn) do
-    position = turn * Enum.count(players) + player_id
+    position = rem(turn * Enum.count(players) + player_id, @turn_cycle)
     Enum.at(turns, position)
   end
-
 
   def game_over?(game), do: game_over_all_done(game) # || game_over_single_player_blocked(game)
 
