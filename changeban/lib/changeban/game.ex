@@ -1,4 +1,5 @@
 defmodule Changeban.Game do
+  require Logger
   @moduledoc """
   Manages the game state.
 
@@ -18,9 +19,10 @@ defmodule Changeban.Game do
     turn - current turn number
   """
   @max_player_id 4
+  @turns_per_player 200
 
   @enforce_keys [:items]
-  defstruct players: [], max_players: 0, items: [], score: 0, turn: 0, state: :setup
+  defstruct players: [], max_players: 0, items: [], score: 0, turn: 0, state: :setup, turns: []
 
   alias Changeban.{Game, Item, Player}
 
@@ -36,11 +38,12 @@ defmodule Changeban.Game do
     for id <- 0..15, do: Item.new(id)
   end
 
-  def add_player(%Game{players: players} = game, initials) do
+  def add_player(%Game{players: players, turns: turns} = game, initials) do
     new_player_id = player_count(game)
     if new_player_id <= @max_player_id do
       new_player = Player.new(new_player_id, initials)
-      {:ok, new_player_id, %{game | players: [new_player | players]}}
+      extra_turns = for _ <- 1..(@turns_per_player), do: Enum.random([:red, :black])
+      {:ok, new_player_id, %{game | players: [new_player | players], turns: turns ++ extra_turns}}
     else
       {:error, "Already at max players"}
     end
@@ -50,30 +53,28 @@ defmodule Changeban.Game do
     Enum.count(players)
   end
 
-  def start_game(%Game{turn: turn, state: state} = game) do
-      cond do
-        turn == 0 && state == :setup -> %{new_turn(game) | state: :running}
-        :true -> {:error, "Game already started"}
-      end
-  end
+  def start_game(%Game{turn: 0, state: :setup} = game), do: new_turn(%{game | state: :running})
+  def start_game(game), do: game
+
 
   def new_turn(%Game{state: :done} = game), do: game
   def new_turn(%Game{players: players, turn: turn} = game) do
-    IO.puts("In new_turn ")
     cond do
       game_over?(game) -> %{game | state: :done}
       all_blocked?(game) ->
         %{game | players: Enum.map(players, &(%{&1 | machine: :red, state: :act, past: nil})), turn: turn + 1}
             |> recalculate_state
       true ->
-        %{game | players: Enum.map(players, &(%{&1 | machine: red_or_black(), state: :act, past: nil})), turn: turn + 1}
+        %{game | players: Enum.map(players, &(%{&1 | machine: red_or_black(game, &1, turn), state: :act, past: nil})), turn: turn + 1}
             |> recalculate_state
     end
   end
 
-  def red_or_black() do
-    Enum.random([:red, :black])
+  def red_or_black(%Game{turns: turns, players: players}, %Player{id: player_id}, turn) do
+    position = turn * Enum.count(players) + player_id
+    Enum.at(turns, position)
   end
+
 
   def game_over?(game), do: game_over_all_done(game) # || game_over_single_player_blocked(game)
 
@@ -114,7 +115,6 @@ defmodule Changeban.Game do
   end
 
   def recalculate_state(game) do
-    # IO.puts("In recalculate_state #{inspect game}")
     score = calculate_score(game)
     players = recalculate_all_player_options(game)
 
@@ -156,10 +156,13 @@ defmodule Changeban.Game do
     item = Game.get_item(game, item_id)
     player = Game.get_player(game, player_id)
 
-    if player.state == :done, do: raise "OOPS"
-    {item_, player_} = action(act, item, player)
-
-    update_game(game, item_, player_)
+    if player.state == :done do
+      Logger.warn("Tried to make a move in :done state")
+      game
+    else
+      {item_, player_} = action(act, item, player)
+      update_game(game, item_, player_)
+    end
   end
 
   def action(:unblock, item, player), do: { Item.unblock(item), %{player | state: :done } }
@@ -181,7 +184,6 @@ defmodule Changeban.Game do
         :started -> %{player | state: :done, past: nil}
         _        -> %{player | past: :blocked}
       end
-    IO.puts("blocking #{inspect player_}")
     { Item.block(item, player.id), player_}
   end
   def action(:move, item, player) do

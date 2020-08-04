@@ -59,7 +59,7 @@ defmodule Changeban.GameServer do
     game =
       case :ets.lookup(:games_table, game_name) do
         [] ->
-          game = Changeban.Game.new_short_game_for_testing()
+          game = Changeban.Game.new()
           :ets.insert(:games_table, {game_name, game})
           game
 

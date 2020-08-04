@@ -68,7 +68,7 @@ defmodule Changeban.Player do
   """
   alias Changeban.{Player, Item}
 
-  defstruct id: nil, machine: nil, state: nil, past: nil, options: Map.new, initials: nil
+  defstruct id: nil, machine: nil, state: nil, past: nil, options: Map.new, initials: nil, name: nil
 
   def new(id, initials) do
      %Player{id: id, options: empty_options(), initials: initials}
@@ -139,7 +139,6 @@ defmodule Changeban.Player do
     block = for %{id: id} = item <- items, Item.can_block?(item, pid), do: id
     start = for %{id: id} = item <- items, Item.can_start?(item), do: id
 
-    IO.puts("black options: past: #{past} - startable: #{inspect start} - blockable: #{inspect block}")
     case past do
       :blocked -> cond do
         Enum.empty?(start) -> help_options(items, player)

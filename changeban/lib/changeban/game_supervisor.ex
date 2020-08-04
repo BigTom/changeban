@@ -18,7 +18,7 @@ defmodule Changeban.GameSupervisor do
   @doc """
   Starts a `GameServer` process and supervises it.
   """
-  def start_game(game_name) do
+  def create_game(game_name) do
     child_spec = %{
       id: GameServer,
       start: {GameServer, :start_link, [game_name]},
@@ -31,7 +31,7 @@ defmodule Changeban.GameSupervisor do
   @doc """
   Terminates the `GameServer` process normally. It won't be restarted.
   """
-  def stop_game(game_name) do
+  def close_game(game_name) do
     :ets.delete(:games_table, game_name)
 
     child_pid = GameServer.game_pid(game_name)

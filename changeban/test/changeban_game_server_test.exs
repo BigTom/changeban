@@ -9,11 +9,11 @@ defmodule ChangebanGameServerTest do
 
     on_exit fn ->
       IO.puts("exiting game: #{game_name}")
-      GameSupervisor.stop_game(game_name)
+      GameSupervisor.close_game(game_name)
     end
 
-    IO.puts("starting game: #{game_name}")
-    GameSupervisor.start_game(game_name)
+    IO.puts("creating game: #{game_name}")
+    GameSupervisor.create_game(game_name)
 
     {:ok, game_name: game_name}
   end
@@ -22,6 +22,8 @@ defmodule ChangebanGameServerTest do
     {:ok, player_id, game} = GameServer.add_player(game_name, "X")
     assert 0 == player_id
     assert 1 = Game.player_count(game)
+    actual_game = Game.start_game(game)
+    assert 200 = Enum.count(actual_game.turns)
   end
 
   test "add too many players", %{game_name: game_name} do

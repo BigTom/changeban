@@ -56,8 +56,6 @@ defmodule ChangebanPlayerTest do
       %Changeban.Item{blocked: true, id: 1, owner: 0, state: 1, type: :change},
       %Changeban.Item{blocked: true, id: 2, owner: 0, state: 1, type: :task}
     ]
-    check = for %{id: id} = item <- items, Changeban.Item.can_unblock?(item, 0), do: id
-    IO.puts("#{inspect check}")
 
     player = %{Player.new(0, "X") | machine: :red}
     expected_options = %{Player.empty_options() | unblock: Enum.to_list(0..2)}
@@ -65,5 +63,4 @@ defmodule ChangebanPlayerTest do
 
     assert expected_response == Player.red_options(items, player)
   end
-
 end
