@@ -18,11 +18,20 @@ defmodule GamesRoomWeb.ChangebanLive do
      in the socket - carry on
     If there is no game_name
      create a game
+
+
+     If game in params then
+      find game
+      add player
+     If no game in params
+      Create Game
+      add player
   """
   @impl true
-  def mount(params, %{"username" => username}, socket) do
+  def mount(%{"game_name" => game_name}, _session, socket) do
     IO.puts("In GamesRoomWeb.ChangebanLive.mount ---------------------------------------")
-    IO.puts("username: #{inspect username}, params: #{inspect params}")
+    IO.puts("game_name: #{inspect game_name}")
+
     PubSub.subscribe(GamesRoom.PubSub, @topic)
 
     Presence.track(self(), @presence_topic, socket.id, %{})
@@ -32,21 +41,8 @@ defmodule GamesRoomWeb.ChangebanLive do
 
     IO.puts "Before: Mounted Socket Assigns: #{inspect socket.assigns}"
 
-    game_name =
-      if Map.get(socket.assigns, :game_name) do
-        socket.assigns.game_name
-      else
-        if Map.get(params,"id") do
-          Map.get(params,"id")
-        else
-          new_name = gen_game_name()
-          GameSupervisor.start_game(new_name)
-          new_name
-        end
-      end
-
     {:ok, player_id, _} = GameServer.add_player(game_name, "TA")
-    GameServer.start_game(game_name)
+    username = "DICK"
 
     {items, players, turn, score, state} = GameServer.view(game_name)
 
@@ -69,11 +65,11 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   @impl true
-  def mount(params, _session, socket) do
-    IO.puts("Redirecting from GamesRoomWeb.ChangebanLive.mount ---------------------------------------")
-    put_flash(socket, :info, "test_game")
-    game_name = Map.get(params,"id", "")
-    {:ok, push_redirect(socket, to: "/login/#{game_name}")}
+  def mount(params, session, socket) do
+    IO.puts("params: #{inspect params}  ---------- NO GAME_NAME_SUPPLIED")
+    game_name = gen_game_name()
+    GameSupervisor.create_game(game_name)
+    mount(%{"game_name" => game_name}, session, socket)
   end
 
   @impl true
@@ -89,6 +85,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     new_present = present + map_size(joins) - map_size(leaves)
     {:noreply, assign(socket, :present, new_present)}
   end
+
   @impl true
   def handle_event("inc", _, socket) do
     {:noreply, assign(socket, :val, Counter.incr())}
@@ -99,17 +96,22 @@ defmodule GamesRoomWeb.ChangebanLive do
     {:noreply, assign(socket, :val, Counter.decr())}
   end
 
+  @impl true
+  def handle_event("start", _, socket) do
+    GameServer.start_game(socket.assigns.game_name)
+    {:noreply, prep_assigns(socket)}
+  end
 
   @impl true
   def handle_event("move", %{"id" => id, "type" => type}, socket) do
     type_atom = String.to_atom(type)
     IO.puts("MOVE: item: #{id} act: #{type_atom}")
-    view = GameServer.move(socket.assigns.game_name, type_atom, String.to_integer(id), socket.assigns.player_id)
-    {:noreply, assign(prep_assigns(view, socket), :val, Counter.decr())}
+    GameServer.move(socket.assigns.game_name, type_atom, String.to_integer(id), socket.assigns.player_id)
+    {:noreply, prep_assigns(socket)}
   end
 
-  defp prep_assigns({items, players, turn, score, state}, socket ) do
-    # {items, players, turn, score, state} = GameServer.view(socket.assigns.game_name)
+  defp prep_assigns(socket) do
+    {items, players, turn, score, state} = GameServer.view(socket.assigns.game_name)
     player = Enum.at(players,0)
     IO.puts("ASSIGNS #{turn} #{player.machine} #{player.state} #{inspect player.past} #{inspect player.options} ")
     assign(socket,
@@ -131,7 +133,10 @@ defmodule GamesRoomWeb.ChangebanLive do
         Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
       </p>
 
-      <p>Game name: <%= @game_name %> Turn: <%= @turn %> Turn color: <%= @player.machine %> Score: <%= @score %> Game is: <%= @state %></p>
+      <div>
+        Game name: <%= @game_name %> Turn: <%= @turn %> Turn color: <%= @player.machine %> Score: <%= @score %> Game is: <%= @state %>
+        <button class="border-2 border-gray-800 rounded-md bg-green-400" phx-click="start">start</button>
+      </div>
 
       <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
         <%= headers(assigns) %>

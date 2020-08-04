@@ -23,7 +23,7 @@ defmodule ChangebanGameServerTest do
     assert 0 == player_id
     assert 1 = Game.player_count(game)
     actual_game = Game.start_game(game)
-    assert 200 = Enum.count(actual_game.turns)
+    assert 100 = Enum.count(actual_game.turns)
   end
 
   test "add too many players", %{game_name: game_name} do
