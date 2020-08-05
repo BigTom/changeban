@@ -12,7 +12,7 @@ defmodule GamesRoom.Application do
       # Start the Telemetry supervisor
       GamesRoomWeb.Telemetry,
       # Start the PubSub system
-      {Phoenix.PubSub, name: GamesRoom.PubSub},
+      GamesRoom.PubSub,
       GamesRoom.Presence,
       # Start the Endpoint (http/https)
       GamesRoomWeb.Endpoint

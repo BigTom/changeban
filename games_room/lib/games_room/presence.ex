@@ -1,5 +1,5 @@
 defmodule GamesRoom.Presence do
   use Phoenix.Presence,
-    otp_app: :live_view_counter,
+    otp_app: :games_room,
     pubsub_server: GamesRoom.PubSub
 end

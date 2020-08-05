@@ -2,13 +2,11 @@ defmodule GamesRoomWeb.ChangebanLive do
   use GamesRoomWeb, :live_view
 
   # use Phoenix.LiveView
-  alias GamesRoom.Counter
   alias Phoenix.PubSub
   alias GamesRoom.Presence
   alias Changeban.{GameServer, GameSupervisor, Player, Item}
 
-  @topic Counter.topic
-  @presence_topic "presence"
+  @game_topic "game"
 
   @doc """
     Only called if user is already created
@@ -32,34 +30,29 @@ defmodule GamesRoomWeb.ChangebanLive do
     IO.puts("In GamesRoomWeb.ChangebanLive.mount ---------------------------------------")
     IO.puts("game_name: #{inspect game_name}")
 
-    PubSub.subscribe(GamesRoom.PubSub, @topic)
+    PubSub.subscribe(GamesRoom.PubSub, @game_topic)
+    Presence.track(self(), game_name, socket.id, %{player_id: nil})
+    GamesRoomWeb.Endpoint.subscribe(game_name)
 
-    Presence.track(self(), @presence_topic, socket.id, %{})
-    GamesRoomWeb.Endpoint.subscribe(@presence_topic)
-
-    initial_present = Presence.list(@presence_topic) |> map_size
+    initial_present = Presence.list(game_name) |> map_size
 
     IO.puts "Before: Mounted Socket Assigns: #{inspect socket.assigns}"
-
-    {:ok, player_id, _} = GameServer.add_player(game_name, "TA")
-    username = "DICK"
 
     {items, players, turn, score, state} = GameServer.view(game_name)
 
     new_socket = assign(socket,
-        val: Counter.current(),
         game_name: game_name,
-        player_id: player_id,
         items: items,
-        player: Enum.at(players, player_id),
+        players: players,
         turn: turn,
         score: score,
         state: state,
         present: initial_present,
-        username: username)
+        player: nil,
+        player_id: nil,
+        username: nil)
 
-    player = Enum.at(players,0)
-    IO.puts("INITIAL #{turn} #{player.machine} #{inspect player.past} #{inspect player.options} ")
+    IO.puts("INITIAL #{turn} No player yet")
 
     {:ok, new_socket }
   end
@@ -73,33 +66,41 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   @impl true
-  def handle_info({:count, count}, socket) do
-    {:noreply, assign(socket, val: count)}
+  def handle_info(:change, %{assigns: assigns} = socket) do
+    IO.puts("PupSub notify: #{assigns.game_name}")
+    {:noreply, update_only(socket)}
   end
 
   @impl true
   def handle_info(
-        %{event: "presence_diff", payload: %{joins: joins, leaves: leaves}},
+        %{event: "presence_diff", payload: %{joins: joins, leaves: leaves}} = evt,
         %{assigns: %{present: present}} = socket
       ) do
+    IO.puts("Presence update: #{inspect evt}")
     new_present = present + map_size(joins) - map_size(leaves)
     {:noreply, assign(socket, :present, new_present)}
   end
 
   @impl true
-  def handle_event("inc", _, socket) do
-    {:noreply, assign(socket, :val, Counter.incr())}
+  def handle_info(evt, socket) do
+    IO.puts("**** UNKNOWN-EVENT ****")
+    IO.puts("Info -----: #{inspect evt} :---")
+    IO.puts("Socket ---: #{inspect socket} :---")
+    {:noreply, socket}
   end
 
   @impl true
-  def handle_event("dec", _, socket) do
-    {:noreply, assign(socket, :val, Counter.decr())}
+  def handle_event("add_player", %{"initials" => initials}, %{assigns: assigns} = socket) do
+    {:ok, id, player} = GameServer.add_player(socket.assigns.game_name, initials)
+    IO.puts("Updating presence metadata: #{inspect %{player_id: id}}")
+    Presence.update(self(), assigns.game_name, socket.id, %{player_id: id})
+    {:noreply, update_and_notify(assign(socket, player: player, player_id: id, username: initials))}
   end
 
   @impl true
   def handle_event("start", _, socket) do
     GameServer.start_game(socket.assigns.game_name)
-    {:noreply, prep_assigns(socket)}
+    {:noreply, update_and_notify(socket)}
   end
 
   @impl true
@@ -107,19 +108,36 @@ defmodule GamesRoomWeb.ChangebanLive do
     type_atom = String.to_atom(type)
     IO.puts("MOVE: item: #{id} act: #{type_atom}")
     GameServer.move(socket.assigns.game_name, type_atom, String.to_integer(id), socket.assigns.player_id)
-    {:noreply, prep_assigns(socket)}
+    {:noreply, update_and_notify(socket)}
   end
 
-  defp prep_assigns(socket) do
-    {items, players, turn, score, state} = GameServer.view(socket.assigns.game_name)
-    player = Enum.at(players,0)
-    IO.puts("ASSIGNS #{turn} #{player.machine} #{player.state} #{inspect player.past} #{inspect player.options} ")
+  defp prep_assigns(socket, items, players, turn, score, state) do
+    player = if socket.assigns.player_id do
+      player = Enum.at(players,socket.assigns.player_id)
+      IO.puts("ASSIGNS name: #{socket.assigns.username} turn: #{turn} turn_type: #{player.machine} state: #{player.state} past: #{inspect player.past} options: #{inspect player.options} ")
+      player
+    else
+      IO.puts("ASSIGNS name: #{socket.assigns.username} turn: #{turn} NO PLAYER YET")
+      nil
+    end
     assign(socket,
       items: items,
-      player: Enum.at(players, socket.assigns.player_id),
+      players: players,
+      player: player,
       turn: turn,
       score: score,
       state: state)
+  end
+
+  defp update_and_notify(socket) do
+    {items, players, turn, score, state} = GameServer.view(socket.assigns.game_name)
+    PubSub.broadcast(GamesRoom.PubSub, @game_topic, :change)
+    prep_assigns(socket, items, players, turn, score, state)
+  end
+
+  defp update_only(socket) do
+    {items, players, turn, score, state} = GameServer.view(socket.assigns.game_name)
+    prep_assigns(socket, items, players, turn, score, state)
   end
 
   @impl true
@@ -127,15 +145,22 @@ defmodule GamesRoomWeb.ChangebanLive do
     ~L"""
     <div class="">
       <p class="py-2 text-gray-800 center">
-        The count is: <b><%= @val %></b>
-        <button class="border-2 border-gray-800 w-5 rounded-md bg-red-400" phx-click="dec">-</button>
-        <button class="border-2 border-gray-800 w-5 rounded-md bg-blue-400" phx-click="inc">+</button>
         Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
       </p>
 
+      <%= if @username == nil do %>
+        <form phx-submit="add_player">
+          <input name="initials", type="text">
+        </form>
+      <% end %>
+
       <div>
-        Game name: <%= @game_name %> Turn: <%= @turn %> Turn color: <%= @player.machine %> Score: <%= @score %> Game is: <%= @state %>
-        <button class="border-2 border-gray-800 rounded-md bg-green-400" phx-click="start">start</button>
+        Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
+        Turn: <%= @turn %> Turn color: <%= if @player != nil, do: @player.machine, else: "----" %> Score: <%= @score %>
+        Game is: <%= @state %>
+        <%= if @state == :setup do %>
+          <button class="border-2 border-gray-800 rounded-md bg-green-400" phx-click="start">start</button>
+        <% end %>
       </div>
 
       <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
@@ -172,6 +197,10 @@ defmodule GamesRoomWeb.ChangebanLive do
       </div>
     </div>
     """
+  end
+
+  def collect_item_data(%Item{id: item_id, type: type, blocked: blocked}, nil) do
+    %{id: item_id, type: type, blocked: blocked, player_id: nil, options: []}
   end
 
   def collect_item_data(%Item{id: item_id, type: type, blocked: blocked}, %Player{id: player_id, options: options}) do
