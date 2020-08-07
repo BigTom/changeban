@@ -143,68 +143,161 @@ defmodule GamesRoomWeb.ChangebanLive do
   @impl true
   def render(assigns) do
     ~L"""
-    <div class="">
-      <p class="py-2 text-gray-800 center">
+    <div>
+      <%= if @username == nil do %>
+        <div class="absolute z-40 h-full w-full flex flex-col items-center justify-center
+                    bg-gray-600 bg-opacity-50
+                    font-sans">
+          <div class="bg-white rounded shadow p-8 m-4 max-w-xs max-h-full text-center overflow-y-scroll">
+            <form phx-submit="add_player">
+              <p>Please enter an initial with which to identified your items</p>
+              <input class="border-2 border-gray-800 rounded-md" name="initials", type="text">
+            </form>
+          </div>
+        </div>
+      <% end %>
+      <div class="z-20">
+        <div class="flex justify-between pt-4">
+          <%= turn_display(%{turn: @turn, player: @player}) %>
+          <%= if @state == :setup do %>
+            <button class="border-2 border-gray-800 rounded-md bg-green-400" phx-click="start">start</button>
+          <% else %>
+            <%= render_turn_instructions(@player) %>
+          <% end %>
+          <%= render_score_display(assigns) %>
+        </div>
+
+        <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
+          <%= headers(assigns) %>
+          <div class="col-start-1 row-start-3 row-span-5 border border-gray-800">
+          <%= active_items(assigns, 0) %>
+          </div>
+          <div class="col-start-2 row-start-3 row-span-5 border border-gray-800">
+            <%= active_items(assigns, 1) %>
+          </div>
+          <div class="col-start-3 row-start-3 row-span-5 border border-gray-800">
+            <%= active_items(assigns, 2) %>
+          </div>
+          <div class="col-start-4 row-start-3 row-span-5 border border-gray-800">
+            <%= active_items(assigns, 3) %>
+          </div>
+
+          <div class="col-start-5 col-span-4 row-start-4 border border-gray-800">
+            <%= completed_items(assigns, 4) %>
+          </div>
+
+          <div class="col-start-5 row-start-7 row-span-2 border border-gray-800">
+            <%= completed_items(assigns, 5) %>
+          </div>
+          <div class="col-start-6 row-start-7 row-span-2 border border-gray-800">
+            <%= completed_items(assigns, 6) %>
+          </div>
+          <div class="col-start-7 row-start-7 row-span-2 border border-gray-800">
+            <%= completed_items(assigns, 7) %>
+          </div>
+          <div class="col-start-8 row-start-7 row-span-2 border border-gray-800">
+            <%= completed_items(assigns, 8) %>
+          </div>
+        </div>
+      </div>
+      <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
+        Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
         Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
       </p>
-
-      <%= if @username == nil do %>
-        <form phx-submit="add_player">
-          <input name="initials", type="text">
-        </form>
-      <% end %>
-
-      <div>
-        Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
-        Turn: <%= @turn %> Turn color: <%= if @player != nil, do: @player.machine, else: "----" %> Score: <%= @score %>
-        Game is: <%= @state %>
-        <%= if @state == :setup do %>
-          <button class="border-2 border-gray-800 rounded-md bg-green-400" phx-click="start">start</button>
-        <% end %>
-      </div>
-
-      <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
-        <%= headers(assigns) %>
-        <div class="col-start-1 row-start-3 row-span-5 border border-gray-800">
-        <%= active_items(assigns, 0) %>
-        </div>
-        <div class="col-start-2 row-start-3 row-span-5 border border-gray-800">
-          <%= active_items(assigns, 1) %>
-        </div>
-        <div class="col-start-3 row-start-3 row-span-5 border border-gray-800">
-          <%= active_items(assigns, 2) %>
-        </div>
-        <div class="col-start-4 row-start-3 row-span-5 border border-gray-800">
-          <%= active_items(assigns, 3) %>
-        </div>
-
-        <div class="col-start-5 col-span-4 row-start-4 border border-gray-800">
-          <%= completed_items(assigns, 4) %>
-        </div>
-
-        <div class="col-start-5 row-start-7 row-span-2 border border-gray-800">
-          <%= completed_items(assigns, 5) %>
-        </div>
-        <div class="col-start-6 row-start-7 row-span-2 border border-gray-800">
-          <%= completed_items(assigns, 6) %>
-        </div>
-        <div class="col-start-7 row-start-7 row-span-2 border border-gray-800">
-          <%= completed_items(assigns, 7) %>
-        </div>
-        <div class="col-start-8 row-start-7 row-span-2 border border-gray-800">
-          <%= completed_items(assigns, 8) %>
-        </div>
-      </div>
     </div>
     """
   end
 
-  def collect_item_data(%Item{id: item_id, type: type, blocked: blocked}, nil) do
-    %{id: item_id, type: type, blocked: blocked, player_id: nil, options: []}
+  # def turn_display(%{player: nil, turn: turn}), do: render_turn_display(%{font_color: "text-grey-400", nr: turn})
+  def turn_display(%{player: player, turn: turn}) do
+    cond do
+      player == nil || turn == 0 ->
+        render_turn_display(%{font_color: "gray-400", nr: turn})
+      player.machine == :red ->
+        render_turn_display(%{font_color: "red-700", nr: turn})
+      true ->
+        render_turn_display(%{font_color: "black", nr: turn})
+    end
   end
 
-  def collect_item_data(%Item{id: item_id, type: type, blocked: blocked}, %Player{id: player_id, options: options}) do
-    new_assigns = %{id: item_id, type: type, blocked: blocked, player_id: player_id, options: options}
+  def render_turn_instructions(assigns) do
+    ~L"""
+    <div class="flex-grow border-2 border-gray-700 rounded-md text-sm text-center">
+      <p class="text-base font-bold">Instructions</p>
+      <%= if @state == :done do %>
+        <p>You are waiting for the other players to go</p>
+      <% else %>
+        <%= cond do %>
+        <% @machine == :black -> %>
+          <%=cond do %>
+          <% ! Enum.empty?(@options.block) && ! Enum.empty?(@options.start)  -> %>
+            <p>You must block one unblocked item</p>
+            <p>and you must also start one new item</p>
+          <% ! Enum.empty?(@options.block) -> %>
+            <p>You must block one unblocked item</p>
+          <% ! Enum.empty?(@options.start) -> %>
+            <p>You must start one new item</p>
+          <% end %>
+        <% @machine == :red -> %>
+          <p>You can either move one of your unblocked items one column right</p>
+          <p>or you can unblock one of your blocked items</p>
+          <p>or you can start one new item (if any remain)</p>
+        <% true -> %>
+          <p>Other</p>
+          <p></p>
+          <p></p>
+        <% end %>
+      <% end %>
+    </div>
+    """
+  end
+
+  @spec render_turn_display(any) :: Phoenix.LiveView.Rendered.t()
+  def render_turn_display(assigns) do
+    ~L"""
+      <div class="w-1/6 flex flex-col
+                  border-2 border-<%= @font_color %> rounded-md
+                  text-<%= @font_color %> text-2xl">
+        <div class="text-center">Turn:</div>
+        <div class="text-center"><%= to_string(:io_lib.format("~2..0B", [@nr])) %></div>
+      </div>
+    """
+  end
+  def render_score_display(assigns) do
+    ~L"""
+      <div class="w-1/6 flex flex-col
+                  border-2 border-black rounded-md
+                  text-black text-2xl">
+        <div class="text-center">Score:</div>
+        <div class="text-center"><%= to_string(:io_lib.format("~2..0B", [@score])) %></div>
+      </div>
+    """
+  end
+
+
+  def collect_item_data(%Item{id: item_id, type: type, blocked: blocked}, _players, nil) do
+    %{id: item_id, type: type, blocked: blocked, player_id: nil, initials: "  ", options: []}
+  end
+
+  def collect_item_data(%Item{id: item_id, type: type, blocked: blocked, owner: owner_id}, players, %Player{id: player_id, options: options}) do
+    item_initials =
+      if owner_id != nil do
+        owning_player = (Enum.at(players, owner_id))
+        if owning_player != nil do
+          owning_player.initials
+        else
+          "  "
+        end
+      else
+        "  "
+      end
+    new_assigns
+        = %{id: item_id,
+            mine: (owner_id == player_id),
+            type: type,
+            blocked: blocked,
+            initials: item_initials,
+            options: options}
     # IO.puts("au_data: #{inspect new_assigns}")
     new_assigns
   end
@@ -218,14 +311,18 @@ defmodule GamesRoomWeb.ChangebanLive do
                 phx-click="move"
                 phx-value-type="<%= type %>"
                 phx-value-id="<%= @id %>">
-                <div <%= if @blocked do %> class="font-black" <% end %> ><%= @id %></div>
+              <div <%= if @blocked do %> class="font-black" <% end %> >
+                <%= @initials %>
+              </div>
             </div>
           <% else %>
             <div class="border-2 shadow bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
                 phx-click="move"
                 phx-value-type="<%= type %>"
                 phx-value-id="<%= @id %>">
-                <div <%= if @blocked do %> class="font-black" <% end %> ><%= @id %></div>
+              <div <%= if @blocked do %> class="font-black" <% end %> >
+                <%= @initials %>
+              </div>
             </div>
         <% end %>
         """
@@ -233,11 +330,15 @@ defmodule GamesRoomWeb.ChangebanLive do
         ~L"""
           <%= if @type == :task do %>
             <div class="border-2 bg-green-500 border-green-500 w-8 px-1 py-3 m-1">
-              <div <%= if @blocked do %> class="font-black" <% end %> ><%= @id %></div>
+              <div <%= if @blocked do %> class="font-black" <% end %> >
+                <%= @initials %>
+              </div>
             </div>
           <% else %>
             <div class="border-2 bg-yellow-300 border-yellow-300 w-8 px-1 py-3 m-1">
-              <div <%= if @blocked do %> class="font-black" <% end %> ><%= @id %></div>
+              <div <%= if @blocked do %> class="font-black" <% end %> >
+                <%= @initials %>
+              </div>
             </div>
           <% end %>
         """
@@ -257,11 +358,11 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def active_items(assigns, state) do
     ~L"""
-    <div class="flex flex-wrap">
-      <%= for item <- Map.get(assigns.items, state, []) do %>
-        <%= render_active_item(collect_item_data(item, @player)) %>
-      <% end %>
-    </div>
+      <div class="flex flex-wrap">
+        <%= for item <- Map.get(assigns.items, state, []) do %>
+          <%= render_active_item(collect_item_data(item, assigns.players, @player)) %>
+        <% end %>
+      </div>
     """
   end
 
@@ -297,4 +398,6 @@ defmodule GamesRoomWeb.ChangebanLive do
   defp gen_game_name() do
     List.to_string(for _n <- 0..5, do: String.at("ABCDEFGHIJKLMNPQRSTUVWXYZ123456789", Enum.random(0..33)))
   end
+
+  def fmt(nr, fmt), do: to_string(:io_lib.format(fmt, [nr]))
 end
