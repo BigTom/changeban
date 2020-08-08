@@ -27,16 +27,15 @@ defmodule Changeban.Game do
   alias Changeban.{Game, Item, Player}
 
   def new() do
-    %Game{items: initial_items(), max_players: (@max_player_id + 1), turns: turns()}
+    %Game{items: initial_items(16), max_players: (@max_player_id + 1), turns: turns()}
   end
 
   def new_short_game_for_testing() do
-    %Game{items: (for id <- 0..3, do: Item.new(id)), max_players: (@max_player_id + 1)}
+    %Game{items: initial_items(4), max_players: (@max_player_id + 1), turns: turns()}
   end
 
-  def initial_items() do
-    for id <- 0..15, do: Item.new(id)
-  end
+  def initial_items(nr_items), do: for id <- 1..nr_items, do: Item.new(id)
+  def initial_items(), do: initial_items(16)
 
   def turns() do
     for _ <- 1..(@turn_cycle), do: Enum.random([:red, :black])
@@ -100,20 +99,20 @@ defmodule Changeban.Game do
     items |> Enum.find(& ( &1.id == id))
   end
 
-  def update_game(%Game{items: items, players: players} = game, %Item{} = item_, %Player{} = player_) do
+  def update_game(%Game{items: items, players: players} = game, %Item{} = item, %Player{} = player) do
     items_ =
       items
-      |> Enum.filter(& ( &1.id != item_.id))    # Take out existing version
-      |> List.insert_at(0, item_)               # insert new version
+      |> Enum.filter(& ( &1.id != item.id))    # Take out existing version
+      |> List.insert_at(0, item)               # insert new version
       |> Enum.sort_by(& &1.id)                  # make sure the order is maintained
 
     players_ =
       players
-      |> Enum.filter(& ( &1.id != player_.id))  # Take out existing version
-      |> List.insert_at(0, player_)             # insert new version
+      |> Enum.filter(& ( &1.id != player.id))  # Take out existing version
+      |> List.insert_at(0, player)             # insert new version
       |> Enum.sort_by(& &1.id)                  # make sure the order is maintained
 
-    recalculate_state(%{game | items: items_, players: players_})
+      recalculate_state(%{game | items: items_, players: players_})
   end
 
   def recalculate_state(game) do
@@ -169,6 +168,8 @@ defmodule Changeban.Game do
 
   def action(:unblock, item, player), do: { Item.unblock(item), %{player | state: :done } }
   def action(:reject, item, player), do: { Item.reject(item), %{player | state: :done } }
+  def action(:hlp_mv, item, player), do: { Item.move_right(item), %{player | state: :done } }
+  def action(:hlp_unblk, item, player), do: { Item.unblock(item), %{player | state: :done } }
   def action(:start, item, %Player{machine: machine} = player) do
     player_ = case machine do
       :red -> %{player | state: :done }

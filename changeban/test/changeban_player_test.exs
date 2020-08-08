@@ -22,7 +22,7 @@ defmodule ChangebanPlayerTest do
   test "player_red_move_options_at_start" do
     items = Game.initial_items()
     player = Player.new(0, "X")
-    expected_options = %{Player.empty_options() | start: Enum.to_list(0..15)}
+    expected_options = %{Player.empty_options() | start: Enum.to_list(1..16)}
     expected_response = %Changeban.Player{id: 0, machine: nil, options: expected_options, past: nil, state: :act, initials: "X"}
 
     assert expected_response == Player.red_options(items, player)
@@ -31,7 +31,7 @@ defmodule ChangebanPlayerTest do
   test "player_black_move_options_at_start" do
     items = Game.initial_items()
     player = %Player{id: 0, machine: :black, state: :new, options: Player.empty_options()}
-    expected_options = %{Player.empty_options() | start: Enum.to_list(0..15)}
+    expected_options = %{Player.empty_options() | start: Enum.to_list(1..16)}
     expected_response = %Player{id: 0, machine: :black, options: expected_options, past: nil, state: :act}
 
     assert expected_response == Player.black_options(items, player)

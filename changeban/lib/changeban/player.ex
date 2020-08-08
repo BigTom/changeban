@@ -76,6 +76,7 @@ defmodule Changeban.Player do
 
   def empty_options(), do: %{start: [], move: [], unblock: [], block: [], hlp_mv: [], hlp_unblk: [], reject: []}
 
+  def calculate_player_options(_items, %Player{state: :done} = player), do: %{player | options: Player.empty_options()}
   def calculate_player_options(items, %Player{machine: machine, state: state, past: past} = player) do
     player_ = %{player | options: empty_options()}
     if (state == :act || state == :help) && past == :completed do
@@ -109,7 +110,6 @@ defmodule Changeban.Player do
 
   If you cannot do ANY of these, then HELP someone
   """
-  def red_options(_items, %Player{state: :done} = player), do: player
   def red_options(items, %Player{id: pid} = player) do
     start = for %{id: id} = item <- items, Item.can_start?(item), do: id
     move = for %{id: id} = item <- items, Item.can_move?(item, pid), do: id
@@ -134,7 +134,6 @@ defmodule Changeban.Player do
   If you cannot START, then HELP someone
   """
 
-  def black_options(_items, %Player{state: :done} = player), do: %{player | options: Player.empty_options()}
   def black_options(items, %Player{id: pid, past: past} = player) do
     block = for %{id: id} = item <- items, Item.can_block?(item, pid), do: id
     start = for %{id: id} = item <- items, Item.can_start?(item), do: id

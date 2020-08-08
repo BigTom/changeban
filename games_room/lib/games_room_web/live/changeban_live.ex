@@ -114,7 +114,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   defp prep_assigns(socket, items, players, turn, score, state) do
     player = if socket.assigns.player_id do
       player = Enum.at(players,socket.assigns.player_id)
-      IO.puts("ASSIGNS name: #{socket.assigns.username} turn: #{turn} turn_type: #{player.machine} state: #{player.state} past: #{inspect player.past} options: #{inspect player.options} ")
+      IO.puts("ASSIGNS name: #{socket.assigns.username} turn: #{turn} game_state: #{state} turn_type: #{player.machine} state: #{player.state} past: #{inspect player.past} options: #{inspect player.options} ")
       player
     else
       IO.puts("ASSIGNS name: #{socket.assigns.username} turn: #{turn} NO PLAYER YET")
@@ -159,11 +159,7 @@ defmodule GamesRoomWeb.ChangebanLive do
       <div class="z-20">
         <div class="flex justify-between pt-4">
           <%= turn_display(%{turn: @turn, player: @player}) %>
-          <%= if @state == :setup do %>
-            <button class="border-2 border-gray-800 rounded-md bg-green-400" phx-click="start">start</button>
-          <% else %>
-            <%= render_turn_instructions(@player) %>
-          <% end %>
+          <%= render_state_instructions(assigns) %>
           <%= render_score_display(assigns) %>
         </div>
 
@@ -208,7 +204,103 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  # def turn_display(%{player: nil, turn: turn}), do: render_turn_display(%{font_color: "text-grey-400", nr: turn})
+  def render_state_instructions(assigns) do
+    IO.puts("GAME STATE: #{inspect assigns.state}")
+    case assigns.state do
+      :setup -> render_setup_instructions(assigns)
+      :running -> render_turn_instructions(assigns)
+      :done -> render_simulation_over(assigns)
+    end
+  end
+
+  def render_setup_instructions(assigns) do
+    ~L"""
+      <div class="flex-grow flex flex-col border-2 border-green-600 mx-4 rounded-md
+                  text-green-600 items-center text-center">
+        <p>When all players have joined press "START SIMULATION"</p>
+        <button class="border-2 border-gray-800 rounded-md bg-green-400 w-1/2"
+                phx-click="start">START SIMULATION</button>
+      </div>
+    """
+  end
+
+  def render_simulation_over(assigns) do
+    ~L"""
+      <div class="flex-grow border-2 border-green-600 mx-4 rounded-md
+                  text-green-600 text-2xl text-center">
+        SIMULATION COMPLETED
+      </div>
+    """
+  end
+
+  def render_specific_instructions(%Player{} = player) do
+    cond do
+      player.state == :done -> render_done_instructions(player)
+      helping?(player.options) -> render_help_instructions(player)
+      rejecting?(player.options) -> render_reject_instructions(player)
+      true ->
+        case player.machine do
+          :black -> render_black_instructions(player)
+          :red -> render_red_instructions(player)
+        end
+    end
+  end
+
+  def render_turn_instructions(assigns) do
+    ~L"""
+    <div class="flex-grow border-2 border-gray-700 rounded-md text-sm text-center">
+      <p class="text-base font-bold">Instructions</p>
+      <%= render_specific_instructions(assigns.player) %>
+    </div>
+    """
+  end
+
+  def render_done_instructions(assigns) do
+    ~L"""
+    <p class="text-gray-600">You are waiting for the other players to go</p>
+    """
+  end
+
+  def render_help_instructions(assigns) do
+    ~L"""
+    <p>You can help someone!  Unblock or move someone else's item</p>
+    """
+  end
+
+  def render_reject_instructions(assigns) do
+    ~L"""
+    <p>Now you have completed an item you can reject any item on the board</p>
+    <p>Discuss with the others which one to reject</p>
+    """
+  end
+
+  def render_black_instructions(assigns) do
+    ~L"""
+    <%=cond do %>
+      <% ! Enum.empty?(@options.block) -> %>
+        <p>You must block one unblocked item</p>
+      <% ! Enum.empty?(@options.start) -> %>
+        <p>You must start one new item</p>
+    <% end %>
+    """
+  end
+
+  def render_red_instructions(assigns) do
+    ~L"""
+    <p>You can either move one of your unblocked items one column right</p>
+    <p>or you can unblock one of your blocked items</p>
+    <p>or you can start one new item (if any remain)</p>
+    """
+  end
+
+  def helping?(%{hlp_mv: hlp_mv, hlp_unblk: hlp_unblk}) do
+    not (Enum.empty?(hlp_mv) && Enum.empty?(hlp_unblk))
+  end
+
+  def rejecting?(%{reject: reject}) do
+    not Enum.empty?(reject)
+  end
+
   def turn_display(%{player: player, turn: turn}) do
     cond do
       player == nil || turn == 0 ->
@@ -218,38 +310,6 @@ defmodule GamesRoomWeb.ChangebanLive do
       true ->
         render_turn_display(%{font_color: "black", nr: turn})
     end
-  end
-
-  def render_turn_instructions(assigns) do
-    ~L"""
-    <div class="flex-grow border-2 border-gray-700 rounded-md text-sm text-center">
-      <p class="text-base font-bold">Instructions</p>
-      <%= if @state == :done do %>
-        <p>You are waiting for the other players to go</p>
-      <% else %>
-        <%= cond do %>
-        <% @machine == :black -> %>
-          <%=cond do %>
-          <% ! Enum.empty?(@options.block) && ! Enum.empty?(@options.start)  -> %>
-            <p>You must block one unblocked item</p>
-            <p>and you must also start one new item</p>
-          <% ! Enum.empty?(@options.block) -> %>
-            <p>You must block one unblocked item</p>
-          <% ! Enum.empty?(@options.start) -> %>
-            <p>You must start one new item</p>
-          <% end %>
-        <% @machine == :red -> %>
-          <p>You can either move one of your unblocked items one column right</p>
-          <p>or you can unblock one of your blocked items</p>
-          <p>or you can start one new item (if any remain)</p>
-        <% true -> %>
-          <p>Other</p>
-          <p></p>
-          <p></p>
-        <% end %>
-      <% end %>
-    </div>
-    """
   end
 
   @spec render_turn_display(any) :: Phoenix.LiveView.Rendered.t()
@@ -265,8 +325,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
   def render_score_display(assigns) do
     ~L"""
-      <div class="w-1/6 flex flex-col
-                  border-2 border-black rounded-md
+      <div class="w-1/6 flex flex-col border-2 border-black rounded-md
                   text-black text-2xl">
         <div class="text-center">Score:</div>
         <div class="text-center"><%= to_string(:io_lib.format("~2..0B", [@score])) %></div>
