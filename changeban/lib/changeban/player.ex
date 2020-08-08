@@ -128,9 +128,9 @@ defmodule Changeban.Player do
 
   BLACK MOVES
   BOTH:
-    BLOCK:    block ONE unblocked item, if you own one
+    BLOCK:     block ONE unblocked item, if you own one
     AND START: start ONE new item (if any remain)
-
+    (Note: if there is nothing to block you just start)
   If you cannot START, then HELP someone
   """
 
@@ -141,17 +141,16 @@ defmodule Changeban.Player do
 
     case past do
       :blocked -> cond do
-        Enum.empty?(start) -> help_options(items, player)
-        :true -> %{player | options: %{player.options | start: start}}
-      end
-      :started -> cond do
-        Enum.empty?(block) -> %{player | state: :done, options: Player.empty_options()}
-        :true -> %{player | options: %{player.options | block: block}}
-      end
+          Enum.empty?(start) -> help_options(items, player)
+          :true -> %{player | state: :act, options: %{player.options | start: start}}
+        end
+      :started ->
+        %{player | state: :done, options: Player.empty_options()}
       nil -> cond do
-        Enum.empty?(block) && Enum.empty?(start) -> help_options(items, player)
-        :true -> %{player | state: :act, options: %{player.options | block: block, start: start}}
-      end
+          Enum.empty?(block) && Enum.empty?(start) -> help_options(items, player)
+          Enum.empty?(block) -> %{player | state: :act, options: %{player.options | start: start}}
+          :true -> %{player | state: :act, options: %{player.options | block: block}}
+        end
     end
   end
 

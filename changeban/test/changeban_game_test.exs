@@ -214,7 +214,7 @@ defmodule ChangebanGameTest do
   end
 
 
-  test "test black blocks then starts" do
+  test "test black starts then does not block" do
     game = game_1()
     %{past: past} = Game.get_player(game, 0)
     assert 2 == game.turn
@@ -224,17 +224,10 @@ defmodule ChangebanGameTest do
     %{options: options, past: past} = Game.get_player(game, 0)
     assert 2 == game.turn
     assert :started == past
-    assert %{Player.empty_options() | start: [], block: [0,1]} == options
-
-    game = Game.exec_action(game, :block, 0, 0)
-    %{options: options, state: state, past: past} = Game.get_player(game, 0)
-    assert 2 == game.turn
-    assert :done == state
-    assert nil == past
     assert Player.empty_options() == options
   end
 
-  test "test black starts then blocks" do
+  test "test black blocks then starts" do
     game = game_1()
     %{past: past} = Game.get_player(game, 0)
     assert 2 == game.turn
