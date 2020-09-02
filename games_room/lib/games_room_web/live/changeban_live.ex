@@ -9,8 +9,6 @@ defmodule GamesRoomWeb.ChangebanLive do
   @game_topic "game"
 
   @doc """
-    Only called if user is already created
-
     creates user presence in game
     If there is a game_name
      in the socket - carry on
@@ -57,6 +55,11 @@ defmodule GamesRoomWeb.ChangebanLive do
     {:ok, new_socket }
   end
 
+  @doc """
+    Invoked when there is no game_name in the url.
+    Creates a game and adds the game_name to teh socket then passes on to the
+    main mount function
+  """
   @impl true
   def mount(params, session, socket) do
     IO.puts("params: #{inspect params}  ---------- NO GAME_NAME_SUPPLIED")
@@ -65,9 +68,13 @@ defmodule GamesRoomWeb.ChangebanLive do
     mount(%{"game_name" => game_name}, session, socket)
   end
 
+  @doc """
+  Game changes are notified with a simple flag.
+  Each Liveview in the game will then check the game state
+  """
   @impl true
   def handle_info(:change, %{assigns: assigns} = socket) do
-    IO.puts("PupSub notify: #{assigns.game_name}")
+    IO.puts("PubSub notify: #{assigns.game_name}")
     {:noreply, update_only(socket)}
   end
 
@@ -90,7 +97,8 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   @impl true
-  def handle_event("add_player", %{"initials" => initials}, %{assigns: assigns} = socket) do
+  def handle_event("add_player", %{"initials" => initials} = params, %{assigns: assigns} = socket) do
+    IO.puts("add_player params: #{inspect params}")
     {:ok, id, player} = GameServer.add_player(socket.assigns.game_name, initials)
     IO.puts("Updating presence metadata: #{inspect %{player_id: id}}")
     Presence.update(self(), assigns.game_name, socket.id, %{player_id: id})
@@ -143,18 +151,9 @@ defmodule GamesRoomWeb.ChangebanLive do
   @impl true
   def render(assigns) do
     ~L"""
-    <div>
+    <div class="relative">
       <%= if @username == nil do %>
-        <div class="absolute z-40 h-full w-full flex flex-col items-center justify-center
-                    bg-gray-600 bg-opacity-50
-                    font-sans">
-          <div class="bg-white rounded shadow p-8 m-4 max-w-xs max-h-full text-center overflow-y-scroll">
-            <form phx-submit="add_player">
-              <p>Please enter an initial with which to identified your items</p>
-              <input class="border-2 border-gray-800 rounded-md" name="initials", type="text">
-            </form>
-          </div>
-        </div>
+        <%= render_join_view(assigns) %>
       <% end %>
       <div class="z-20">
         <div class="flex justify-between pt-4">
@@ -162,44 +161,85 @@ defmodule GamesRoomWeb.ChangebanLive do
           <%= render_state_instructions(assigns) %>
           <%= render_score_display(assigns) %>
         </div>
-
-        <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
-          <%= headers(assigns) %>
-          <div class="col-start-1 row-start-3 row-span-5 border border-gray-800">
-          <%= active_items(assigns, 0) %>
-          </div>
-          <div class="col-start-2 row-start-3 row-span-5 border border-gray-800">
-            <%= active_items(assigns, 1) %>
-          </div>
-          <div class="col-start-3 row-start-3 row-span-5 border border-gray-800">
-            <%= active_items(assigns, 2) %>
-          </div>
-          <div class="col-start-4 row-start-3 row-span-5 border border-gray-800">
-            <%= active_items(assigns, 3) %>
-          </div>
-
-          <div class="col-start-5 col-span-4 row-start-4 border border-gray-800">
-            <%= completed_items(assigns, 4) %>
-          </div>
-
-          <div class="col-start-5 row-start-7 row-span-2 border border-gray-800">
-            <%= completed_items(assigns, 5) %>
-          </div>
-          <div class="col-start-6 row-start-7 row-span-2 border border-gray-800">
-            <%= completed_items(assigns, 6) %>
-          </div>
-          <div class="col-start-7 row-start-7 row-span-2 border border-gray-800">
-            <%= completed_items(assigns, 7) %>
-          </div>
-          <div class="col-start-8 row-start-7 row-span-2 border border-gray-800">
-            <%= completed_items(assigns, 8) %>
-          </div>
-        </div>
+        <%= render_game_grid assigns %>
       </div>
       <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
         Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
         Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
       </p>
+    </div>
+    """
+  end
+
+
+
+  def render_join_view(assigns) do
+    ~L"""
+      <div class="absolute z-40 flex flex-col items-center justify-center
+                  bg-gray-600 bg-opacity-50
+                  w-full h-full
+                  font-sans">
+        <div class="bg-gray-200 rounded shadow p-8 m-4 max-w-xs max-h-full text-center overflow-y-scroll">
+        <p class="text-left">Please enter an initial with which to identify your items</p>
+        <form phx-submit="add_player">
+            <div class="text-left flex">
+              <label class="w-2/3 text-gray-700 text-sm font-bold mb-2 px-2" for="initials">Initials (1 or 2 letters):</label>
+              <input class="w-1/3 shadow appearance-none border rounded py-2 px-3
+                            text-gray-700
+                            focus:outline-none focus:shadow-outline" name="initials" id="initials"
+                            type="text" maxlength="2">
+            </div>
+            <div class="py-2 flex">
+              <label class="w-2/3 text-gray-700 text-sm font-bold mb-2 px-2" for="game_name">Game Name (or blank to start a new game):</label>
+              <input class="w-1/3 shadow appearance-none border rounded py-2 px-3
+                            text-gray-700
+                            focus:outline-none focus:shadow-outline" name="game_name" id="game_name" type="text">
+            </div>
+            <div class="flex items-center justify-between">
+              <button type="submit" class="bg-gray-500 hover:bg-blue-700 text-white font-bold py-2 px-4
+                                           rounded focus:outline-none focus:shadow-outline" >
+                Enter
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+  """
+  end
+
+  def render_game_grid(assigns) do
+    ~L"""
+    <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
+      <%= headers(assigns) %>
+      <div class="col-start-1 row-start-3 row-span-5 border border-gray-800">
+      <%= active_items(assigns, 0) %>
+      </div>
+      <div class="col-start-2 row-start-3 row-span-5 border border-gray-800">
+        <%= active_items(assigns, 1) %>
+      </div>
+      <div class="col-start-3 row-start-3 row-span-5 border border-gray-800">
+        <%= active_items(assigns, 2) %>
+      </div>
+      <div class="col-start-4 row-start-3 row-span-5 border border-gray-800">
+        <%= active_items(assigns, 3) %>
+      </div>
+
+      <div class="col-start-5 col-span-4 row-start-4 border border-gray-800">
+        <%= completed_items(assigns, 4) %>
+      </div>
+
+      <div class="col-start-5 row-start-7 row-span-2 border border-gray-800">
+        <%= completed_items(assigns, 5) %>
+      </div>
+      <div class="col-start-6 row-start-7 row-span-2 border border-gray-800">
+        <%= completed_items(assigns, 6) %>
+      </div>
+      <div class="col-start-7 row-start-7 row-span-2 border border-gray-800">
+        <%= completed_items(assigns, 7) %>
+      </div>
+      <div class="col-start-8 row-start-7 row-span-2 border border-gray-800">
+        <%= completed_items(assigns, 8) %>
+      </div>
     </div>
     """
   end
@@ -269,7 +309,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_reject_instructions(assigns) do
     ~L"""
-    <p>Now you have completed an item you can reject any item on the board</p>
+    <p>Now you have accepted an item you can reject any item on the board</p>
     <p>Discuss with the others which one to reject</p>
     """
   end
@@ -285,11 +325,20 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  def render_red_instructions(assigns) do
+  def render_red_instructions(%{options: options} = assigns) do
+    add_move = fn list -> if (not Enum.empty?(options.move)), do: ["move one of your unblocked items one column right" | list], else: list end
+    add_unbk = fn list -> if (not Enum.empty?(options.unblock)), do: ["unblock one of your blocked items" | list], else: list end
+    add_strt = fn list -> if (not Enum.empty?(options.start)), do: ["start one new item" | list], else: list end
+
+    words = [] |> add_strt.() |> add_unbk.() |> add_move.()
+
+    text = case Enum.count(words) do
+      1 -> "<p>You must " <> List.first(words) <> "</p>"
+      _ -> "<p>You must either " <> Enum.join(words, "</p><p>or ") <> "</p>"
+    end
+
     ~L"""
-    <p>You can either move one of your unblocked items one column right</p>
-    <p>or you can unblock one of your blocked items</p>
-    <p>or you can start one new item (if any remain)</p>
+      <%= raw text %>
     """
   end
 
@@ -362,11 +411,12 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_active_item(%{id: item_id, options: options} = assigns) do
-    case Enum.find(options, fn ({_, v}) -> (Enum.find(v, &(&1 == item_id)) != nil) end) do
+    case Enum.find(options, fn ({_option_type, item_list}) -> (Enum.find(item_list, &(&1 == item_id)) != nil) end) do
       {type, _} ->
         ~L"""
           <%= if @type == :task do %>
-            <div class="border-2 shadow bg-green-500 border-green-800 w-8 px-1 py-3 m-1"
+            <div class="border-2 shadow bg-green-500 border-green-800 w-8 px-1 py-3 m-1
+                        focus:outline-none focus:shadow-outline"
                 phx-click="move"
                 phx-value-type="<%= type %>"
                 phx-value-id="<%= @id %>">
@@ -375,7 +425,8 @@ defmodule GamesRoomWeb.ChangebanLive do
               </div>
             </div>
           <% else %>
-            <div class="border-2 shadow bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1"
+            <div class="border-2 shadow bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1
+                        focus:outline-none focus:shadow-outline"
                 phx-click="move"
                 phx-value-type="<%= type %>"
                 phx-value-id="<%= @id %>">
@@ -415,6 +466,10 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
+  @doc """
+  Finds the items for the given state id then iterates over them and passes each to
+  render_active_item/1
+  """
   def active_items(assigns, state) do
     ~L"""
       <div class="flex flex-wrap">
@@ -455,8 +510,8 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   defp gen_game_name() do
-    List.to_string(for _n <- 0..5, do: String.at("ABCDEFGHIJKLMNPQRSTUVWXYZ123456789", Enum.random(0..33)))
+    chars = "ABCDEFGHIJKLMNPQRSTUVWXYZ123456789"
+    end_index = String.length(chars) - 1
+    List.to_string(for _n <- 0..5, do: String.at(chars, Enum.random(0..end_index)))
   end
-
-  def fmt(nr, fmt), do: to_string(:io_lib.format(fmt, [nr]))
 end
