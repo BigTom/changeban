@@ -5,22 +5,37 @@ defmodule Changeban.MixProject do
     [
       app: :changeban,
       version: "0.1.0",
+
+
+
+
       elixir: "~> 1.10",
+
       start_permanent: Mix.env() == :dev,
+
       deps: deps(),
       test_coverage: [tool: ExCoveralls]
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
+  # Configuration for the OTP application.
+  #
+  # Type `mix help compile.app` for more information.
   def application do
     [
-      extra_applications: [:logger],
-      mod: {Changeban, []}
+      mod: {Changeban, []},
+      extra_applications: [:logger]
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
+
+
+
+
+
+  # Specifies your project dependencies.
+  #
+  # Run 'mix help deps' to learn about dependencies.
   defp deps do
     [
       {:mix_test_watch, "~> 0.8", only: :dev, runtime: false},
@@ -29,4 +44,13 @@ defmodule Changeban.MixProject do
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
     ]
   end
+
+  # Aliases are shortcuts or tasks specific to the current project.
+  #
+  # See the documentation for `Mix` for more info on aliases.
+  # defp aliases do
+  #   [
+  #     setup: ["deps.get"]
+  #   ]
+  # end
 end
