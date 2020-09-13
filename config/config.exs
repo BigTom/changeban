@@ -16,7 +16,7 @@ config :games_room,
 config :games_room, GamesRoomWeb.Endpoint,
   url: [host: "localhost"],
   secret_key_base: "BdHJDtzWRriJaoasX3vyV9qdZIbYZfyEy270Yd2a2v+CrPpsA8Io8UMgHqPv4MIa",
-  render_errors: [view: GamesRoomWb.ErrorView, accepts: ~w(html json), layout: false],
+  render_errors: [view: GamesRoomWeb.ErrorView, accepts: ~w(html json), layout: false],
   pubsub_server: GamesRoom.PubSub,
   live_view: [signing_salt: "M9Ve8fvhUAY0WPRgjJz84yWpNoCdZY4j"]
 
