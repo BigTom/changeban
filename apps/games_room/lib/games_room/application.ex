@@ -8,7 +8,6 @@ defmodule GamesRoom.Application do
   def start(_type, _args) do
     children = [
       # Start the App State
-      GamesRoom.Counter,
       # Start the Telemetry supervisor
       GamesRoomWeb.Telemetry,
       # Start the PubSub system

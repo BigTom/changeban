@@ -25,8 +25,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   """
   @impl true
   def mount(%{"game_name" => game_name}, _session, socket) do
-    IO.puts("In GamesRoomWeb.ChangebanLive.mount ---------------------------------------")
-    IO.puts("game_name: #{inspect game_name}")
+    IO.puts("In GamesRoomWeb.ChangebanLive.mount - game_name: #{inspect game_name} -------")
 
     PubSub.subscribe(GamesRoom.PubSub, @game_topic)
     Presence.track(self(), game_name, socket.id, %{player_id: nil})
@@ -62,6 +61,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   """
   @impl true
   def mount(params, session, socket) do
+    IO.puts("In GamesRoomWeb.ChangebanLive.mount - no params")
     IO.puts("params: #{inspect params}  ---------- NO GAME_NAME_SUPPLIED")
     game_name = gen_game_name()
     GameSupervisor.create_game(game_name)

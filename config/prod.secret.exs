@@ -23,7 +23,7 @@ config :games_room, GamesRoomWeb.Endpoint,
 # If you are doing OTP releases, you need to instruct Phoenix
 # to start each relevant endpoint:
 #
-#     config :games_room, GamesRoomWeb.Endpoint, server: true
+#  config :games_room, GamesRoom.Endpoint, server: true
 #
 # Then you can assemble a release by calling `mix release`.
 # See `mix help release` for more information.
