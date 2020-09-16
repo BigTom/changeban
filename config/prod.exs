@@ -13,7 +13,7 @@ config :games_room, GamesRoomWeb.Endpoint,
   server: true,
   # cache_static_manifest: "priv/static/cache_manifest.json",
   http: [port: {:system, "PORT"}], # Possibly not needed, but doesn't hurt
-  url: [host: "changeban.gigalixirapp.com", port: 443],
+  url: [host: "localhost", port: 443],
   secret_key_base: "${SECRET_KEY_BASE}",
   server: true
 
