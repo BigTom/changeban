@@ -27,6 +27,21 @@ defmodule Changeban.Umbrella.MixProject do
     []
   end
 
+  # Umbrella projects require releases to be explicitly defined with a non-empty
+  # applications key that chooses which umbrella children should be part of the releases:
+
+  # releases: [
+    # changeban: [
+      # applications: [child_app_changeban: :permanent]
+    # ],
+    # games_room: [
+      # applications: [child_app_games_room: :permanent]
+    # ]
+  # ]
+
+  # Alternatively you can perform the release from the children applications
+
+
   # Aliases are shortcuts or tasks specific to the current project.
   # For example, to install project dependencies and perform other setup tasks, run:
   #

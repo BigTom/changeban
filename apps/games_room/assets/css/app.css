@@ -1,5 +1,5 @@
 /* This file is for your main application css */
-/* Cannot use @tailwind to import because we want postcss-import so we can use @apply inside included files 
+/* Cannot use "@tailwind" to import because we want postcss-import so we can use @apply inside included files 
   @tailwind base;
   @tailwind components;
   @tailwind utilities;
