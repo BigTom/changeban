@@ -1,4 +1,5 @@
 defmodule GamesRoomWeb.ChangebanLive do
+  require Logger
   use GamesRoomWeb, :live_view
 
   # use Phoenix.LiveView
@@ -25,7 +26,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   """
   @impl true
   def mount(%{"game_name" => game_name}, _session, socket) do
-    IO.puts("In GamesRoomWeb.ChangebanLive.mount - game_name: #{inspect game_name} -------")
+    Logger.info("In GamesRoomWeb.ChangebanLive.mount - game_name: #{inspect game_name} -------")
 
     PubSub.subscribe(GamesRoom.PubSub, @game_topic)
     Presence.track(self(), game_name, socket.id, %{player_id: nil})
@@ -33,7 +34,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
     initial_present = Presence.list(game_name) |> map_size
 
-    IO.puts "Before: Mounted Socket Assigns: #{inspect socket.assigns}"
+    Logger.info("Before: Mounted Socket Assigns: #{inspect socket.assigns}")
 
     {items, players, turn, score, state} = GameServer.view(game_name)
 
@@ -49,7 +50,7 @@ defmodule GamesRoomWeb.ChangebanLive do
         player_id: nil,
         username: nil)
 
-    IO.puts("INITIAL #{turn} No player yet")
+    Logger.info("INITIAL #{turn} No player yet")
 
     {:ok, new_socket }
   end
@@ -61,8 +62,8 @@ defmodule GamesRoomWeb.ChangebanLive do
   """
   @impl true
   def mount(params, session, socket) do
-    IO.puts("In GamesRoomWeb.ChangebanLive.mount - no params")
-    IO.puts("params: #{inspect params}  ---------- NO GAME_NAME_SUPPLIED")
+    Logger.info("In GamesRoomWeb.ChangebanLive.mount - no params")
+    Logger.info("params: #{inspect params}  ---------- NO GAME_NAME_SUPPLIED")
     game_name = gen_game_name()
     GameSupervisor.create_game(game_name)
     mount(%{"game_name" => game_name}, session, socket)
@@ -74,7 +75,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   """
   @impl true
   def handle_info(:change, %{assigns: assigns} = socket) do
-    IO.puts("PubSub notify: #{assigns.game_name}")
+    Logger.info("PubSub notify: #{assigns.game_name}")
     {:noreply, update_only(socket)}
   end
 
@@ -83,26 +84,41 @@ defmodule GamesRoomWeb.ChangebanLive do
         %{event: "presence_diff", payload: %{joins: joins, leaves: leaves}} = evt,
         %{assigns: %{present: present}} = socket
       ) do
-    IO.puts("Presence update: #{inspect evt}")
+    Logger.info("Presence update: #{inspect evt}")
     new_present = present + map_size(joins) - map_size(leaves)
     {:noreply, assign(socket, :present, new_present)}
   end
 
   @impl true
   def handle_info(evt, socket) do
-    IO.puts("**** UNKNOWN-EVENT ****")
-    IO.puts("Info -----: #{inspect evt} :---")
-    IO.puts("Socket ---: #{inspect socket} :---")
+    Logger.warn("**** UNKNOWN-EVENT ****")
+    Logger.warn("Info -----: #{inspect evt} :---")
+    Logger.warn("Socket ---: #{inspect socket} :---")
     {:noreply, socket}
   end
 
   @impl true
-  def handle_event("add_player", %{"initials" => initials} = params, %{assigns: assigns} = socket) do
-    IO.puts("add_player params: #{inspect params}")
+  def handle_event(
+        "add_player",
+        %{"initials" => initials, "game_name" => ""} = params,
+        %{assigns: assigns} = socket) do
+    Logger.info("add_player to new game params: #{inspect params}")
     {:ok, id, player} = GameServer.add_player(socket.assigns.game_name, initials)
-    IO.puts("Updating presence metadata: #{inspect %{player_id: id}}")
+    Logger.info("Updating presence metadata: #{inspect %{player_id: id}}")
     Presence.update(self(), assigns.game_name, socket.id, %{player_id: id})
     {:noreply, update_and_notify(assign(socket, player: player, player_id: id, username: initials))}
+  end
+
+  @impl true
+  def handle_event(
+        "add_player",
+        %{"initials" => initials, "game_name" => game_name} = params,
+        socket) do
+    Logger.info("add_player to existing game params: #{inspect params}")
+    {:ok, id, player} = GameServer.add_player(game_name, initials)
+    Logger.info("Updating presence metadata: #{inspect %{player_id: id}}")
+    Presence.update(self(), game_name, socket.id, %{player_id: id})
+    {:noreply, update_and_notify(assign(socket, game_name: game_name, player: player, player_id: id, username: initials))}
   end
 
   @impl true
@@ -114,7 +130,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   @impl true
   def handle_event("move", %{"id" => id, "type" => type}, socket) do
     type_atom = String.to_atom(type)
-    IO.puts("MOVE: item: #{id} act: #{type_atom}")
+    Logger.info("MOVE: item: #{id} act: #{type_atom}")
     GameServer.move(socket.assigns.game_name, type_atom, String.to_integer(id), socket.assigns.player_id)
     {:noreply, update_and_notify(socket)}
   end
@@ -122,10 +138,10 @@ defmodule GamesRoomWeb.ChangebanLive do
   defp prep_assigns(socket, items, players, turn, score, state) do
     player = if socket.assigns.player_id do
       player = Enum.at(players,socket.assigns.player_id)
-      IO.puts("ASSIGNS name: #{socket.assigns.username} turn: #{turn} game_state: #{state} turn_type: #{player.machine} state: #{player.state} past: #{inspect player.past} options: #{inspect player.options} ")
+      Logger.info("ASSIGNS name: #{socket.assigns.username} turn: #{turn} game_state: #{state} turn_type: #{player.machine} state: #{player.state} past: #{inspect player.past} options: #{inspect player.options} ")
       player
     else
-      IO.puts("ASSIGNS name: #{socket.assigns.username} turn: #{turn} NO PLAYER YET")
+      Logger.info("ASSIGNS name: #{socket.assigns.username} turn: #{turn} NO PLAYER YET")
       nil
     end
     assign(socket,
@@ -245,7 +261,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_state_instructions(assigns) do
-    IO.puts("GAME STATE: #{inspect assigns.state}")
+    Logger.info("GAME STATE: #{inspect assigns.state}")
     case assigns.state do
       :setup -> render_setup_instructions(assigns)
       :running -> render_turn_instructions(assigns)
@@ -406,57 +422,73 @@ defmodule GamesRoomWeb.ChangebanLive do
             blocked: blocked,
             initials: item_initials,
             options: options}
-    # IO.puts("au_data: #{inspect new_assigns}")
+    # Logger.debug("au_data: #{inspect new_assigns}")
     new_assigns
   end
 
   def render_active_item(%{id: item_id, options: options} = assigns) do
-    case Enum.find(options, fn ({_option_type, item_list}) -> (Enum.find(item_list, &(&1 == item_id)) != nil) end) do
-      {type, _} ->
-        ~L"""
-          <%= if @type == :task do %>
-            <div class="border-2 shadow bg-green-500 border-green-800 w-8 px-1 py-3 m-1
-                        focus:outline-none focus:shadow-outline"
-                phx-click="move"
-                phx-value-type="<%= type %>"
-                phx-value-id="<%= @id %>">
-              <div <%= if @blocked do %> class="font-black" <% end %> >
-                <%= @initials %>
-              </div>
-            </div>
-          <% else %>
-            <div class="border-2 shadow bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1
-                        focus:outline-none focus:shadow-outline"
-                phx-click="move"
-                phx-value-type="<%= type %>"
-                phx-value-id="<%= @id %>">
-              <div <%= if @blocked do %> class="font-black" <% end %> >
-                <%= @initials %>
-              </div>
-            </div>
-        <% end %>
-        """
-      _ ->
-        ~L"""
-          <%= if @type == :task do %>
-            <div class="border-2 bg-green-500 border-green-500 w-8 px-1 py-3 m-1">
-              <div <%= if @blocked do %> class="font-black" <% end %> >
-                <%= @initials %>
-              </div>
-            </div>
-          <% else %>
-            <div class="border-2 bg-yellow-300 border-yellow-300 w-8 px-1 py-3 m-1">
-              <div <%= if @blocked do %> class="font-black" <% end %> >
-                <%= @initials %>
-              </div>
-            </div>
-          <% end %>
-        """
+    case Enum.find(options, fn ({_option_type, item_list}) ->
+                                  (Enum.find(item_list, &(&1 == item_id)) != nil) end) do
+      {type, _} ->  render_actionable_item(assigns, type)
+      _ -> render_passive_item(assigns)
+    end
+  end
+
+  def render_actionable_item(assigns, type) do
+    ~L"""
+    <%= if @type == :task do %>
+      <div class="border-2 shadow bg-green-500 border-green-800 w-8 px-1 py-3 m-1
+                  focus:outline-none focus:shadow-outline"
+          phx-click="move"
+          phx-value-type="<%= type %>"
+          phx-value-id="<%= @id %>">
+          <%= render_initials(assigns) %>
+      </div>
+    <% else %>
+      <div class="border-2 shadow bg-yellow-300 border-yellow-800 w-8 px-1 py-3 m-1
+                  focus:outline-none focus:shadow-outline"
+          phx-click="move"
+          phx-value-type="<%= type %>"
+          phx-value-id="<%= @id %>">
+          <%= render_initials(assigns) %>
+      </div>
+    <% end %>
+    """
+  end
+
+  def render_passive_item(assigns) do
+    ~L"""
+    <%= if @type == :task do %>
+      <div class="border-2 bg-green-500 border-green-500 w-8 px-1 py-3 m-1">
+        <%= render_initials(assigns) %>
+      </div>
+    <% else %>
+      <div class="border-2 bg-yellow-300 border-yellow-300 w-8 px-1 py-3 m-1">
+        <%= render_initials(assigns) %>
+      </div>
+    <% end %>
+    """
+  end
+
+  def render_initials(assigns) do
+    color = case assigns.type do
+        :task -> "text-green-500"
+        _ -> "text-yellow-300"
       end
+    case assigns.initials do
+      "  " -> ~L"""
+                <div class="<%= color %>">XX</div>
+              """
+      _ ->  ~L"""
+              <div <%= if @blocked do %> class="font-black" <% end %> >
+                <%= @initials %>
+              </div>
+            """
+    end
   end
 
   def render_finished_item(assigns) do
-    # IO.puts("render_item: #{inspect assigns}")
+    # Logger.info("render_item: #{inspect assigns}")
     ~L"""
       <%= if @type == :task do %>
         <div class="border-2 bg-green-500 border-green-800 w-4 px-1 py-3 m-1"></div>
@@ -474,7 +506,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     ~L"""
       <div class="flex flex-wrap">
         <%= for item <- Map.get(assigns.items, state, []) do %>
-          <%= render_active_item(collect_item_data(item, assigns.players, @player)) %>
+          <%= collect_item_data(item, assigns.players, @player) |> render_active_item() %>
         <% end %>
       </div>
     """
