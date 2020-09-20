@@ -34,11 +34,10 @@ defmodule Changeban.Game do
     %Game{items: initial_items(4), max_players: (@max_player_id + 1), turns: turns()}
   end
 
-  def initial_items(nr_items), do: for id <- 1..nr_items, do: Item.new(id)
-  def initial_items(), do: initial_items(16)
+  def initial_items(nr_items), do: for id <- 0..(nr_items - 1), do: Item.new(id)
 
   def turns() do
-    for _ <- 1..(@turn_cycle), do: Enum.random([:red, :black])
+    for _ <- 0..(@turn_cycle - 1), do: Enum.random([:red, :black])
   end
 
   def add_player(%Game{players: players} = game, initials) do
@@ -104,15 +103,17 @@ defmodule Changeban.Game do
       items
       |> Enum.filter(& ( &1.id != item.id))    # Take out existing version
       |> List.insert_at(0, item)               # insert new version
-      |> Enum.sort_by(& &1.id)                  # make sure the order is maintained
+      |> Enum.sort_by(& &1.id)                 # make sure the order is maintained
 
     players_ =
       players
       |> Enum.filter(& ( &1.id != player.id))  # Take out existing version
       |> List.insert_at(0, player)             # insert new version
-      |> Enum.sort_by(& &1.id)                  # make sure the order is maintained
+      |> Enum.sort_by(& &1.id)                 # make sure the order is maintained
 
-      recalculate_state(%{game | items: items_, players: players_})
+      game_ = %{game | items: items_, players: players_}
+      IO.puts "BEFORE RECALC #{inspect game_}"
+      recalculate_state(game_)
   end
 
   def recalculate_state(game) do
@@ -125,8 +126,8 @@ defmodule Changeban.Game do
       nil -> new_turn(game_)
       _ -> game_
     end
-
   end
+
   def calculate_score(%Game{items: items}) do
     score_for_completed(items) +
     Enum.sum(for s <- 5..8, do: score_for_rejected(items, s))
@@ -161,15 +162,23 @@ defmodule Changeban.Game do
       Logger.warn("Tried to make a move in :done state")
       game
     else
+      IO.puts("BEFORE #{inspect act}")
+      IO.puts("item #{inspect item}")
+      IO.puts("player #{inspect player}")
+
       {item_, player_} = action(act, item, player)
+
+      IO.puts("AFTER #{inspect act}")
+      IO.puts("item_ #{inspect item_}")
+      IO.puts("player_ #{inspect player_}")
       update_game(game, item_, player_)
     end
   end
 
   def action(:unblock, item, player), do: { Item.unblock(item), %{player | state: :done } }
   def action(:reject, item, player), do: { Item.reject(item), %{player | state: :done } }
-  def action(:hlp_mv, item, player), do: { Item.move_right(item), %{player | state: :done } }
-  def action(:hlp_unblk, item, player), do: { Item.unblock(item), %{player | state: :done } }
+  def action(:hlp_mv, item, player), do: action(:move, item, player)
+  def action(:hlp_unblk, item, player), do: action(:unblock, item, player)
   def action(:start, item, %Player{machine: machine} = player) do
     player_ = case machine do
       :red -> %{player | state: :done }
