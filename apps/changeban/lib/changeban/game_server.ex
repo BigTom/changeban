@@ -25,6 +25,10 @@ defmodule Changeban.GameServer do
     GenServer.call(via_tuple(game_name), {:add_player, initials})
   end
 
+  def joinable?(game_name) do
+    GenServer.call(via_tuple(game_name), {:joinable?})
+  end
+
   def start_game(game_name) do
     GenServer.call(via_tuple(game_name), {:start_game})
   end
@@ -77,6 +81,10 @@ defmodule Changeban.GameServer do
       {:ok, player_id, updated_game} -> {:reply, {:ok, player_id, updated_game}, updated_game, @timeout}
       {:error, msg} -> {:reply, {:error, msg}, game, @timeout}
     end
+  end
+
+  def handle_call({:joinable?}, _from, game) do
+    {:reply, Game.joinable?(game), game, @timeout}
   end
 
   def handle_call({:get_player, player_id}, _from, game) do

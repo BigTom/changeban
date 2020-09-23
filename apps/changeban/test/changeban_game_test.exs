@@ -37,6 +37,24 @@ defmodule ChangebanGameTest do
     assert 0 == player_id
   end
 
+  test "can join when fewer than max players, otherwise cannot" do
+    game = Game.new()
+      |> add_player_helper()
+      |> add_player_helper()
+      |> add_player_helper()
+      |> add_player_helper()
+    assert Game.joinable?(game)
+    assert not Game.joinable?(add_player_helper(game))
+  end
+
+  test "cannot join when not in setup" do
+    game = Game.new()
+      |> add_player_helper()
+    assert Game.joinable?(game)
+
+    assert not Game.joinable?(Game.start_game(game))
+  end
+
   def add_player_helper(game) do
     {:ok, _player_id, game} = Game.add_player(game, "X")
     game

@@ -115,10 +115,16 @@ defmodule GamesRoomWeb.ChangebanLive do
         %{"initials" => initials, "game_name" => game_name} = params,
         socket) do
     Logger.info("add_player to existing game params: #{inspect params}")
-    {:ok, id, player} = GameServer.add_player(game_name, initials)
-    Logger.info("Updating presence metadata: #{inspect %{player_id: id}}")
-    Presence.update(self(), game_name, socket.id, %{player_id: id})
-    {:noreply, update_and_notify(assign(socket, game_name: game_name, player: player, player_id: id, username: initials))}
+    if GameServer.joinable?(game_name) do
+      Logger.info("add_player to existing game params: #{inspect params}")
+      {:ok, id, player} = GameServer.add_player(game_name, initials)
+      Logger.info("Updating presence metadata: #{inspect %{player_id: id}}")
+      Presence.update(self(), game_name, socket.id, %{player_id: id})
+      {:noreply, update_and_notify(assign(socket, game_name: game_name, player: player, player_id: id, username: initials))}
+    else
+      Logger.info("Allow player to view game game: #{game_name}")
+      {:noreply, update_and_notify(assign(socket, game_name: game_name))}
+    end
   end
 
   @impl true
@@ -169,7 +175,11 @@ defmodule GamesRoomWeb.ChangebanLive do
     ~L"""
     <div class="relative">
       <%= if @username == nil do %>
-        <%= render_join_view(assigns) %>
+        <%= if not GameServer.joinable?(@game_name) do %>
+          <%= render_game_full(assigns) %>
+        <% else %>
+          <%= render_join_view(assigns) %>
+        <% end %>
       <% end %>
       <div class="z-20">
         <div class="flex justify-between pt-4">
@@ -187,32 +197,39 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-
+  def render_game_full(assigns) do
+    ~L"""
+      <div class="absolute z-40 flex flex-col items-center justify-center
+                  w-full h-screen
+                  font-sans">
+        <div class="bg-gray-200 rounded shadow p-8 m-4 max-w-xs max-h-full text-center overflow-y-scroll">
+          <p class="text-left">I am sorry, game <%= @game_name %> can no longer be joined</p>
+        </div>
+      </div>
+  """
+  end
 
   def render_join_view(assigns) do
     ~L"""
       <div class="absolute z-40 flex flex-col items-center justify-center
-                  bg-gray-600 bg-opacity-50
-                  w-full h-full
+                  w-full h-screen
                   font-sans">
         <div class="bg-gray-200 rounded shadow p-8 m-4 max-w-xs max-h-full text-center overflow-y-scroll">
         <p class="text-left">Please enter an initial with which to identify your items</p>
         <form phx-submit="add_player">
             <div class="text-left flex">
               <label class="w-2/3 text-gray-700 text-sm font-bold mb-2 px-2" for="initials">Initials (1 or 2 letters):</label>
-              <input class="w-1/3 shadow appearance-none border rounded py-2 px-3
-                            text-gray-700
-                            focus:outline-none focus:shadow-outline" name="initials" id="initials"
-                            type="text" maxlength="2">
+              <input class="w-1/3 shadow appearance-none border rounded py-2 px-3 focus:outline-none focus:shadow-outline"
+                     name="initials" id="initials" type="text" maxlength="2">
             </div>
             <div class="py-2 flex">
-              <label class="w-2/3 text-gray-700 text-sm font-bold mb-2 px-2" for="game_name">Game Name (or blank to start a new game):</label>
-              <input class="w-1/3 shadow appearance-none border rounded py-2 px-3
-                            text-gray-700
-                            focus:outline-none focus:shadow-outline" name="game_name" id="game_name" type="text">
+              <label class="w-2/3 text-gray-700 text-sm font-bold mb-2 px-2" for="game_name">Game Name (or leave empty to start a new game):</label>
+              <input class="w-1/3 shadow appearance-none border rounded py-2 px-3 text-gray-700 uppercase
+                            placeholder-gray-300 focus:outline-none focus:shadow-outline"
+                     placeholder="<%= @game_name %>" name="game_name" id="game_name" type="text" maxlength="6">
             </div>
             <div class="flex items-center justify-between">
-              <button type="submit" class="bg-gray-500 hover:bg-blue-700 text-white font-bold py-2 px-4
+              <button type="submit" class="bg-green-300 hover:bg-green-700 text-white font-bold py-2 px-4
                                            rounded focus:outline-none focus:shadow-outline" >
                 Enter
               </button>
@@ -301,7 +318,11 @@ defmodule GamesRoomWeb.ChangebanLive do
         end
     end
   end
-
+  def render_specific_instructions(assigns) do
+    ~L"""
+    <p class="text-gray-600">You are observing this game</p>
+    """
+  end
   def render_turn_instructions(assigns) do
     ~L"""
     <div class="flex-grow border-2 border-gray-700 rounded-md text-sm text-center">
@@ -399,31 +420,37 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
 
-  def collect_item_data(%Item{id: item_id, type: type, blocked: blocked}, _players, nil) do
-    %{id: item_id, type: type, blocked: blocked, player_id: nil, initials: "  ", options: []}
+  def collect_item_data(%Item{id: item_id, type: type, blocked: blocked, owner: owner_id}, players, nil) do
+    %{id: item_id,
+      mine: false,
+      type: type,
+      blocked: blocked,
+      player_id: nil,
+      initials: get_initials(owner_id, players),
+      options: []}
   end
 
   def collect_item_data(%Item{id: item_id, type: type, blocked: blocked, owner: owner_id}, players, %Player{id: player_id, options: options}) do
-    item_initials =
-      if owner_id != nil do
-        owning_player = (Enum.at(players, owner_id))
-        if owning_player != nil do
-          owning_player.initials
-        else
-          "  "
-        end
+    %{id: item_id,
+      mine: (owner_id == player_id),
+      type: type,
+      blocked: blocked,
+      player_id: player_id,
+      initials: get_initials(owner_id, players),
+      options: options}
+  end
+
+  def get_initials(owner_id, players) do
+    if owner_id != nil do
+      owning_player = (Enum.at(players, owner_id))
+      if owning_player != nil do
+        owning_player.initials
       else
         "  "
       end
-    new_assigns
-        = %{id: item_id,
-            mine: (owner_id == player_id),
-            type: type,
-            blocked: blocked,
-            initials: item_initials,
-            options: options}
-    # Logger.debug("au_data: #{inspect new_assigns}")
-    new_assigns
+    else
+      "  "
+    end
   end
 
   def render_active_item(%{id: item_id, options: options} = assigns) do

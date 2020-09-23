@@ -50,6 +50,11 @@ defmodule Changeban.Game do
     end
   end
 
+  def joinable?(%Game{state: state} = game) do
+    player_count(game) < @max_player_id + 1
+    && state == :setup
+  end
+
   def player_count(%Game{players: players}) do
     Enum.count(players)
   end
