@@ -463,7 +463,7 @@ defmodule GamesRoomWeb.ChangebanLive do
       action: nil}
   end
 
-  def collect_item_data(%Item{id: item_id, type: type, blocked: blocked, owner: owner_id}, players, %Player{id: player_id, options: options}) do
+  def collect_item_data(%Item{id: item_id, type: type, blocked: blocked, owner: owner_id}, players, %Player{options: options}) do
     %{id: item_id,
       type: type,
       blocked: blocked,
