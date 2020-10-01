@@ -474,11 +474,11 @@ defmodule GamesRoomWeb.ChangebanLive do
       player_id: player_id,
       initials: get_initials(owner_id, players),
       options: options,
-      active: Enum.member?(options, item_id)
+      active: not is_nil(Enum.find(options, fn {_option_type, item_list} -> (Enum.member?(item_list, item_id)) end))
     }
   end
 
-  def get_initials(nil, players), do: ""
+  def get_initials(nil, _players), do: ""
   def get_initials(owner_id, players) when not is_nil(owner_id) do
       case (Enum.at(players, owner_id)) do
         nil -> ""
@@ -491,10 +491,10 @@ defmodule GamesRoomWeb.ChangebanLive do
   def card_scheme(%{type: :change, active: true}), do: "bg-yellow-300 border-yellow-800"
   def card_scheme(%{type: :change, active: false}), do: "bg-yellow-300 border-yellow-500 text-gray-500"
 
-  def render_active_item(%{id: item_id, options: options, active: active} = assigns) do
-    case Enum.find(options, fn ({_option_type, item_list}) ->
-                                  (Enum.find(item_list, &(&1 == item_id)) != nil) end) do
-      {type, _} ->  render_actionable_item(assigns, type)
+  def render_active_item(%{id: item_id, options: options, active: _active} = assigns) do
+    Logger.debug("Item ID: #{item_id} active? #{assigns.active}")
+    case Enum.find(options, fn {_option_type, item_list} -> (Enum.member?(item_list, item_id)) end) do
+      {action, _} ->  render_actionable_item(assigns, action)
       _ -> render_passive_item(assigns)
     end
   end
@@ -510,14 +510,14 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  def render_actionable_item(assigns, type) do
+  def render_actionable_item(assigns, action) do
     ~L"""
       <div class="flex justify-between border-2 shadow <%= card_scheme(%{type: @type, active: @active}) %> w-16 h-10 m-1 p-1
                   hover:shadow-outline hover:border-4"
           phx-click="move"
-          phx-value-type="<%= @type %>"
+          phx-value-type="<%= action %>"
           phx-value-id="<%= @id %>">
-          render_item_body(assigns)
+          <%= render_item_body(assigns) %>
       </div>
     """
   end
@@ -525,7 +525,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   def render_passive_item(assigns) do
     ~L"""
       <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, active: @active}) %> w-16 h-10 m-1 p-1">
-        render_item_body(assigns)
+        <%= render_item_body(assigns) %>
       </div>
     """
   end
@@ -548,7 +548,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     ~L"""
     <div class="flex flex-wrap">
       <%= for item <- Map.get(assigns.items, state, []) do %>
-        <div class="border-2 <%= passive_card_scheme(item.type) %> w-4 px-1 py-3 m-1"></div>
+        <div class="border-2 <%= card_scheme(%{type: item.type, active: false}) %> w-4 px-1 py-3 m-1"></div>
       <% end %>
     </div>
     """
