@@ -25,6 +25,7 @@ defmodule Changeban.GameServer do
     GenServer.call(via_tuple(game_name), {:add_player, initials})
   end
 
+  def joinable?(nil), do: false
   def joinable?(game_name) do
     GenServer.call(via_tuple(game_name), {:joinable?})
   end
@@ -35,6 +36,11 @@ defmodule Changeban.GameServer do
 
   def move(game_name, type, item_id, player_id) do
     GenServer.call(via_tuple(game_name), {:act, type, item_id, player_id})
+  end
+
+  def game_exists?(nil), do: false
+  def game_exists?(game_name) do
+    not Enum.empty?(Registry.lookup(Changeban.GameRegistry, game_name))
   end
 
   @doc """
