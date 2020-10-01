@@ -79,32 +79,30 @@ defmodule GamesRoomWeb.ChangebanLive do
   """
   @impl true
   def handle_info(:change, %{assigns: assigns} = socket) do
-    Logger.info("PubSub notify: #{inspect assigns.game_name}")
+    Logger.debug("PubSub notify: #{inspect assigns.game_name}")
     {:noreply, update_only(socket)}
   end
 
   @impl true
   def handle_info(%{topic: topic}, %{assigns: assigns} = socket) do
-    Logger.info("Presence notify: #{Presence.list(topic) |> map_size} logged in as: #{inspect assigns.username}")
+    Logger.debug("Presence notify: #{Presence.list(topic) |> map_size} logged in as: #{inspect assigns.username}")
     {:noreply, assign(socket, present: Presence.list(topic) |> map_size)}
   end
 
   @impl true
   def handle_info(evt, socket) do
-    Logger.warn("**** UNKNOWN-EVENT ****")
-    Logger.warn("Info -----: #{inspect evt} :---")
-    Logger.warn("Socket ---: #{inspect socket} :---")
+    Logger.warn("**** UNKNOWN-EVENT #{inspect evt} ")
     {:noreply, socket}
   end
 
   @impl true
   def handle_event(
         "add_player",
-        %{"initials" => initials, "game_name" => ""},
+        %{"initials" => supplied_initials, "game_name" => ""},
         socket) do
-    Logger.warn("add_player event no game name initials: #{inspect initials}")
+    initials = String.upcase(supplied_initials)
     game_name = gen_game_name()
-    Logger.info("Creating new game #{inspect game_name}")
+    Logger.debug("add_player: #{inspect initials} to NEW game: #{inspect game_name}")
     GameSupervisor.create_game(game_name)
     {:ok, player_id, player} = GameServer.add_player(game_name, initials)
     GamesRoomWeb.Endpoint.subscribe(game_name)
@@ -115,23 +113,24 @@ defmodule GamesRoomWeb.ChangebanLive do
   @impl true
   def handle_event(
         "add_player",
-        %{"initials" => initials, "game_name" => supplied_game_name},
+        %{"initials" => supplied_initials, "game_name" => supplied_game_name},
         socket) do
+    initials = String.upcase(supplied_initials)
     game_name = String.upcase(supplied_game_name)
-    Logger.warn("add_player event game_name: #{inspect game_name} initials: #{inspect initials}")
+    Logger.debug("add_player: #{inspect initials} to existing game: #{inspect game_name}")
     cond do
       not GameServer.game_exists?(game_name) ->
         Logger.info("Non existant game")
         LiveView.put_flash(socket, :info, "Game #{game_name} does not exist")
         {:noreply, socket}
       GameServer.joinable?(game_name) ->
-        Logger.info("Allow player to join game: #{game_name}")
+        Logger.debug("Allow player to join game: #{game_name}")
         {:ok, player_id, player} = GameServer.add_player(game_name, initials)
         Presence.track(self(), game_name, socket.id, %{player_id: player_id})
         GamesRoomWeb.Endpoint.subscribe(game_name)
         {:noreply, update_and_notify(assign(socket, game_name: game_name, player: player, player_id: player_id, username: initials))}
       true ->
-        Logger.info("Allow player to view game game: #{game_name}")
+        Logger.debug("Allow player to view game game: #{game_name}")
         Presence.track(self(), game_name, socket.id, %{player_id: ""})
         GamesRoomWeb.Endpoint.subscribe(game_name)
         {:noreply, update_and_notify(assign(socket, game_name: game_name))}
@@ -147,7 +146,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   @impl true
   def handle_event("move", %{"id" => id, "type" => type}, socket) do
     type_atom = String.to_atom(type)
-    Logger.info("MOVE: item: #{id} act: #{type_atom}")
+    Logger.debug("MOVE: item: #{id} act: #{type_atom}")
     GameServer.move(socket.assigns.game_name, type_atom, String.to_integer(id), socket.assigns.player_id)
     {:noreply, update_and_notify(socket)}
   end
@@ -165,8 +164,7 @@ defmodule GamesRoomWeb.ChangebanLive do
       turn: turn,
       score: score,
       state: state)
-    # Logger.debug("GAME: #{inspect(new_socket.assigns.items, limit: :infinity)}")
-    Logger.warn("""
+    Logger.debug("""
                 ASSIGNS:
                 game_name: #{inspect new_socket.assigns.game_name}
                 present: #{inspect new_socket.assigns.present}
@@ -175,7 +173,7 @@ defmodule GamesRoomWeb.ChangebanLive do
                 game_state: #{inspect new_socket.assigns.state}
                 """)
     if (not is_nil(new_socket.assigns.player)) do
-      Logger.warn("""
+      Logger.debug("""
                   PLAYER_ASSIGNS
                   turn_type: #{inspect new_socket.assigns.player.machine}
                   state: #{inspect new_socket.assigns.player.state}
@@ -187,14 +185,14 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   defp update_and_notify(socket) do
-    Logger.info("UPDATE-AND-NOTIFY for game: #{socket.assigns.game_name}")
+    Logger.debug("UPDATE-AND-NOTIFY for game: #{socket.assigns.game_name}")
     {items, players, turn, score, state} = GameServer.view(socket.assigns.game_name)
     PubSub.broadcast(GamesRoom.PubSub, @game_topic, :change)
     prep_assigns(socket, items, players, turn, score, state)
   end
 
   defp update_only(socket) do
-    Logger.info("UPDATE-ONLY")
+    Logger.debug("UPDATE-ONLY")
     {items, players, turn, score, state} = GameServer.view(socket.assigns.game_name)
     prep_assigns(socket, items, players, turn, score, state)
   end
@@ -212,20 +210,21 @@ defmodule GamesRoomWeb.ChangebanLive do
           <% true -> %>
             <%= render_join_view(assigns) %>
         <% end %>
-      <% end %>
-      <%= if @game_name != nil do %>
-        <div class="z-20">
-          <div class="flex justify-between pt-4">
-            <%= turn_display(%{turn: @turn, player: @player}) %>
-            <%= render_state_instructions(assigns) %>
-            <%= render_score_display(assigns) %>
+      <% else %>
+        <%= if @game_name != nil do %>
+          <div class="z-20">
+            <div class="flex justify-between pt-4 h-32">
+              <%= turn_display(%{turn: @turn, player: @player}) %>
+              <%= render_state_instructions(assigns) %>
+              <%= render_score_display(assigns) %>
+            </div>
+            <%= render_game_grid assigns %>
           </div>
-          <%= render_game_grid assigns %>
-        </div>
-        <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
-          Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
-          Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
-        </p>
+          <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
+            Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
+            Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
+          </p>
+        <% end %>
       <% end %>
     </div>
     """
@@ -313,7 +312,6 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_state_instructions(assigns) do
-    Logger.info("GAME STATE: #{inspect assigns.state}")
     case assigns.state do
       :setup -> render_setup_instructions(assigns)
       :running -> render_turn_instructions(assigns)
@@ -341,6 +339,15 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
+  def render_turn_instructions(assigns) do
+    ~L"""
+    <div class="flex-grow border-2 border-gray-700 mx-4 rounded-md text-sm text-center">
+      <p class="text-base font-bold">Instructions</p>
+      <%= render_specific_instructions(assigns.player) %>
+    </div>
+    """
+  end
+
   def render_specific_instructions(%Player{} = player) do
     cond do
       player.state == :done -> render_done_instructions(player)
@@ -356,14 +363,6 @@ defmodule GamesRoomWeb.ChangebanLive do
   def render_specific_instructions(assigns) do
     ~L"""
     <p class="text-gray-600">You are observing this game</p>
-    """
-  end
-  def render_turn_instructions(assigns) do
-    ~L"""
-    <div class="flex-grow border-2 border-gray-700 rounded-md text-sm text-center">
-      <p class="text-base font-bold">Instructions</p>
-      <%= render_specific_instructions(assigns.player) %>
-    </div>
     """
   end
 
@@ -457,25 +456,26 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def collect_item_data(%Item{id: item_id, type: type, blocked: blocked, owner: owner_id}, players, nil) do
     %{id: item_id,
-      mine: false,
       type: type,
       blocked: blocked,
-      player_id: nil,
       initials: get_initials(owner_id, players),
       options: [],
-      active: false}
+      action: nil}
   end
 
   def collect_item_data(%Item{id: item_id, type: type, blocked: blocked, owner: owner_id}, players, %Player{id: player_id, options: options}) do
     %{id: item_id,
-      mine: (owner_id == player_id),
       type: type,
       blocked: blocked,
-      player_id: player_id,
       initials: get_initials(owner_id, players),
       options: options,
-      active: not is_nil(Enum.find(options, fn {_option_type, item_list} -> (Enum.member?(item_list, item_id)) end))
+      action: find_action(options, item_id)
     }
+  end
+
+  def find_action(options, item_id) do
+    {action, _} = Enum.find(options, {nil, []}, fn {_option_type, item_list} -> (Enum.member?(item_list, item_id)) end)
+    action
   end
 
   def get_initials(nil, _players), do: ""
@@ -486,22 +486,17 @@ defmodule GamesRoomWeb.ChangebanLive do
       end
   end
 
-  def card_scheme(%{type: :task, active: true}), do: "bg-green-500 border-green-800"
-  def card_scheme(%{type: :task, active: false}), do: "bg-green-300 border-green-500 text-gray-500"
-  def card_scheme(%{type: :change, active: true}), do: "bg-yellow-300 border-yellow-800"
-  def card_scheme(%{type: :change, active: false}), do: "bg-yellow-300 border-yellow-500 text-gray-500"
+  def render_active_item(%{action: action} = assigns) when is_nil(action), do: render_passive_item(assigns)
+  def render_active_item(%{action: action} = assigns), do: render_actionable_item(assigns, action)
 
-  def render_active_item(%{id: item_id, options: options, active: _active} = assigns) do
-    Logger.debug("Item ID: #{item_id} active? #{assigns.active}")
-    case Enum.find(options, fn {_option_type, item_list} -> (Enum.member?(item_list, item_id)) end) do
-      {action, _} ->  render_actionable_item(assigns, action)
-      _ -> render_passive_item(assigns)
-    end
-  end
+  def card_scheme(%{type: :task, action: nil}), do: "bg-green-300 border-green-500 text-gray-500"
+  def card_scheme(%{type: :task, action: _}), do: "bg-green-500 border-green-800"
+  def card_scheme(%{type: :change, action: nil}), do: "bg-yellow-300 border-yellow-500 text-gray-500"
+  def card_scheme(%{type: :change, action: _}), do: "bg-yellow-300 border-yellow-800"
 
   def render_item_body(assigns) do
     ~L"""
-      <div class="rounded-full <%= card_scheme(%{type: @type, active: @active}) %> h-6 w-6 flex items-center justify-center text-sm border-2">
+      <div class="rounded-full <%= card_scheme(%{type: @type, action: @action}) %> h-6 w-6 flex items-center justify-center text-sm border-2">
         <%= @initials %>
       </div>
       <div class="text-xs align-bottom">
@@ -512,8 +507,8 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_actionable_item(assigns, action) do
     ~L"""
-      <div class="flex justify-between border-2 shadow <%= card_scheme(%{type: @type, active: @active}) %> w-16 h-10 m-1 p-1
-                  hover:shadow-outline hover:border-4"
+      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %> w-16 h-10 m-1 p-1
+                  hover:shadow-outline"
           phx-click="move"
           phx-value-type="<%= action %>"
           phx-value-id="<%= @id %>">
@@ -524,7 +519,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_passive_item(assigns) do
     ~L"""
-      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, active: @active}) %> w-16 h-10 m-1 p-1">
+      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %> w-16 h-10 m-1 p-1">
         <%= render_item_body(assigns) %>
       </div>
     """
@@ -534,21 +529,21 @@ defmodule GamesRoomWeb.ChangebanLive do
   Finds the items for the given state id then iterates over them and passes each to
   render_active_item/1
   """
-  def active_items(assigns, state) do
+  def active_items(assigns, state_id) do
     ~L"""
       <div class="flex flex-wrap">
-        <%= for item <- Map.get(assigns.items, state, []) do %>
+        <%= for item <- Map.get(assigns.items, state_id, []) do %>
           <%= collect_item_data(item, assigns.players, @player) |> render_active_item() %>
         <% end %>
       </div>
     """
   end
 
-  def completed_items(assigns, state) do
+  def completed_items(assigns, state_id) do
     ~L"""
     <div class="flex flex-wrap">
-      <%= for item <- Map.get(assigns.items, state, []) do %>
-        <div class="border-2 <%= card_scheme(%{type: item.type, active: false}) %> w-4 px-1 py-3 m-1"></div>
+      <%= for item <- Map.get(assigns.items, state_id, []) do %>
+        <div class="border-2 <%= card_scheme(%{type: item.type, action: nil}) %> w-4 px-1 py-3 m-1"></div>
       <% end %>
     </div>
     """
