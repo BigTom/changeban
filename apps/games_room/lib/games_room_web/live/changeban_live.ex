@@ -210,21 +210,20 @@ defmodule GamesRoomWeb.ChangebanLive do
           <% true -> %>
             <%= render_join_view(assigns) %>
         <% end %>
-      <% else %>
-        <%= if @game_name != nil do %>
-          <div class="z-20">
-            <div class="flex justify-between pt-4 h-32">
-              <%= turn_display(%{turn: @turn, player: @player}) %>
-              <%= render_state_instructions(assigns) %>
-              <%= render_score_display(assigns) %>
-            </div>
-            <%= render_game_grid assigns %>
+      <% end %>
+      <%= if @game_name != nil do %>
+        <div class="z-20">
+          <div class="flex justify-between pt-4 h-32">
+            <%= turn_display(%{turn: @turn, player: @player}) %>
+            <%= render_state_instructions(assigns) %>
+            <%= render_score_display(assigns) %>
           </div>
-          <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
-            Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
-            Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
-          </p>
-        <% end %>
+          <%= render_game_grid(assigns) %>
+        </div>
+        <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
+          Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
+          Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
+        </p>
       <% end %>
     </div>
     """
@@ -276,7 +275,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_game_grid(assigns) do
     ~L"""
-    <div class="grid grid-cols-cb grid-rows-cb my-4 container border border-gray-800 text-center">
+    <div class="grid grid-cols-cb grid-rows-cb my-3 container border border-gray-800 text-center">
       <%= headers(assigns) %>
       <div class="col-start-1 row-start-3 row-span-5 border border-gray-800">
       <%= active_items(assigns, 0) %>
@@ -425,6 +424,8 @@ defmodule GamesRoomWeb.ChangebanLive do
     cond do
       player == nil || turn == 0 ->
         render_turn_display(%{font_color: "gray-400", nr: turn})
+      player.state == :done ->
+          render_turn_display(%{font_color: "gray-400", nr: turn})
       player.machine == :red ->
         render_turn_display(%{font_color: "red-700", nr: turn})
       true ->
@@ -479,15 +480,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def get_initials(nil, _players), do: ""
-  def get_initials(owner_id, players) when not is_nil(owner_id) do
-      case (Enum.at(players, owner_id)) do
-        nil -> ""
-        owning_player -> owning_player.initials
-      end
-  end
-
-  def render_active_item(%{action: action} = assigns) when is_nil(action), do: render_passive_item(assigns)
-  def render_active_item(%{action: action} = assigns), do: render_actionable_item(assigns, action)
+  def get_initials(owner_id, players), do: Enum.at(players, owner_id).initials
 
   def card_scheme(%{type: :task, action: nil}), do: "bg-green-300 border-green-500 text-gray-500"
   def card_scheme(%{type: :task, action: _}), do: "bg-green-500 border-green-800"
@@ -505,7 +498,15 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  def render_actionable_item(assigns, action) do
+  def render_active_item(%{action: action} = assigns) when is_nil(action) do
+    ~L"""
+      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %> w-16 h-10 m-1 p-1">
+        <%= render_item_body(assigns) %>
+      </div>
+    """
+  end
+
+  def render_active_item(%{action: action} = assigns) do
     ~L"""
       <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %> w-16 h-10 m-1 p-1
                   hover:shadow-outline"
@@ -513,14 +514,6 @@ defmodule GamesRoomWeb.ChangebanLive do
           phx-value-type="<%= action %>"
           phx-value-id="<%= @id %>">
           <%= render_item_body(assigns) %>
-      </div>
-    """
-  end
-
-  def render_passive_item(assigns) do
-    ~L"""
-      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %> w-16 h-10 m-1 p-1">
-        <%= render_item_body(assigns) %>
       </div>
     """
   end
@@ -549,14 +542,44 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
+  def calculate_wip_for_state(items, state_ids) do
+    Enum.map(state_ids, fn id -> Map.get(items, id, []) |> Enum.count end)
+      |> Enum.sum
+  end
+
   def headers(assigns) do
     ~L"""
     <div class="col-start-1 row-start-1 row-span-2 border border-gray-800">Agree Urgency</div>
-    <div class="col-start-2 col-span-3 row-start-1 border border-gray-800 py-3">In progress</div>
+    <div class="col-start-2 col-span-3 row-start-1 border border-gray-800 py-0">
+      <p>In progress</p>
+      <div class="grid place-items-center">
+        <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items, [1,2,3]) %></div>
+        <div class="col-start-2 row-start-1">Limit: ∞</div>
+      </div>
+     </div>
     <div class="col-start-5 col-span-4 row-start-1 row-span-2 border border-gray-800">Complete</div>
-    <div class="col-start-2 row-start-2 border border-gray-800">Negotiate Change</div>
-    <div class="col-start-3 row-start-2 border border-gray-800">Validate Adoption</div>
-    <div class="col-start-4 row-start-2 border border-gray-800">Verify Performance</div>
+
+    <div class="col-start-2 row-start-2 border border-gray-800">
+      <p>Negotiate Change</p>
+      <div class="grid place-items-center">
+        <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items, [1]) %></div>
+        <div class="col-start-2 row-start-1">Limit: ∞</div>
+      </div>
+    </div>
+    <div class="col-start-3 row-start-2 border border-gray-800">
+      <p>Validate Adoption</p>
+      <div class="grid place-items-center">
+        <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items,[2]) %></div>
+        <div class="col-start-2 row-start-1">Limit: ∞</div>
+      </div>
+    </div>
+    <div class="col-start-4 row-start-2 border border-gray-800">
+      <p>Verify Performance</p>
+      <div class="grid place-items-center">
+        <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items, [3]) %></div>
+        <div class="col-start-2 row-start-1">Limit: ∞</div>
+      </div>
+    </div>
 
     <div class="col-start-5 col-span-4 row-start-3 border border-gray-800">Accepted</div>
 
