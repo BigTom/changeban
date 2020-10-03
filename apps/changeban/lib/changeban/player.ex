@@ -70,6 +70,8 @@ defmodule Changeban.Player do
 
   defstruct id: nil, machine: nil, state: nil, past: nil, options: Map.new, initials: nil, name: nil
 
+  @no_wip_limits %{1 => true, 2 => true, 3 => true}
+
   def new(id, initials) do
      %Player{id: id, options: empty_options(), initials: initials}
   end
@@ -111,8 +113,8 @@ defmodule Changeban.Player do
   If you cannot do ANY of these, then HELP someone
   """
   def red_options(items, %Player{id: pid} = player) do
-    start = for %{id: id} = item <- items, Item.can_start?(item), do: id
-    move = for %{id: id} = item <- items, Item.can_move?(item, pid), do: id
+    start = for %{id: id} = item <- items, Item.can_start?(item, @no_wip_limits), do: id
+    move = for %{id: id} = item <- items, Item.can_move?(item, pid, @no_wip_limits), do: id
     unblock = for %{id: id} = item <- items, Item.can_unblock?(item, pid), do: id
     if Enum.empty?(start) && Enum.empty?(move) && Enum.empty?(unblock) do
       help_options(items, player)
@@ -136,7 +138,7 @@ defmodule Changeban.Player do
 
   def black_options(items, %Player{id: pid, past: past} = player) do
     block = for %{id: id} = item <- items, Item.can_block?(item, pid), do: id
-    start = for %{id: id} = item <- items, Item.can_start?(item), do: id
+    start = for %{id: id} = item <- items, Item.can_start?(item, @no_wip_limits), do: id
 
     case past do
       :blocked -> cond do
@@ -160,7 +162,7 @@ defmodule Changeban.Player do
     Returns: %Player{}
   """
   def help_options(items, %Player{id: pid} = player) do
-    hlp_mv = for %{id: id} = item <- items, Item.can_help_move?(item, pid), do: id
+    hlp_mv = for %{id: id} = item <- items, Item.can_help_move?(item, pid, @no_wip_limits), do: id
     hlp_unblk = for %{id: id} = item <- items, Item.can_help_unblock?(item, pid), do: id
 
     if Enum.empty?(hlp_mv) && Enum.empty?(hlp_unblk) do

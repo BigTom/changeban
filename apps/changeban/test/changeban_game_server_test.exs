@@ -8,11 +8,9 @@ defmodule ChangebanGameServerTest do
     game_name = "#{Enum.random(0..999999)}"
 
     on_exit fn ->
-      IO.puts("exiting game: #{game_name}")
       GameSupervisor.close_game(game_name)
     end
 
-    IO.puts("creating game: #{game_name}")
     GameSupervisor.create_game(game_name)
 
     {:ok, game_name: game_name}

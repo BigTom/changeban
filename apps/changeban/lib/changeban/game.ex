@@ -20,9 +20,15 @@ defmodule Changeban.Game do
   """
   @max_player_id 4
   @turn_cycle 100
+  @no_wip_limits %{1 => true, 2 => true, 3 => true}
 
   @enforce_keys [:items]
-  defstruct players: [], max_players: 0, items: [], score: 0, turn: 0, state: :setup, turns: []
+  defstruct players: [], max_players: 0, items: [], score: 0, turn: 0, state: :setup, wip_limits: {:none, 0}, turns: []
+
+  # Valid wip limits:
+  # {:none, 0} - default
+  # {:std, [n,n,n]}
+  # {:con, n}
 
   alias Changeban.{Game, Item, Player}
 
@@ -59,6 +65,7 @@ defmodule Changeban.Game do
     Enum.count(players)
   end
 
+  def start_game(%Game{players: []}), do: {:error, "No players"}
   def start_game(%Game{turn: 0, state: :setup} = game), do: new_turn(%{game | state: :running})
   def start_game(game), do: game
 
@@ -117,7 +124,6 @@ defmodule Changeban.Game do
       |> Enum.sort_by(& &1.id)                 # make sure the order is maintained
 
       game_ = %{game | items: items_, players: players_}
-      IO.puts "BEFORE RECALC #{inspect game_}"
       recalculate_state(game_)
   end
 
@@ -152,7 +158,8 @@ defmodule Changeban.Game do
     score + bonus
   end
 
-  def recalculate_all_player_options(%Game{players: players, items: items}) do
+  def recalculate_all_player_options(%Game{players: players, items: items} = game) do
+    _below_wip_limits = wip_limited_states(game)
     Enum.map(players, &(Player.calculate_player_options(items, &1)))
   end
 
@@ -167,15 +174,7 @@ defmodule Changeban.Game do
       Logger.warn("Tried to make a move in :done state")
       game
     else
-      IO.puts("BEFORE #{inspect act}")
-      IO.puts("item #{inspect item}")
-      IO.puts("player #{inspect player}")
-
       {item_, player_} = action(act, item, player)
-
-      IO.puts("AFTER #{inspect act}")
-      IO.puts("item_ #{inspect item_}")
-      IO.puts("player_ #{inspect player_}")
       update_game(game, item_, player_)
     end
   end
@@ -214,4 +213,30 @@ defmodule Changeban.Game do
       {item_, player_}
   end
   def action(act, _, _), do: raise "invalid action: #{inspect act}"
+
+  # WIP Limit Management
+
+  def wip_limited_states(%Game{wip_limits: {:none, _}}), do: @no_wip_limits
+  def wip_limited_states(%Game{items: items, wip_limits: {:std, limits}}) do
+    new_limits = Map.new(limits, fn {state_id, limit} -> {state_id, state_wip_open?(items, state_id, limit)} end)
+    Map.merge(@no_wip_limits, new_limits)
+  end
+  def wip_limited_states(%Game{items: items, wip_limits: {:con, limit}}) do
+    c = Enum.map([1,2,3], &item_count_for_state(items, &1)) |> Enum.sum
+    if limit > c do
+      @no_wip_limits
+    else
+      %{1 => false, 2 => false, 3 => false}
+    end
+  end
+
+  def state_wip_open?(items, state_id, limit) do
+    limit > item_count_for_state(items, state_id)
+  end
+
+  def item_count_for_state(items, state_id) do
+      Enum.group_by(items, &(&1.state))
+        |> Map.get(state_id, [])
+        |> Enum.count
+  end
 end

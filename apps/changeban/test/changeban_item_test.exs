@@ -4,6 +4,8 @@ defmodule ChangebanItemTest do
 
   alias Changeban.Item
 
+  @no_wip_limits %{1 => true, 2 => true, 3 => true}
+
   test "New item" do
     assert %Item{blocked: false, id: 3, owner: nil, state: 0, type: :change} == Item.new(3)
     assert %Item{blocked: false, id: 4, owner: nil, state: 0, type: :task} == Item.new(4)
@@ -104,20 +106,22 @@ defmodule ChangebanItemTest do
     refute Item.rejected?(Item.new(1) |> Item.start(0) |> Item.move_right |> Item.move_right |> Item.move_right)
   end
   test "can_start? test" do
-    assert Item.can_start?(new_item()), "agree urgency items count"
-    refute Item.can_start?(in_progress_item(0)), "My in_progress items don't count"
-    refute Item.can_start?(in_progress_item(1)), "Other player's items don't count"
-    refute Item.can_start?(completed_item(0)), "Completed items don't count"
-    refute Item.can_start?(rejected_item(0)), "Rejected items don't count"
-    refute Item.can_start?(blocked_item(0)), "Blocked items don't count"
+    assert Item.can_start?(new_item(), @no_wip_limits), "agree urgency items count"
+    refute Item.can_start?(in_progress_item(0), @no_wip_limits), "My in_progress items don't count"
+    refute Item.can_start?(in_progress_item(1), @no_wip_limits), "Other player's items don't count"
+    refute Item.can_start?(completed_item(0), @no_wip_limits), "Completed items don't count"
+    refute Item.can_start?(rejected_item(0), @no_wip_limits), "Rejected items don't count"
+    refute Item.can_start?(blocked_item(0), @no_wip_limits), "Blocked items don't count"
+    refute Item.can_start?(new_item(), %{1 => false, 2 => true, 3 => true}), "Blocked by WIP limit"
   end
   test "can_move? test" do
-    assert Item.can_move?(in_progress_item(0), 0), "My in_progress items count"
-    refute Item.can_move?(new_item(), 0), "agree urgency items don't count"
-    refute Item.can_move?(in_progress_item(1), 0), "Other player's items don't count"
-    refute Item.can_move?(completed_item(0), 0), "Completed items don't count"
-    refute Item.can_move?(rejected_item(0), 0), "Rejected items don't count"
-    refute Item.can_move?(blocked_item(0), 0), "Blocked items don't count"
+    assert Item.can_move?(in_progress_item(0), 0, @no_wip_limits), "My in_progress items count"
+    refute Item.can_move?(new_item(), 0, @no_wip_limits), "agree urgency items don't count"
+    refute Item.can_move?(in_progress_item(1), 0, @no_wip_limits), "Other player's items don't count"
+    refute Item.can_move?(completed_item(0), 0, @no_wip_limits), "Completed items don't count"
+    refute Item.can_move?(rejected_item(0), 0, @no_wip_limits), "Rejected items don't count"
+    refute Item.can_move?(blocked_item(0), 0, @no_wip_limits), "Blocked items don't count"
+    refute Item.can_move?(in_progress_item(0), 0, %{1 => false, 2 => true, 3 => false}), "Blocked by WIP limit"
   end
   test "can_block? test" do
     assert Item.can_block?(in_progress_item(0), 0), "My in_progress items count"
@@ -136,12 +140,13 @@ defmodule ChangebanItemTest do
     refute Item.can_unblock?(rejected_item(0), 0), "Rejected items don't count"
   end
   test "can_help_move? test" do
-    assert Item.can_help_move?(in_progress_item(1), 0), "Other player's items count"
-    refute Item.can_help_move?(in_progress_item(1), 1), "My items don't count"
-    refute Item.can_help_move?(blocked_item(1), 0), "Blocked items don't count"
-    refute Item.can_help_move?(new_item(), 0), "Not started items don't count"
-    refute Item.can_help_move?(completed_item(1), 0), "Completed items don't count"
-    refute Item.can_help_move?(rejected_item(1), 0), "Rejected items don't count"
+    assert Item.can_help_move?(in_progress_item(1), 0, @no_wip_limits), "Other player's items count"
+    refute Item.can_help_move?(in_progress_item(1), 1, @no_wip_limits), "My items don't count"
+    refute Item.can_help_move?(blocked_item(1), 0, @no_wip_limits), "Blocked items don't count"
+    refute Item.can_help_move?(new_item(), 0, @no_wip_limits), "Not started items don't count"
+    refute Item.can_help_move?(completed_item(1), 0, @no_wip_limits), "Completed items don't count"
+    refute Item.can_help_move?(rejected_item(1), 0, @no_wip_limits), "Rejected items don't count"
+    refute Item.can_help_move?(in_progress_item(1), 0, %{1 => false, 2 => true, 3 => false}), "Blocked by WIP limit"
   end
   test "can_help_unblock? test" do
     assert Item.can_help_unblock?(blocked_item(1), 0), "Other player's blocked items count"

@@ -77,22 +77,27 @@ defmodule Changeban.Item do
 
   def owned?(%Item{owner: owner_id}, player_id), do: owner_id == player_id
 
-  def can_start?(%Item{} = item) do
-    Item.in_agree_urgency?(item)
+  def is_next_state_wip_limited?(state, is_wip_open) do
+    Map.get(is_wip_open, state + 1, true)
   end
-  def can_move?(%Item{blocked: blocked} = item, player) do
-    Item.in_progress?(item) && owned?(item, player) && ! blocked
+
+  def can_start?(%Item{state: state} = item, is_wip_open) do
+    Item.in_agree_urgency?(item) && is_next_state_wip_limited?(state, is_wip_open)
   end
+  def can_move?(%Item{blocked: blocked, state: state} = item, player, is_wip_open) do
+    Item.in_progress?(item) && owned?(item, player) && ! blocked && is_next_state_wip_limited?(state, is_wip_open)
+  end
+  def can_help_move?(%Item{owner: owner, blocked: blocked, state: state} = item, player_id, is_wip_open) do
+    Item.in_progress?(item) && owner != player_id && ! blocked && is_next_state_wip_limited?(state, is_wip_open)
+  end
+
   def can_unblock?(%Item{blocked: blocked} = item, player) do
     Item.in_progress?(item) && owned?(item, player) && blocked
   end
-  def can_block?(item, player) do
-    can_move?(item, player)
+  def can_block?(%Item{blocked: blocked} = item, player) do
+    Item.in_progress?(item) && owned?(item, player) && ! blocked
   end
   def can_help_unblock?(%Item{owner: owner, blocked: blocked} = item, player_id) do
     Item.in_progress?(item) && owner != player_id && blocked
-  end
-  def can_help_move?(%Item{owner: owner, blocked: blocked} = item, player_id) do
-    Item.in_progress?(item) && owner != player_id && ! blocked
   end
 end

@@ -366,6 +366,42 @@ defmodule ChangebanGameTest do
     assert expected_options == player.options
   end
 
+  test "WIP limits off by default" do
+    game = Game.new() |> add_player("X") |> Game.start_game
+    assert %{1 => true, 2 => true, 3 => true} = Game.wip_limited_states(game)
+  end
+
+  test "Std WIP limits integrate with open" do
+    game = %{Game.new() | wip_limits: {:std, %{3 => 0}}} |> add_player("X") |> Game.start_game
+    assert %{1 => true, 2 => true, 3 => false} = Game.wip_limited_states(game)
+  end
+
+  test "Std WIP limits off at start" do
+    game = %{Game.new() | wip_limits: {:std, %{1 => 1, 2 => 1}}, turns: [:red, :red, :red, :red]}
+      |> add_player("X")
+      |> Game.start_game
+      |> Game.exec_action(:start, 0, 0) |> Game.exec_action(:move, 0, 0)
+      |> Game.exec_action(:start, 1, 0)
+    assert %{1 => false, 2 => false, 3 => true} = Game.wip_limited_states(game)
+  end
+
+  test "Con WIP limits integrate with open 0 limit" do
+    game = %{Game.new() | wip_limits: {:con, 0}} |> add_player("X") |> Game.start_game
+    assert %{1 => false, 2 => false, 3 => false} = Game.wip_limited_states(game)
+  end
+
+  test "Con WIP limits integrate with open 2 limit" do
+    game = %{Game.new() | wip_limits: {:con, 2}} |> add_player("X") |> Game.start_game
+    assert %{1 => true, 2 => true, 3 => true} = Game.wip_limited_states(game)
+  end
+
+  test "Con WIP limits integrate with open" do
+    game = %{Game.new() | wip_limits: {:con, 1}, turns: [:red, :red, :red, :red]} |> add_player("X") |> Game.start_game
+    assert %{1 => true, 2 => true, 3 => true} = Game.wip_limited_states(game)
+
+    assert %{1 => false, 2 => false, 3 => false} = Game.wip_limited_states(Game.exec_action(game, :start, 0, 0))
+  end
+
 
 
   defp game_finish() do
@@ -405,9 +441,13 @@ defmodule ChangebanGameTest do
     }
   end
 
+  defp add_player(game, initials) do
+    {:ok, _, game} = Game.add_player(game, initials)
+    game
+  end
 
-# :started %{block: [2], hlp_mv: [], hlp_unblk: [], move: [], reject: [], start: [], unblock: []}
-defp game_final_black_block() do
+  # :started %{block: [2], hlp_mv: [], hlp_unblk: [], move: [], reject: [], start: [], unblock: []}
+  defp game_final_black_block() do
     %Game{
       items: [
         %Changeban.Item{blocked: false, id: 0, owner: 0, state: 1, type: :task},
