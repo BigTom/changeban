@@ -132,7 +132,6 @@ defmodule Changeban.Game do
     players = recalculate_all_player_options(game)
 
     game_ = %{game | score: score, players: players}
-
     case (Enum.find(players, &(&1.state != :done))) do
       nil -> new_turn(game_)
       _ -> game_
@@ -159,8 +158,8 @@ defmodule Changeban.Game do
   end
 
   def recalculate_all_player_options(%Game{players: players, items: items} = game) do
-    _below_wip_limits = wip_limited_states(game)
-    Enum.map(players, &(Player.calculate_player_options(items, &1)))
+    below_wip_limits = wip_limited_states(game)
+    Enum.map(players, &(Player.calculate_player_options(items, &1, below_wip_limits)))
   end
 
   def get_player(%Game{players: players}, player_id), do: Enum.find(players, &(&1.id == player_id))
@@ -221,12 +220,15 @@ defmodule Changeban.Game do
     new_limits = Map.new(limits, fn {state_id, limit} -> {state_id, state_wip_open?(items, state_id, limit)} end)
     Map.merge(@no_wip_limits, new_limits)
   end
+  # conwip stops you starting
   def wip_limited_states(%Game{items: items, wip_limits: {:con, limit}}) do
     c = Enum.map([1,2,3], &item_count_for_state(items, &1)) |> Enum.sum
-    if limit > c do
-      @no_wip_limits
-    else
-      %{1 => false, 2 => false, 3 => false}
+    cond do
+      limit == 0 ->
+        Logger.warn("Tried to set 0 conwip")
+        @no_wip_limits
+      limit > c -> @no_wip_limits
+      true -> %{1 => false, 2 => true, 3 => true}
     end
   end
 

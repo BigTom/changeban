@@ -78,8 +78,8 @@ defmodule Changeban.Player do
 
   def empty_options(), do: %{start: [], move: [], unblock: [], block: [], hlp_mv: [], hlp_unblk: [], reject: []}
 
-  def calculate_player_options(_items, %Player{state: :done} = player), do: %{player | options: Player.empty_options()}
-  def calculate_player_options(items, %Player{machine: machine, state: state, past: past} = player) do
+  def calculate_player_options(_items, %Player{state: :done} = player, _is_wip_open), do: %{player | options: Player.empty_options()}
+  def calculate_player_options(items, %Player{machine: machine, state: state, past: past} = player, is_wip_open) do
     player_ = %{player | options: empty_options()}
     if (state == :act || state == :help) && past == :completed do
       rejectable = for %{id: id} = item <- items, Item.active?(item), do: id
@@ -91,8 +91,8 @@ defmodule Changeban.Player do
       end
     else
       case machine do
-        :red -> red_options(items, player_)
-        :black -> black_options(items, player_)
+        :red -> red_options(items, player_, is_wip_open)
+        :black -> black_options(items, player_, is_wip_open)
       end
     end
   end
@@ -112,12 +112,12 @@ defmodule Changeban.Player do
 
   If you cannot do ANY of these, then HELP someone
   """
-  def red_options(items, %Player{id: pid} = player) do
-    start = for %{id: id} = item <- items, Item.can_start?(item, @no_wip_limits), do: id
-    move = for %{id: id} = item <- items, Item.can_move?(item, pid, @no_wip_limits), do: id
+  def red_options(items, %Player{id: pid} = player, is_wip_open) do
+    start = for %{id: id} = item <- items, Item.can_start?(item, is_wip_open), do: id
+    move = for %{id: id} = item <- items, Item.can_move?(item, pid, is_wip_open), do: id
     unblock = for %{id: id} = item <- items, Item.can_unblock?(item, pid), do: id
     if Enum.empty?(start) && Enum.empty?(move) && Enum.empty?(unblock) do
-      help_options(items, player)
+      help_options(items, player, @no_wip_limits)
     else
       %{player | state: :act, options: %{Player.empty_options() | move: move, unblock: unblock, start: start}}
     end
@@ -136,19 +136,19 @@ defmodule Changeban.Player do
   If you cannot START, then HELP someone
   """
 
-  def black_options(items, %Player{id: pid, past: past} = player) do
+  def black_options(items, %Player{id: pid, past: past} = player, is_wip_open) do
     block = for %{id: id} = item <- items, Item.can_block?(item, pid), do: id
-    start = for %{id: id} = item <- items, Item.can_start?(item, @no_wip_limits), do: id
+    start = for %{id: id} = item <- items, Item.can_start?(item, is_wip_open), do: id
 
     case past do
       :blocked -> cond do
-          Enum.empty?(start) -> help_options(items, player)
+          Enum.empty?(start) -> help_options(items, player, @no_wip_limits)
           :true -> %{player | state: :act, options: %{player.options | start: start}}
         end
       :started ->
         %{player | state: :done, options: Player.empty_options()}
       nil -> cond do
-          Enum.empty?(block) && Enum.empty?(start) -> help_options(items, player)
+          Enum.empty?(block) && Enum.empty?(start) -> help_options(items, player, @no_wip_limits)
           Enum.empty?(block) -> %{player | state: :act, options: %{player.options | start: start}}
           :true -> %{player | state: :act, options: %{player.options | block: block}}
         end
@@ -161,8 +161,8 @@ defmodule Changeban.Player do
 
     Returns: %Player{}
   """
-  def help_options(items, %Player{id: pid} = player) do
-    hlp_mv = for %{id: id} = item <- items, Item.can_help_move?(item, pid, @no_wip_limits), do: id
+  def help_options(items, %Player{id: pid} = player, is_wip_open) do
+    hlp_mv = for %{id: id} = item <- items, Item.can_help_move?(item, pid, is_wip_open), do: id
     hlp_unblk = for %{id: id} = item <- items, Item.can_help_unblock?(item, pid), do: id
 
     if Enum.empty?(hlp_mv) && Enum.empty?(hlp_unblk) do

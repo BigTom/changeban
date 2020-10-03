@@ -3,6 +3,8 @@ defmodule ChangebanGameTest do
   doctest Changeban.Game
   alias Changeban.{Game, Item, Player}
 
+  @no_wip_limits %{1 => true, 2 => true, 3 => true}
+
   test "New game test number of items" do
     game = Game.new()
     assert Enum.count(game.items) == 16
@@ -111,7 +113,7 @@ defmodule ChangebanGameTest do
     expected_response = %Player{id: 1, machine: :black, past: nil, state: :act,
                                 options: %{Player.empty_options() | block: [4, 1]}}
 
-    assert expected_response == Player.black_options(game.items, player)
+    assert expected_response == Player.black_options(game.items, player, @no_wip_limits)
   end
 
   test "black_options help response 2 move, 1 unblock" do
@@ -120,7 +122,7 @@ defmodule ChangebanGameTest do
     expected_response = %Player{id: 0, machine: :black, past: nil, state: :help,
                                 options: %{Player.empty_options() | hlp_mv: [4, 1], hlp_unblk: [0]}}
 
-    assert expected_response == Player.black_options(game.items, player)
+    assert expected_response == Player.black_options(game.items, player, @no_wip_limits)
   end
 
   test "red_options response 2 move, 1 unblock" do
@@ -129,16 +131,16 @@ defmodule ChangebanGameTest do
     expected_options = %{Player.empty_options() | move: [4, 1], unblock: [0]}
     expected_response = %Player{id: 1, machine: :red, options: expected_options, past: nil, state: :act, initials: "R"}
 
-    assert expected_response == Player.red_options(game.items, player)
+    assert expected_response == Player.red_options(game.items, player, @no_wip_limits)
   end
 
-  test "red_options help response 1 moves, 1 unblock" do
+  test "red_options response 1 moves, 1 unblock" do
     game = one_nc_1_nc_x_1_vp_1_ac_1_rj_game([:red, :black], "X")
     player = %{ Game.get_player(game, 0) | machine: :red }
     expected_options = %{Player.empty_options() | hlp_mv: [4,1], hlp_unblk: [0]}
     expected_response = %Player{id: 0, machine: :red, options: expected_options, past: nil, state: :help, initials: "X"}
 
-    assert expected_response == Player.red_options(game.items, player)
+    assert expected_response == Player.red_options(game.items, player, @no_wip_limits)
   end
 
   test "max score" do
@@ -156,21 +158,21 @@ defmodule ChangebanGameTest do
 
       expected_options = %{Player.empty_options() | start: Enum.to_list(0..15)}
       expected_player = %Player{id: 0, machine: :red, state: :act, options: expected_options}
-    assert expected_player == Player.calculate_player_options(game.items, player)
+    assert expected_player == Player.calculate_player_options(game.items, player, @no_wip_limits)
   end
 
   test "calculate red turn player options with nothing to move" do
     game = min_score_game()
     player = Enum.at(game.players, 0)
     expected_player = %Player{id: 0, machine: :red, state: :done, options: Player.empty_options()}
-    assert expected_player == Player.calculate_player_options(game, player)
+    assert expected_player == Player.calculate_player_options(game, player, @no_wip_limits)
   end
 
   test "calculate help turn player options with nothing to move" do
     game = min_score_game()
     player = %Player{id: 0, machine: :red, state: :new, options: Player.empty_options()}
     expected_player = %Player{id: 0, machine: :red, state: :done, options: Player.empty_options()}
-    assert expected_player == Player.calculate_player_options(game.items, player)
+    assert expected_player == Player.calculate_player_options(game.items, player, @no_wip_limits)
   end
 
   test "calculate black turn player start options" do
@@ -180,7 +182,7 @@ defmodule ChangebanGameTest do
 
     expected_options = %{Player.empty_options() | start: Enum.to_list(0..15)}
     expected_player = %Player{id: 0, machine: :black, state: :act, options: expected_options}
-    assert expected_player == Player.calculate_player_options(game.items, player)
+    assert expected_player == Player.calculate_player_options(game.items, player, @no_wip_limits)
   end
 
   test "update_item" do
@@ -385,21 +387,16 @@ defmodule ChangebanGameTest do
     assert %{1 => false, 2 => false, 3 => true} = Game.wip_limited_states(game)
   end
 
-  test "Con WIP limits integrate with open 0 limit" do
-    game = %{Game.new() | wip_limits: {:con, 0}} |> add_player("X") |> Game.start_game
-    assert %{1 => false, 2 => false, 3 => false} = Game.wip_limited_states(game)
-  end
-
   test "Con WIP limits integrate with open 2 limit" do
     game = %{Game.new() | wip_limits: {:con, 2}} |> add_player("X") |> Game.start_game
-    assert %{1 => true, 2 => true, 3 => true} = Game.wip_limited_states(game)
+    assert %{1 => true, 2 => true, 3 => true} = Game.wip_limited_states(Game.exec_action(game, :start, 0, 0))
   end
 
   test "Con WIP limits integrate with open" do
     game = %{Game.new() | wip_limits: {:con, 1}, turns: [:red, :red, :red, :red]} |> add_player("X") |> Game.start_game
-    assert %{1 => true, 2 => true, 3 => true} = Game.wip_limited_states(game)
+    assert %{1 => true, 2 => true, 3 => true} == Game.wip_limited_states(game)
 
-    assert %{1 => false, 2 => false, 3 => false} = Game.wip_limited_states(Game.exec_action(game, :start, 0, 0))
+    assert %{1 => false, 2 => true, 3 => true} == Game.wip_limited_states(Game.exec_action(game, :start, 0, 0))
   end
 
 
