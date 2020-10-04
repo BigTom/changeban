@@ -5,7 +5,7 @@ defmodule GamesRoomWeb.PageLiveTest do
 
   test "disconnected and connected render", %{conn: conn} do
     {:ok, page_live, disconnected_html} = live(conn, "/")
-    assert disconnected_html =~ "Please enter an initial"
-    assert render(page_live) =~ "Please enter an initial"
+    assert disconnected_html =~ "two character initials"
+    assert render(page_live) =~ "two character initials"
   end
 end
