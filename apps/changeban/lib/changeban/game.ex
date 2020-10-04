@@ -214,6 +214,14 @@ defmodule Changeban.Game do
   def action(act, _, _), do: raise "invalid action: #{inspect act}"
 
   # WIP Limit Management
+    # Valid wip limits:
+  # {:none, 0} - default
+  # {:std, [n,n,n]}
+  # {:con, n}
+
+  def set_wip(game, :none, _), do: %{game | wip_limits: {:none,  0}}
+  def set_wip(game, :std, limits), do: %{game | wip_limits: {:std,  limits}}
+  def set_wip(game, :con, limit), do: %{game | wip_limits: {:con,  limit}}
 
   def wip_limited_states(%Game{wip_limits: {:none, _}}), do: @no_wip_limits
   def wip_limited_states(%Game{items: items, wip_limits: {:std, limits}}) do

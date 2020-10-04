@@ -46,6 +46,23 @@ defmodule ChangebanGameServerTest do
     assert :act == player.state
   end
 
+  test "set conwip", %{game_name: game_name} do
+    game = GameServer.set_wip(game_name, :con, 2)
+    assert {:con, 2} == game.wip_limits
+  end
+
+  test "set stdwip", %{game_name: game_name} do
+    game = GameServer.set_wip(game_name, :std, [2,2,2])
+    assert {:std, [2,2,2]} == game.wip_limits
+  end
+
+  test "set nowip", %{game_name: game_name} do
+    game = GameServer.set_wip(game_name, :std, [2,2,2])
+    assert {:std, [2,2,2]} == game.wip_limits
+    game2 = GameServer.set_wip(game_name, :none, 1)
+    assert {:none, 0} == game2.wip_limits
+  end
+
   # test "player moves", %{game_name: game_name} do
   #   GameServer.add_player(game_name)
   #   game1 = GameServer.start_game(game_name)

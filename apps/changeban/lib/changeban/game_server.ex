@@ -25,6 +25,10 @@ defmodule Changeban.GameServer do
     GenServer.call(via_tuple(game_name), {:add_player, initials})
   end
 
+  def set_wip(game_name, wip_type, limit) do
+    GenServer.call(via_tuple(game_name), {:set_wip, wip_type, limit})
+  end
+
   def joinable?(nil), do: false
   def joinable?(game_name) do
     GenServer.call(via_tuple(game_name), {:joinable?})
@@ -98,8 +102,8 @@ defmodule Changeban.GameServer do
   end
 
   def handle_call({:start_game}, _from, game) do
-    game_ = Game.start_game(game)
-    {:reply, game_, game_, @timeout}
+    updated_game = Game.start_game(game)
+    {:reply, updated_game, updated_game, @timeout}
   end
 
   # :start, :move, :block, :unblock, :reject
@@ -111,6 +115,11 @@ defmodule Changeban.GameServer do
 
   def handle_call(:view, _from, game) do
     {:reply, view_game(game), game, @timeout}
+  end
+
+  def handle_call({:set_wip, wip_type, limit}, _from, game) do
+    updated_game = Game.set_wip(game, wip_type, limit)
+    {:reply, updated_game, updated_game, @timeout}
   end
 
   def handle_info(:timeout, game) do
