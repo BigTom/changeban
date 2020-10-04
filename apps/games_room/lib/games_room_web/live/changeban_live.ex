@@ -42,7 +42,8 @@ defmodule GamesRoomWeb.ChangebanLive do
         present: Presence.list(game_name) |> map_size,
         player: nil,
         player_id: nil,
-        username: nil)
+        username: nil,
+        leader: false)
     Logger.info("MOUNT: #{inspect new_socket.assigns}")
     {:ok, new_socket }
   end
@@ -67,7 +68,8 @@ defmodule GamesRoomWeb.ChangebanLive do
       present: 0,
       player: nil,
       player_id: nil,
-      username: nil)
+      username: nil,
+      leader: false)
 
     Logger.info("MOUNT: #{inspect new_socket.assigns}")
     {:ok, new_socket}
@@ -97,12 +99,12 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   @impl true
   def handle_event(
-        "add_player",
-        %{"initials" => supplied_initials, "game_name" => ""},
+        "new_game",
+        %{"initials" => supplied_initials},
         socket) do
     initials = String.upcase(supplied_initials)
     game_name = gen_game_name()
-    Logger.debug("add_player: #{inspect initials} to NEW game: #{inspect game_name}")
+    Logger.debug("new_game: #{inspect initials} to NEW game: #{inspect game_name}")
     GameSupervisor.create_game(game_name)
     {:ok, player_id, player} = GameServer.add_player(game_name, initials)
     GamesRoomWeb.Endpoint.subscribe(game_name)
@@ -112,7 +114,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   @impl true
   def handle_event(
-        "add_player",
+        "join_game",
         %{"initials" => supplied_initials, "game_name" => supplied_game_name},
         socket) do
     initials = String.upcase(supplied_initials)
@@ -205,10 +207,10 @@ defmodule GamesRoomWeb.ChangebanLive do
         <%= cond do %>
           <% is_nil(@game_name) -> %>
             <%= render_join_view(assigns) %>
-          <% not GameServer.joinable?(@game_name) -> %>
-            <%= render_game_full(assigns) %>
-          <% true -> %>
+          <% GameServer.joinable?(@game_name) -> %>
             <%= render_join_view(assigns) %>
+          <% true -> %>
+            <%= render_game_full(assigns) %>
         <% end %>
       <% end %>
       <%= if @game_name != nil do %>
@@ -234,8 +236,8 @@ defmodule GamesRoomWeb.ChangebanLive do
       <div class="absolute z-40 flex flex-col items-center justify-center
                   w-full h-screen
                   font-sans">
-        <div class="bg-white opacity-50 rounded shadow p-8 m-4 max-w-xs max-h-full text-center overflow-y-scroll">
-          <p class="text-center">I am sorry, game <%= @game_name %> can no longer be joined.</p>
+        <div class="bg-white opacity-50 rounded shadow p-8 m-4 max-w-s max-h-full text-center overflow-y-scroll">
+          <p class="text-center">Game <%= @game_name %> can no longer be joined.</p>
           <p class="text-center">You can watch the game in progress here.</p>
         </div>
       </div>
@@ -247,24 +249,35 @@ defmodule GamesRoomWeb.ChangebanLive do
       <div class="absolute z-40 flex flex-col items-center justify-center
                   w-full h-screen
                   font-sans">
-        <div class="bg-gray-200 rounded shadow p-8 m-4 max-w-md max-h-full text-center overflow-y-scroll">
-        <p class="text-left pb-4">Please enter an initial with which to identify your items and the identifier for the game you will be playing</p>
-        <form phx-submit="add_player">
-            <div class="pt-2 text-left flex">
-              <label class="w-2/3 text-gray-700 text-sm font-bold mb-2 px-2" for="initials">Initials (1 or 2 letters):</label>
-              <input class="w-1/3 shadow appearance-none border rounded py-2 px-3 focus:outline-none focus:shadow-outline"
-                     name="initials" id="initials" type="text" maxlength="2">
-            </div>
-            <div class="pt-2 text-left flex">
-              <label class="w-2/3 text-gray-700 text-sm font-bold mb-2 px-2" for="game_name">Game Name (leave blank to start a new game):</label>
-              <input class="w-1/3 shadow appearance-none border rounded py-2 px-3 text-gray-700 uppercase
+        <div class="bg-gray-200 rounded shadow p-8 m-4 max-w-md max-h-full">
+          <p class="text-left  font-bold">Do you want to join one a game?</p>
+          <p class="text-left pb-4">(Enter your 6 character game name, your one or two character initials and click "Join Game")</p>
+          <form phx-submit="join_game">
+            <div class="grid grid-cols-3 grid-rows-2 gap-2 font-bold">
+              <label class="col-start-1 row-start-1 text-gray-700 text-sm font-bold" for="game_name">Game Name:</label>
+              <input class="col-start-1 row-start-row-2 shadow appearance-none border rounded text-gray-700 uppercase
                             placeholder-gray-300 focus:outline-none focus:shadow-outline"
-                     placeholder="<%= @game_name %>" name="game_name" id="game_name" type="text" maxlength="6" value="<%= @game_name %>">
-            </div>
-            <div class="pt-2 flex items-center justify-between">
-              <button type="submit" class="bg-green-300 hover:bg-green-700 text-white font-bold py-2 px-4
+                      placeholder="XXXXXX" name="game_name" id="game_name" type="text" maxlength="6"
+                      <%= if ! is_nil(@game_name) do %> value="<%= @game_name %>" <% end %> >
+              <label class="col-start-2 row-start-1 text-gray-700 text-sm font-bold" for="initials placeholder="XX">Initials:</label>
+              <input class="col-start-2 row-start-2 shadow appearance-none border rounded focus:outline-none focus:shadow-outline placeholder-gray-300"
+                      name="initials" id="initials" type="text" maxlength="2" placeholder="XX">
+              <button type="submit" class="col-start-3 row-start-2  bg-green-300 hover:bg-green-700 text-white font-bold
                                            rounded focus:outline-none focus:shadow-outline" >
-                Enter
+                Join Game
+              </button>
+            </div>
+          </form>
+          <p class="text-left pt-2 font-bold">Or start a new one?</p>
+          <p class="text-left pb-4">(Enter your one or two character initials and click "Join Game")</p>
+          <form phx-submit="new_game">
+            <div class="grid grid-cols-3 grid-rows-2 gap-2">
+              <label class="col-start-2 row-start-1 text-gray-700 text-sm font-bold" for="initials">Initials:</label>
+              <input class="col-start-2 row-start-2 shadow appearance-none border rounded focus:outline-none focus:shadow-outline placeholder-gray-300"
+                    name="initials" id="initials" type="text" maxlength="2" placeholder="XX">
+              <button type="submit" class="col-start-3 row-start-2 bg-green-300 hover:bg-green-700 text-white font-bold
+                                                rounded focus:outline-none focus:shadow-outline" >
+                New Game
               </button>
             </div>
           </form>
