@@ -219,14 +219,13 @@ defmodule Changeban.Game do
   # {:std, [n,n,n]}
   # {:con, n}
 
-  def set_wip(game, :none, _), do: %{game | wip_limits: {:none,  0}}
-  def set_wip(game, :std, limits), do: %{game | wip_limits: {:std,  limits}}
-  def set_wip(game, :con, limit), do: %{game | wip_limits: {:con,  limit}}
+  def set_wip(game, :none, _), do: %{game | wip_limits: {:none, 0}}
+  def set_wip(game, :std, limit), do: %{game | wip_limits: {:std, limit}}
+  def set_wip(game, :con, limit), do: %{game | wip_limits: {:con, limit}}
 
   def wip_limited_states(%Game{wip_limits: {:none, _}}), do: @no_wip_limits
-  def wip_limited_states(%Game{items: items, wip_limits: {:std, limits}}) do
-    new_limits = Map.new(limits, fn {state_id, limit} -> {state_id, state_wip_open?(items, state_id, limit)} end)
-    Map.merge(@no_wip_limits, new_limits)
+  def wip_limited_states(%Game{items: items, wip_limits: {:std, limit}}) do
+    Map.new([1,2,3], fn state_id -> {state_id, (limit > item_count_for_state(items, state_id))} end)
   end
   # conwip stops you starting
   def wip_limited_states(%Game{items: items, wip_limits: {:con, limit}}) do

@@ -25,27 +25,32 @@ defmodule GamesRoomWeb.ChangebanLive do
       add player
   """
   @impl true
-  def mount(%{"game_name" => game_name}, _session, socket) do
-    Logger.info("MOUNT: game name supplied, not a player yet")
-    PubSub.subscribe(GamesRoom.PubSub, @game_topic)
-    GamesRoomWeb.Endpoint.subscribe(game_name)
+  def mount(%{"game_name" => game_name}, session, socket) do
+    if GameServer.game_exists?(game_name) do
+      Logger.info("MOUNT: game name supplied, not a player yet")
+      PubSub.subscribe(GamesRoom.PubSub, @game_topic)
+      GamesRoomWeb.Endpoint.subscribe(game_name)
+      {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
 
-    {items, players, turn, score, state} = GameServer.view(game_name)
-
-    new_socket = assign(socket,
-        game_name: game_name,
-        items: items,
-        players: players,
-        turn: turn,
-        score: score,
-        state: state,
-        present: Presence.list(game_name) |> map_size,
-        player: nil,
-        player_id: nil,
-        username: nil,
-        leader: false)
-    Logger.info("MOUNT: #{inspect new_socket.assigns}")
-    {:ok, new_socket }
+      new_socket = assign(socket,
+          game_name: game_name,
+          items: items,
+          players: players,
+          turn: turn,
+          score: score,
+          state: state,
+          wip_limits: wip_limits,
+          present: Presence.list(game_name) |> map_size,
+          player: nil,
+          player_id: nil,
+          username: nil,
+          leader: false)
+      Logger.info("MOUNT: #{inspect new_socket.assigns}")
+      {:ok, new_socket }
+    else
+      Logger.warn("MOUNT: game name supplied, but game does not exist")
+      {:ok, push_redirect(socket, to: "/changeban", replace: true)}
+    end
   end
 
   @doc """
@@ -65,6 +70,7 @@ defmodule GamesRoomWeb.ChangebanLive do
       turn: nil,
       score: nil,
       state: nil,
+      wip_limits: nil,
       present: 0,
       player: nil,
       player_id: nil,
@@ -100,12 +106,14 @@ defmodule GamesRoomWeb.ChangebanLive do
   @impl true
   def handle_event(
         "new_game",
-        %{"initials" => supplied_initials},
+        %{"initials" => supplied_initials, "wip" => supplied_wip_type},
         socket) do
     initials = String.upcase(supplied_initials)
     game_name = gen_game_name()
-    Logger.debug("new_game: #{inspect initials} to NEW game: #{inspect game_name}")
+    wip_type = String.to_existing_atom(supplied_wip_type)
+    Logger.debug("new_game: #{inspect game_name} with WIP limit type #{wip_type} and player: #{initials}")
     GameSupervisor.create_game(game_name)
+    GameServer.set_wip(game_name, wip_type, 2)
     {:ok, player_id, player} = GameServer.add_player(game_name, initials)
     GamesRoomWeb.Endpoint.subscribe(game_name)
     Presence.track(self(), game_name, socket.id, %{player_id: player_id})
@@ -153,7 +161,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     {:noreply, update_and_notify(socket)}
   end
 
-  defp prep_assigns(socket, items, players, turn, score, state) do
+  defp prep_assigns(socket, items, players, turn, score, state, wip_limits) do
     player = if socket.assigns.player_id do
       Enum.at(players,socket.assigns.player_id)
     else
@@ -165,7 +173,8 @@ defmodule GamesRoomWeb.ChangebanLive do
       player: player,
       turn: turn,
       score: score,
-      state: state)
+      state: state,
+      wip_limits: wip_limits)
     Logger.debug("""
                 ASSIGNS:
                 game_name: #{inspect new_socket.assigns.game_name}
@@ -173,6 +182,7 @@ defmodule GamesRoomWeb.ChangebanLive do
                 name: #{inspect new_socket.assigns.username}
                 turn: #{inspect new_socket.assigns.turn}
                 game_state: #{inspect new_socket.assigns.state}
+                wip_limits: #{inspect new_socket.assigns.wip_limits}
                 """)
     if (not is_nil(new_socket.assigns.player)) do
       Logger.debug("""
@@ -188,15 +198,15 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   defp update_and_notify(socket) do
     Logger.debug("UPDATE-AND-NOTIFY for game: #{socket.assigns.game_name}")
-    {items, players, turn, score, state} = GameServer.view(socket.assigns.game_name)
+    {items, players, turn, score, state, wip_limits} = GameServer.view(socket.assigns.game_name)
     PubSub.broadcast(GamesRoom.PubSub, @game_topic, :change)
-    prep_assigns(socket, items, players, turn, score, state)
+    prep_assigns(socket, items, players, turn, score, state, wip_limits)
   end
 
   defp update_only(socket) do
     Logger.debug("UPDATE-ONLY")
-    {items, players, turn, score, state} = GameServer.view(socket.assigns.game_name)
-    prep_assigns(socket, items, players, turn, score, state)
+    {items, players, turn, score, state, wip_limits} = GameServer.view(socket.assigns.game_name)
+    prep_assigns(socket, items, players, turn, score, state, wip_limits)
   end
 
   @impl true
@@ -251,7 +261,7 @@ defmodule GamesRoomWeb.ChangebanLive do
                   font-sans">
         <div class="bg-gray-200 rounded shadow p-8 m-4 max-w-md max-h-full">
           <p class="text-left  font-bold">Do you want to join one a game?</p>
-          <p class="text-left pb-4">(Enter your 6 character game name, your one or two character initials and click "Join Game")</p>
+          <p class="text-left pb-4">Enter your 6 character game name, your one or two character initials and click "Join Game"</p>
           <form phx-submit="join_game">
             <div class="grid grid-cols-3 grid-rows-2 gap-2 font-bold">
               <label class="col-start-1 row-start-1 text-gray-700 text-sm font-bold" for="game_name">Game Name:</label>
@@ -269,9 +279,9 @@ defmodule GamesRoomWeb.ChangebanLive do
             </div>
           </form>
           <p class="text-left pt-2 font-bold">Or start a new one?</p>
-          <p class="text-left pb-4">(Enter your one or two character initials and click "Join Game")</p>
+          <p class="text-left pb-4">Enter your one or two character initials, select your Work in Progress (WIP) limit type and click "New Game"</p>
           <form phx-submit="new_game">
-            <div class="grid grid-cols-3 grid-rows-2 gap-2">
+            <div class="grid grid-cols-3 grid-rows-3 gap-2">
               <label class="col-start-2 row-start-1 text-gray-700 text-sm font-bold" for="initials">Initials:</label>
               <input class="col-start-2 row-start-2 shadow appearance-none border rounded focus:outline-none focus:shadow-outline placeholder-gray-300"
                     name="initials" id="initials" type="text" maxlength="2" placeholder="XX">
@@ -279,6 +289,18 @@ defmodule GamesRoomWeb.ChangebanLive do
                                                 rounded focus:outline-none focus:shadow-outline" >
                 New Game
               </button>
+              <div class="col-start-1 row-start-3">
+                <input type="radio" id="none" name="wip" value="none" checked>
+                <label for="none">None</label>
+              </div>
+                <div class="col-start-2 row-start-3">
+                <input type="radio" id="std" name="wip" value="std">
+                <label for="std">Column</label>
+              </div>
+              <div class="col-start-3 row-start-3">
+                <input type="radio" id="con" name="wip" value="con">
+                <label for="con">Consolidated</label>
+              </div>
             </div>
           </form>
         </div>
@@ -453,7 +475,7 @@ defmodule GamesRoomWeb.ChangebanLive do
                   border-2 border-<%= @font_color %> rounded-md
                   text-<%= @font_color %> text-2xl">
         <div class="text-center">Turn:</div>
-        <div class="text-center"><%= to_string(:io_lib.format("~2..0B", [@nr])) %></div>
+        <div class="text-center"><%= to_string(:io_lib.format("~3..0B", [@nr])) %></div>
       </div>
     """
   end
@@ -560,6 +582,10 @@ defmodule GamesRoomWeb.ChangebanLive do
       |> Enum.sum
   end
 
+  def is_wip_type?({limit_type, _}, type), do: limit_type == type
+
+  def wip_limit({_, value}), do: value
+
   def headers(assigns) do
     ~L"""
     <div class="col-start-1 row-start-1 row-span-2 border border-gray-800">Agree Urgency</div>
@@ -567,7 +593,9 @@ defmodule GamesRoomWeb.ChangebanLive do
       <p>In progress</p>
       <div class="grid place-items-center">
         <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items, [1,2,3]) %></div>
-        <div class="col-start-2 row-start-1">Limit: ∞</div>
+        <%= if is_wip_type?(@wip_limits, :con) do %>
+          <div class="col-start-2 row-start-1">Limit: <%= wip_limit(@wip_limits) %></div>
+        <% end %>
       </div>
      </div>
     <div class="col-start-5 col-span-4 row-start-1 row-span-2 border border-gray-800">Complete</div>
@@ -576,21 +604,27 @@ defmodule GamesRoomWeb.ChangebanLive do
       <p>Negotiate Change</p>
       <div class="grid place-items-center">
         <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items, [1]) %></div>
-        <div class="col-start-2 row-start-1">Limit: ∞</div>
+        <%= if is_wip_type?(@wip_limits, :std) do %>
+          <div class="col-start-2 row-start-1">Limit: <%= wip_limit(@wip_limits) %></div>
+        <% end %>
       </div>
     </div>
     <div class="col-start-3 row-start-2 border border-gray-800">
       <p>Validate Adoption</p>
       <div class="grid place-items-center">
         <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items,[2]) %></div>
-        <div class="col-start-2 row-start-1">Limit: ∞</div>
+        <%= if is_wip_type?(@wip_limits, :std) do %>
+          <div class="col-start-2 row-start-1">Limit: <%= wip_limit(@wip_limits) %></div>
+        <% end %>
       </div>
     </div>
     <div class="col-start-4 row-start-2 border border-gray-800">
       <p>Verify Performance</p>
       <div class="grid place-items-center">
         <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items, [3]) %></div>
-        <div class="col-start-2 row-start-1">Limit: ∞</div>
+        <%= if is_wip_type?(@wip_limits, :std) do %>
+          <div class="col-start-2 row-start-1">Limit: <%= wip_limit(@wip_limits) %></div>
+        <% end %>
       </div>
     </div>
 

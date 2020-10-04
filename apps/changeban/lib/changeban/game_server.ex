@@ -138,7 +138,8 @@ defmodule Changeban.GameServer do
      game.players,
      game.turn,
      game.score,
-     game.state}
+     game.state,
+     game.wip_limits}
   end
 
   defp my_game_name do

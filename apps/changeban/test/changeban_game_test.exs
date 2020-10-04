@@ -373,13 +373,8 @@ defmodule ChangebanGameTest do
     assert %{1 => true, 2 => true, 3 => true} = Game.wip_limited_states(game)
   end
 
-  test "Std WIP limits integrate with open" do
-    game = %{Game.new() | wip_limits: {:std, %{3 => 0}}} |> add_player("X") |> Game.start_game
-    assert %{1 => true, 2 => true, 3 => false} = Game.wip_limited_states(game)
-  end
-
   test "Std WIP limits off at start" do
-    game = %{Game.new() | wip_limits: {:std, %{1 => 1, 2 => 1}}, turns: [:red, :red, :red, :red]}
+    game = %{Game.new() | wip_limits: {:std, 1}, turns: [:red, :red, :red, :red]}
       |> add_player("X")
       |> Game.start_game
       |> Game.exec_action(:start, 0, 0) |> Game.exec_action(:move, 0, 0)

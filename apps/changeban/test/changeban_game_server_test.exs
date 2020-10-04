@@ -52,13 +52,13 @@ defmodule ChangebanGameServerTest do
   end
 
   test "set stdwip", %{game_name: game_name} do
-    game = GameServer.set_wip(game_name, :std, [2,2,2])
-    assert {:std, [2,2,2]} == game.wip_limits
+    game = GameServer.set_wip(game_name, :std, 2)
+    assert {:std, 2} == game.wip_limits
   end
 
   test "set nowip", %{game_name: game_name} do
-    game = GameServer.set_wip(game_name, :std, [2,2,2])
-    assert {:std, [2,2,2]} == game.wip_limits
+    game = GameServer.set_wip(game_name, :std, 2)
+    assert {:std, 2} == game.wip_limits
     game2 = GameServer.set_wip(game_name, :none, 1)
     assert {:none, 0} == game2.wip_limits
   end
