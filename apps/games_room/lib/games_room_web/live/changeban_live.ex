@@ -25,7 +25,7 @@ defmodule GamesRoomWeb.ChangebanLive do
       add player
   """
   @impl true
-  def mount(%{"game_name" => game_name}, session, socket) do
+  def mount(%{"game_name" => game_name}, _session, socket) do
     if GameServer.game_exists?(game_name) do
       Logger.info("MOUNT: game name supplied, not a player yet")
       PubSub.subscribe(GamesRoom.PubSub, @game_topic)
