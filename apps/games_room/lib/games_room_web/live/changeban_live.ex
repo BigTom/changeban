@@ -7,7 +7,6 @@ defmodule GamesRoomWeb.ChangebanLive do
   alias GamesRoom.Presence
   alias Changeban.{GameServer, GameSupervisor, Player, Item}
 
-  @game_topic "game"
 
   @doc """
     creates user presence in game
@@ -28,7 +27,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   def mount(%{"game_name" => game_name}, _session, socket) do
     if GameServer.game_exists?(game_name) do
       Logger.info("MOUNT: game name supplied, not a player yet")
-      PubSub.subscribe(GamesRoom.PubSub, @game_topic)
+      PubSub.subscribe(GamesRoom.PubSub, game_name)
       GamesRoomWeb.Endpoint.subscribe(game_name)
       {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
 
@@ -45,7 +44,6 @@ defmodule GamesRoomWeb.ChangebanLive do
           player_id: nil,
           username: nil,
           leader: false)
-      Logger.info("MOUNT: #{inspect new_socket.assigns}")
       {:ok, new_socket }
     else
       Logger.warn("MOUNT: game name supplied, but game does not exist")
@@ -61,7 +59,6 @@ defmodule GamesRoomWeb.ChangebanLive do
   @impl true
   def mount(_params, _session, socket) do
     Logger.info("MOUNT: no game name, not a player yet")
-    PubSub.subscribe(GamesRoom.PubSub, @game_topic)
 
     new_socket = assign(socket,
       game_name: nil,
@@ -76,8 +73,6 @@ defmodule GamesRoomWeb.ChangebanLive do
       player_id: nil,
       username: nil,
       leader: false)
-
-    Logger.info("MOUNT: #{inspect new_socket.assigns}")
     {:ok, new_socket}
   end
 
@@ -87,13 +82,13 @@ defmodule GamesRoomWeb.ChangebanLive do
   """
   @impl true
   def handle_info(:change, %{assigns: assigns} = socket) do
-    Logger.debug("PubSub notify: #{inspect assigns.game_name}")
+    Logger.debug("Change notify: #{inspect assigns.game_name} seen by: #{inspect assigns.username}")
     {:noreply, update_only(socket)}
   end
 
   @impl true
   def handle_info(%{topic: topic}, %{assigns: assigns} = socket) do
-    Logger.debug("Presence notify: #{Presence.list(topic) |> map_size} logged in as: #{inspect assigns.username}")
+    Logger.debug("Presence notify: #{topic} count: #{Presence.list(topic) |> map_size} seen by: #{inspect assigns.username}")
     {:noreply, assign(socket, present: Presence.list(topic) |> map_size)}
   end
 
@@ -112,6 +107,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     game_name = gen_game_name()
     wip_type = String.to_existing_atom(supplied_wip_type)
     Logger.debug("new_game: #{inspect game_name} with WIP limit type #{wip_type} and player: #{initials}")
+    PubSub.subscribe(GamesRoom.PubSub, game_name)
     GameSupervisor.create_game(game_name)
     GameServer.set_wip(game_name, wip_type, 2)
     {:ok, player_id, player} = GameServer.add_player(game_name, initials)
@@ -135,6 +131,7 @@ defmodule GamesRoomWeb.ChangebanLive do
         {:noreply, socket}
       GameServer.joinable?(game_name) ->
         Logger.debug("Allow player to join game: #{game_name}")
+        PubSub.subscribe(GamesRoom.PubSub, game_name)
         {:ok, player_id, player} = GameServer.add_player(game_name, initials)
         Presence.track(self(), game_name, socket.id, %{player_id: player_id})
         GamesRoomWeb.Endpoint.subscribe(game_name)
@@ -155,7 +152,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   @impl true
   def handle_event("move", %{"id" => id, "type" => type}, socket) do
-    type_atom = String.to_atom(type)
+    type_atom = String.to_existing_atom(type)
     Logger.debug("MOVE: item: #{id} act: #{type_atom}")
     GameServer.move(socket.assigns.game_name, type_atom, String.to_integer(id), socket.assigns.player_id)
     {:noreply, update_and_notify(socket)}
@@ -197,14 +194,14 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   defp update_and_notify(socket) do
-    Logger.debug("UPDATE-AND-NOTIFY for game: #{socket.assigns.game_name}")
+    Logger.debug("UPDATE-AND-NOTIFY - #{socket.assigns.game_name} - #{socket.assigns.username}")
     {items, players, turn, score, state, wip_limits} = GameServer.view(socket.assigns.game_name)
-    PubSub.broadcast(GamesRoom.PubSub, @game_topic, :change)
+    PubSub.broadcast(GamesRoom.PubSub, socket.assigns.game_name, :change)
     prep_assigns(socket, items, players, turn, score, state, wip_limits)
   end
 
   defp update_only(socket) do
-    Logger.debug("UPDATE-ONLY")
+    Logger.debug("UPDATE-ONLY - #{socket.assigns.game_name} - #{socket.assigns.username}")
     {items, players, turn, score, state, wip_limits} = GameServer.view(socket.assigns.game_name)
     prep_assigns(socket, items, players, turn, score, state, wip_limits)
   end
@@ -458,13 +455,13 @@ defmodule GamesRoomWeb.ChangebanLive do
   def turn_display(%{player: player, turn: turn}) do
     cond do
       player == nil || turn == 0 ->
-        render_turn_display(%{font_color: "gray-400", nr: turn})
+        render_turn_display(%{color: "gray-400", nr: turn})
       player.state == :done ->
-          render_turn_display(%{font_color: "gray-400", nr: turn})
+          render_turn_display(%{color: "gray-400", nr: turn})
       player.machine == :red ->
-        render_turn_display(%{font_color: "red-700", nr: turn})
+        render_turn_display(%{color: "red-700", nr: turn})
       true ->
-        render_turn_display(%{font_color: "black", nr: turn})
+        render_turn_display(%{color: "black", nr: turn})
     end
   end
 
@@ -472,10 +469,10 @@ defmodule GamesRoomWeb.ChangebanLive do
   def render_turn_display(assigns) do
     ~L"""
       <div class="w-1/6 flex flex-col
-                  border-2 border-<%= @font_color %> rounded-md
-                  text-<%= @font_color %> text-2xl">
+                  border-2 border-<%= @color %> rounded-md
+                  text-<%= @color %> text-2xl">
         <div class="text-center">Turn:</div>
-        <div class="text-center"><%= to_string(:io_lib.format("~3..0B", [@nr])) %></div>
+        <div class="text-center"><%= to_string(@nr) %></div>
       </div>
     """
   end
@@ -484,7 +481,7 @@ defmodule GamesRoomWeb.ChangebanLive do
       <div class="w-1/6 flex flex-col border-2 border-black rounded-md
                   text-black text-2xl">
         <div class="text-center">Score:</div>
-        <div class="text-center"><%= to_string(:io_lib.format("~2..0B", [@score])) %></div>
+        <div class="text-center"><%= to_string(@score) %></div>
       </div>
     """
   end
