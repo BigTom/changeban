@@ -17,35 +17,8 @@ import {Socket} from "phoenix"
 import NProgress from "nprogress"
 import {LiveSocket} from "phoenix_live_view"
 
-let Hooks = {}
-Hooks.SetSession = {
-  DEBOUNCE_MS: 200,
-
-  // Called when a LiveView is mounted, if it includes an element that uses this hook.
-  mounted() {
-    // `this.el` is the form.
-    this.el.addEventListener("input", (e) => {
-      console.log("---------------- SetSession hook --------------------")
-      clearTimeout(this.timeout)
-      this.timeout = setTimeout(() => {
-        // Ajax request to update session.
-        fetch(`/api/session?${e.target.name}=${encodeURIComponent(e.target.value)}`, { method: "post" })
-
-        // Optionally, include this so other LiveViews can be notified of changes.
-        // this.pushEventTo(".phx-hook-subscribe-to-session", "updated_session_data", [e.target.name, e.target.value])
-      }, this.DEBOUNCE_MS)
-    })
-  },
- }
-
-
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
-// let liveSocket = new LiveSocket("/live", Socket, {params: {_csrf_token: csrfToken}})
-// Modifying this pre-existing code to include the hook.
-let liveSocket = new LiveSocket("/live", Socket, {
-  params: {_csrf_token: csrfToken},
-  hooks: Hooks,
-})
+let liveSocket = new LiveSocket("/live", Socket, {params: {_csrf_token: csrfToken}})
 
 // Show progress bar on live navigation and form submits
 window.addEventListener("phx:page-loading-start", info => NProgress.start())
@@ -58,6 +31,3 @@ liveSocket.connect()
 // >> liveSocket.enableDebug()
 // >> liveSocket.enableLatencySim(1000)
 window.liveSocket = liveSocket
-
-
-

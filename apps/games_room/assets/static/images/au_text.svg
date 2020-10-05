@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="389.047" height="202.857" viewBox="0 0 102.935 53.673">
+   <path fill="none" d="M0 0h102.935v58.208H0z" />
+   <text style="line-height:1.25" x="97.219" y="43.845" font-weight="400" font-size="10.583" font-family="sans-serif"
+      stroke-width=".265" transform="translate(-45.961 -28.613)">
+      <tspan x="97.219" y="43.845" style="-inkscape-font-specification:'Bradley Hand';text-align:center"
+         font-family="Bradley Hand" text-anchor="middle" fill="red">Is it valuable?</tspan>
+      <tspan x="97.219" y="58.205" style="-inkscape-font-specification:'Bradley Hand';text-align:center"
+         font-family="Bradley Hand" text-anchor="middle" fill="red">Will we get </tspan>
+      <tspan x="97.219" y="72.564" style="-inkscape-font-specification:'Bradley Hand';text-align:center"
+         font-family="Bradley Hand" text-anchor="middle" fill="red">to it soon?</tspan>
+   </text>
+</svg>

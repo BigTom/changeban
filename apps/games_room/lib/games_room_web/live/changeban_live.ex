@@ -3,10 +3,9 @@ defmodule GamesRoomWeb.ChangebanLive do
   use GamesRoomWeb, :live_view
 
   # use Phoenix.LiveView
-  alias Phoenix.{LiveView,PubSub}
+  alias Phoenix.{LiveView, PubSub}
   alias GamesRoom.Presence
   alias Changeban.{GameServer, GameSupervisor, Player, Item}
-
 
   @doc """
     creates user presence in game
@@ -31,7 +30,8 @@ defmodule GamesRoomWeb.ChangebanLive do
       GamesRoomWeb.Endpoint.subscribe(game_name)
       {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
 
-      new_socket = assign(socket,
+      new_socket =
+        assign(socket,
           game_name: game_name,
           items: items,
           players: players,
@@ -43,13 +43,16 @@ defmodule GamesRoomWeb.ChangebanLive do
           player: nil,
           player_id: nil,
           username: nil,
-          leader: false)
-      {:ok, new_socket }
+          leader: false
+        )
+
+      {:ok, new_socket}
     else
       Logger.warn("MOUNT: game name #{game_name} supplied, but game does not exist")
+
       {:ok,
        LiveView.put_flash(socket, :error, "Game #{game_name} does not exist")
-          |> push_redirect(to: "/changeban", replace: true)}
+       |> push_redirect(to: "/changeban", replace: true)}
     end
   end
 
@@ -62,19 +65,22 @@ defmodule GamesRoomWeb.ChangebanLive do
   def mount(_params, _session, socket) do
     Logger.info("MOUNT: no game name, not a player yet")
 
-    new_socket = assign(socket,
-      game_name: nil,
-      items: nil,
-      players: nil,
-      turn: nil,
-      score: nil,
-      state: nil,
-      wip_limits: nil,
-      present: 0,
-      player: nil,
-      player_id: nil,
-      username: nil,
-      leader: false)
+    new_socket =
+      assign(socket,
+        game_name: nil,
+        items: nil,
+        players: nil,
+        turn: nil,
+        score: nil,
+        state: nil,
+        wip_limits: nil,
+        present: 0,
+        player: nil,
+        player_id: nil,
+        username: nil,
+        leader: false
+      )
+
     {:ok, new_socket}
   end
 
@@ -84,19 +90,27 @@ defmodule GamesRoomWeb.ChangebanLive do
   """
   @impl true
   def handle_info(:change, %{assigns: assigns} = socket) do
-    Logger.debug("Change notify: #{inspect assigns.game_name} seen by: #{inspect assigns.username}")
+    Logger.debug(
+      "Change notify: #{inspect(assigns.game_name)} seen by: #{inspect(assigns.username)}"
+    )
+
     {:noreply, update_only(socket)}
   end
 
   @impl true
   def handle_info(%{topic: topic}, %{assigns: assigns} = socket) do
-    Logger.debug("Presence notify: #{topic} count: #{Presence.list(topic) |> map_size} seen by: #{inspect assigns.username}")
+    Logger.debug(
+      "Presence notify: #{topic} count: #{Presence.list(topic) |> map_size} seen by: #{
+        inspect(assigns.username)
+      }"
+    )
+
     {:noreply, assign(socket, present: Presence.list(topic) |> map_size)}
   end
 
   @impl true
   def handle_info(evt, socket) do
-    Logger.warn("**** UNKNOWN-EVENT #{inspect evt} ")
+    Logger.warn("**** UNKNOWN-EVENT #{inspect(evt)} ")
     {:noreply, socket}
   end
 
@@ -104,41 +118,68 @@ defmodule GamesRoomWeb.ChangebanLive do
   def handle_event(
         "new_game",
         %{"initials" => supplied_initials, "wip" => supplied_wip_type},
-        supplied_socket) do
+        supplied_socket
+      ) do
     socket = LiveView.clear_flash(supplied_socket)
     initials = String.upcase(supplied_initials)
     game_name = gen_game_name()
     wip_type = String.to_existing_atom(supplied_wip_type)
-    Logger.debug("new_game: #{inspect game_name} with WIP limit type #{wip_type} and player: #{initials}")
+
+    Logger.debug(
+      "new_game: #{inspect(game_name)} with WIP limit type #{wip_type} and player: #{initials}"
+    )
+
     PubSub.subscribe(GamesRoom.PubSub, game_name)
     GameSupervisor.create_game(game_name)
     GameServer.set_wip(game_name, wip_type, 2)
     {:ok, player_id, player} = GameServer.add_player(game_name, initials)
     GamesRoomWeb.Endpoint.subscribe(game_name)
     Presence.track(self(), game_name, socket.id, %{player_id: player_id})
-    {:noreply, update_only(assign(socket, game_name: game_name, player: player, player_id: player_id, username: initials))}
+
+    {:noreply,
+     update_only(
+       assign(socket,
+         game_name: game_name,
+         player: player,
+         player_id: player_id,
+         username: initials
+       )
+     )}
   end
 
   @impl true
   def handle_event(
         "join_game",
         %{"initials" => supplied_initials, "game_name" => supplied_game_name},
-        supplied_socket) do
+        supplied_socket
+      ) do
     socket = LiveView.clear_flash(supplied_socket)
     initials = String.upcase(supplied_initials)
     game_name = String.upcase(supplied_game_name)
-    Logger.debug("add_player: #{inspect initials} to existing game: #{inspect game_name}")
+    Logger.debug("add_player: #{inspect(initials)} to existing game: #{inspect(game_name)}")
+
     cond do
       not GameServer.game_exists?(game_name) ->
         Logger.info("Non existant game")
         {:noreply, LiveView.put_flash(socket, :error, "Game #{game_name} does not exist")}
+
       GameServer.joinable?(game_name) ->
         Logger.debug("Allow player to join game: #{game_name}")
         PubSub.subscribe(GamesRoom.PubSub, game_name)
         {:ok, player_id, player} = GameServer.add_player(game_name, initials)
         Presence.track(self(), game_name, socket.id, %{player_id: player_id})
         GamesRoomWeb.Endpoint.subscribe(game_name)
-        {:noreply, update_and_notify(assign(socket, game_name: game_name, player: player, player_id: player_id, username: initials))}
+
+        {:noreply,
+         update_and_notify(
+           assign(socket,
+             game_name: game_name,
+             player: player,
+             player_id: player_id,
+             username: initials
+           )
+         )}
+
       true ->
         Logger.debug("Allow player to view game game: #{game_name}")
         Presence.track(self(), game_name, socket.id, %{player_id: ""})
@@ -157,42 +198,56 @@ defmodule GamesRoomWeb.ChangebanLive do
   def handle_event("move", %{"id" => id, "type" => type}, socket) do
     type_atom = String.to_existing_atom(type)
     Logger.debug("MOVE: item: #{id} act: #{type_atom}")
-    GameServer.move(socket.assigns.game_name, type_atom, String.to_integer(id), socket.assigns.player_id)
+
+    GameServer.move(
+      socket.assigns.game_name,
+      type_atom,
+      String.to_integer(id),
+      socket.assigns.player_id
+    )
+
     {:noreply, update_and_notify(socket)}
   end
 
   defp prep_assigns(socket, items, players, turn, score, state, wip_limits) do
-    player = if socket.assigns.player_id do
-      Enum.at(players,socket.assigns.player_id)
-    else
-      nil
-    end
-    new_socket = assign(socket,
-      items: items,
-      players: players,
-      player: player,
-      turn: turn,
-      score: score,
-      state: state,
-      wip_limits: wip_limits)
+    player =
+      if socket.assigns.player_id do
+        Enum.at(players, socket.assigns.player_id)
+      else
+        nil
+      end
+
+    new_socket =
+      assign(socket,
+        items: items,
+        players: players,
+        player: player,
+        turn: turn,
+        score: score,
+        state: state,
+        wip_limits: wip_limits
+      )
+
     Logger.debug("""
-                ASSIGNS:
-                game_name: #{inspect new_socket.assigns.game_name}
-                present: #{inspect new_socket.assigns.present}
-                name: #{inspect new_socket.assigns.username}
-                turn: #{inspect new_socket.assigns.turn}
-                game_state: #{inspect new_socket.assigns.state}
-                wip_limits: #{inspect new_socket.assigns.wip_limits}
-                """)
-    if (not is_nil(new_socket.assigns.player)) do
+    ASSIGNS:
+    game_name: #{inspect(new_socket.assigns.game_name)}
+    present: #{inspect(new_socket.assigns.present)}
+    name: #{inspect(new_socket.assigns.username)}
+    turn: #{inspect(new_socket.assigns.turn)}
+    game_state: #{inspect(new_socket.assigns.state)}
+    wip_limits: #{inspect(new_socket.assigns.wip_limits)}
+    """)
+
+    if not is_nil(new_socket.assigns.player) do
       Logger.debug("""
-                  PLAYER_ASSIGNS
-                  turn_type: #{inspect new_socket.assigns.player.machine}
-                  state: #{inspect new_socket.assigns.player.state}
-                  past: #{inspect new_socket.assigns.player.past}
-                  options: #{inspect new_socket.assigns.player.options}
-                  """)
+      PLAYER_ASSIGNS
+      turn_type: #{inspect(new_socket.assigns.player.machine)}
+      state: #{inspect(new_socket.assigns.player.state)}
+      past: #{inspect(new_socket.assigns.player.past)}
+      options: #{inspect(new_socket.assigns.player.options)}
+      """)
     end
+
     new_socket
   end
 
@@ -243,85 +298,89 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_game_full(assigns) do
     ~L"""
-      <div class="absolute z-40 flex flex-col items-center justify-center
-                  w-full h-screen
-                  font-sans">
-        <div class="bg-white opacity-50 rounded shadow p-8 m-4 max-w-s max-h-full text-center overflow-y-scroll">
-          <p class="text-center">Game <%= @game_name %> can no longer be joined.</p>
-          <p class="text-center">You can watch the game in progress here.</p>
+        <div class="absolute z-40 flex flex-col items-center justify-center
+                    w-full h-screen
+                    font-sans">
+          <div class="bg-white opacity-50 rounded shadow p-8 m-4 max-w-s max-h-full text-center overflow-y-scroll">
+            <p class="text-center">Game <%= @game_name %> can no longer be joined.</p>
+            <p class="text-center">You can watch the game in progress here.</p>
+          </div>
         </div>
-      </div>
-  """
+    """
   end
 
   def render_join_view(assigns) do
     ~L"""
-      <div class="absolute z-40 flex flex-col items-center justify-center
-                  w-full h-screen
-                  font-sans">
-        <div class="bg-gray-200 rounded shadow p-8 m-4 max-w-md max-h-full">
-          <p class="text-left  font-bold">Do you want to join one a game?</p>
-          <p class="text-left pb-4">Enter your 6 character game name, your one or two character initials and click "Join Game"</p>
-          <form phx-submit="join_game">
-            <div class="grid grid-cols-3 grid-rows-2 gap-2 font-bold">
-              <label class="col-start-1 row-start-1 text-gray-700 text-sm font-bold" for="game_name">Game Name:</label>
-              <input class="col-start-1 row-start-row-2 shadow appearance-none border rounded text-gray-700 uppercase
-                            placeholder-gray-300 focus:outline-none focus:shadow-outline"
-                      placeholder="XXXXXX" name="game_name" id="game_name" type="text" maxlength="6"
-                      <%= if ! is_nil(@game_name) do %> value="<%= @game_name %>" <% end %> >
-              <label class="col-start-2 row-start-1 text-gray-700 text-sm font-bold" for="initials placeholder="XX">Initials:</label>
-              <input class="col-start-2 row-start-2 shadow appearance-none border rounded focus:outline-none focus:shadow-outline placeholder-gray-300"
+        <div class="absolute z-40 flex flex-col items-center justify-center
+                    w-full h-screen
+                    font-sans">
+          <div class="bg-gray-200 rounded shadow p-8 m-4 max-w-md max-h-full">
+            <p class="text-left  font-bold">Do you want to join one a game?</p>
+            <p class="text-left pb-4">Enter your 6 character game name, your one or two character initials and click "Join Game"</p>
+            <form phx-submit="join_game">
+              <div class="grid grid-cols-3 grid-rows-2 gap-2 font-bold">
+                <label class="col-start-1 row-start-1 text-gray-700 text-sm font-bold" for="game_name">Game Name:</label>
+                <input class="col-start-1 row-start-row-2 shadow appearance-none border rounded text-gray-700 uppercase
+                              placeholder-gray-300 focus:outline-none focus:shadow-outline"
+                        placeholder="XXXXXX" name="game_name" id="game_name" type="text" maxlength="6"
+                        <%= if ! is_nil(@game_name) do %> value="<%= @game_name %>" <% end %> >
+                <label class="col-start-2 row-start-1 text-gray-700 text-sm font-bold" for="initials placeholder="XX">Initials:</label>
+                <input class="col-start-2 row-start-2 shadow appearance-none border rounded focus:outline-none focus:shadow-outline placeholder-gray-300"
+                        name="initials" id="initials" type="text" maxlength="2" placeholder="XX">
+                <button type="submit" class="col-start-3 row-start-2  bg-green-300 hover:bg-green-700 text-white font-bold
+                                             rounded focus:outline-none focus:shadow-outline" >
+                  Join Game
+                </button>
+              </div>
+            </form>
+            <p class="text-left pt-2 font-bold">Or start a new one?</p>
+            <p class="text-left pb-4">Enter your one or two character initials, select your Work in Progress (WIP) limit type and click "New Game"</p>
+            <form phx-submit="new_game">
+              <div class="grid grid-cols-3 grid-rows-3 gap-2">
+                <label class="col-start-2 row-start-1 text-gray-700 text-sm font-bold" for="initials">Initials:</label>
+                <input class="col-start-2 row-start-2 shadow appearance-none border rounded focus:outline-nonefocus:shadow-outline placeholder-gray-300"
                       name="initials" id="initials" type="text" maxlength="2" placeholder="XX">
-              <button type="submit" class="col-start-3 row-start-2  bg-green-300 hover:bg-green-700 text-white font-bold
-                                           rounded focus:outline-none focus:shadow-outline" >
-                Join Game
-              </button>
-            </div>
-          </form>
-          <p class="text-left pt-2 font-bold">Or start a new one?</p>
-          <p class="text-left pb-4">Enter your one or two character initials, select your Work in Progress (WIP) limit type and click "New Game"</p>
-          <form phx-submit="new_game">
-            <div class="grid grid-cols-3 grid-rows-3 gap-2">
-              <label class="col-start-2 row-start-1 text-gray-700 text-sm font-bold" for="initials">Initials:</label>
-              <input class="col-start-2 row-start-2 shadow appearance-none border rounded focus:outline-none focus:shadow-outline placeholder-gray-300"
-                    name="initials" id="initials" type="text" maxlength="2" placeholder="XX">
-              <button type="submit" class="col-start-3 row-start-2 bg-green-300 hover:bg-green-700 text-white font-bold
-                                                rounded focus:outline-none focus:shadow-outline" >
-                New Game
-              </button>
-              <div class="col-start-1 row-start-3">
-                <input type="radio" id="none" name="wip" value="none" checked>
-                <label for="none">None</label>
+                <button type="submit" class="col-start-3 row-start-2 bg-green-300 hover:bg-green-700 text-white font-bold
+                                             rounded focus:outline-none focus:shadow-outline" >
+                  New Game
+                </button>
+                <div class="col-start-1 row-start-3">
+                  <input type="radio" id="none" name="wip" value="none" checked>
+                  <label for="none">None</label>
+                </div>
+                  <div class="col-start-2 row-start-3">
+                  <input type="radio" id="std" name="wip" value="std">
+                  <label for="std">Column</label>
+                </div>
+                <div class="col-start-3 row-start-3">
+                  <input type="radio" id="con" name="wip" value="con">
+                  <label for="con">Consolidated</label>
+                </div>
               </div>
-                <div class="col-start-2 row-start-3">
-                <input type="radio" id="std" name="wip" value="std">
-                <label for="std">Column</label>
-              </div>
-              <div class="col-start-3 row-start-3">
-                <input type="radio" id="con" name="wip" value="con">
-                <label for="con">Consolidated</label>
-              </div>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
-      </div>
-  """
+    """
   end
 
   def render_game_grid(assigns) do
     ~L"""
     <div class="grid grid-cols-cb grid-rows-cb my-3 container border border-gray-800 text-center">
       <%= headers(assigns) %>
-      <div class="col-start-1 row-start-3 row-span-5 border border-gray-800">
-      <%= active_items(assigns, 0) %>
+      <div class="col-start-1 row-start-3 row-span-5 border border-gray-800 bg-contain"
+           style="background-image: url('images/au_text.svg'); background-repeat: no-repeat">
+        <%= active_items(assigns, 0) %>
       </div>
-      <div class="col-start-2 row-start-3 row-span-5 border border-gray-800">
+      <div class="col-start-2 row-start-3 row-span-5 border border-gray-800 bg-contain"
+           style="background-image: url('images/nc_text.svg'); background-repeat: no-repeat">
         <%= active_items(assigns, 1) %>
       </div>
-      <div class="col-start-3 row-start-3 row-span-5 border border-gray-800">
+      <div class="col-start-3 row-start-3 row-span-5 border border-gray-800 bg-contain"
+           style="background-image: url('images/va_text.svg'); background-repeat: no-repeat">
         <%= active_items(assigns, 2) %>
       </div>
-      <div class="col-start-4 row-start-3 row-span-5 border border-gray-800">
+      <div class="col-start-4 row-start-3 row-span-5 border border-gray-800 bg-contain"
+           style="background-image: url('images/vp_text.svg'); background-repeat: no-repeat">
         <%= active_items(assigns, 3) %>
       </div>
 
@@ -384,9 +443,15 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_specific_instructions(%Player{} = player) do
     cond do
-      player.state == :done -> render_done_instructions(player)
-      helping?(player.options) -> render_help_instructions(player)
-      rejecting?(player.options) -> render_reject_instructions(player)
+      player.state == :done ->
+        render_done_instructions(player)
+
+      helping?(player.options) ->
+        render_help_instructions(player)
+
+      rejecting?(player.options) ->
+        render_reject_instructions(player)
+
       true ->
         case player.machine do
           :black -> render_black_instructions(player)
@@ -394,6 +459,7 @@ defmodule GamesRoomWeb.ChangebanLive do
         end
     end
   end
+
   def render_specific_instructions(assigns) do
     ~L"""
     <p class="text-gray-600">You are observing this game</p>
@@ -431,16 +497,29 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_red_instructions(%{options: options} = assigns) do
-    add_move = fn list -> if (not Enum.empty?(options.move)), do: ["move one of your unblocked items one column right" | list], else: list end
-    add_unbk = fn list -> if (not Enum.empty?(options.unblock)), do: ["unblock one of your blocked items" | list], else: list end
-    add_strt = fn list -> if (not Enum.empty?(options.start)), do: ["start one new item" | list], else: list end
+    add_move = fn list ->
+      if not Enum.empty?(options.move),
+        do: ["move one of your unblocked items one column right" | list],
+        else: list
+    end
+
+    add_unbk = fn list ->
+      if not Enum.empty?(options.unblock),
+        do: ["unblock one of your blocked items" | list],
+        else: list
+    end
+
+    add_strt = fn list ->
+      if not Enum.empty?(options.start), do: ["start one new item" | list], else: list
+    end
 
     words = [] |> add_strt.() |> add_unbk.() |> add_move.()
 
-    text = case Enum.count(words) do
-      1 -> "<p>You must " <> List.first(words) <> "</p>"
-      _ -> "<p>You must either " <> Enum.join(words, "</p><p>or ") <> "</p>"
-    end
+    text =
+      case Enum.count(words) do
+        1 -> "<p>You must " <> List.first(words) <> "</p>"
+        _ -> "<p>You must either " <> Enum.join(words, "</p><p>or ") <> "</p>"
+      end
 
     ~L"""
       <%= raw text %>
@@ -459,10 +538,13 @@ defmodule GamesRoomWeb.ChangebanLive do
     cond do
       player == nil || turn == 0 ->
         render_turn_display(%{color: "gray-400", nr: turn})
+
       player.state == :done ->
-          render_turn_display(%{color: "gray-400", nr: turn})
+        render_turn_display(%{color: "gray-400", nr: turn})
+
       player.machine == :red ->
         render_turn_display(%{color: "red-700", nr: turn})
+
       true ->
         render_turn_display(%{color: "black", nr: turn})
     end
@@ -479,6 +561,7 @@ defmodule GamesRoomWeb.ChangebanLive do
       </div>
     """
   end
+
   def render_score_display(assigns) do
     ~L"""
       <div class="w-1/6 flex flex-col border-2 border-black rounded-md
@@ -489,18 +572,28 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-
-  def collect_item_data(%Item{id: item_id, type: type, blocked: blocked, owner: owner_id}, players, nil) do
-    %{id: item_id,
+  def collect_item_data(
+        %Item{id: item_id, type: type, blocked: blocked, owner: owner_id},
+        players,
+        nil
+      ) do
+    %{
+      id: item_id,
       type: type,
       blocked: blocked,
       initials: get_initials(owner_id, players),
       options: [],
-      action: nil}
+      action: nil
+    }
   end
 
-  def collect_item_data(%Item{id: item_id, type: type, blocked: blocked, owner: owner_id}, players, %Player{options: options}) do
-    %{id: item_id,
+  def collect_item_data(
+        %Item{id: item_id, type: type, blocked: blocked, owner: owner_id},
+        players,
+        %Player{options: options}
+      ) do
+    %{
+      id: item_id,
       type: type,
       blocked: blocked,
       initials: get_initials(owner_id, players),
@@ -510,7 +603,11 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def find_action(options, item_id) do
-    {action, _} = Enum.find(options, {nil, []}, fn {_option_type, item_list} -> (Enum.member?(item_list, item_id)) end)
+    {action, _} =
+      Enum.find(options, {nil, []}, fn {_option_type, item_list} ->
+        Enum.member?(item_list, item_id)
+      end)
+
     action
   end
 
@@ -519,7 +616,10 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def card_scheme(%{type: :task, action: nil}), do: "bg-green-300 border-green-500 text-gray-500"
   def card_scheme(%{type: :task, action: _}), do: "bg-green-500 border-green-800"
-  def card_scheme(%{type: :change, action: nil}), do: "bg-yellow-300 border-yellow-500 text-gray-500"
+
+  def card_scheme(%{type: :change, action: nil}),
+    do: "bg-yellow-300 border-yellow-500 text-gray-500"
+
   def card_scheme(%{type: :change, action: _}), do: "bg-yellow-300 border-yellow-800"
 
   def render_item_body(assigns) do
@@ -578,8 +678,8 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def calculate_wip_for_state(items, state_ids) do
-    Enum.map(state_ids, fn id -> Map.get(items, id, []) |> Enum.count end)
-      |> Enum.sum
+    Enum.map(state_ids, fn id -> Map.get(items, id, []) |> Enum.count() end)
+    |> Enum.sum()
   end
 
   def is_wip_type?({limit_type, _}, type), do: limit_type == type
