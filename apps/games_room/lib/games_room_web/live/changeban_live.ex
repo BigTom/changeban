@@ -46,8 +46,10 @@ defmodule GamesRoomWeb.ChangebanLive do
           leader: false)
       {:ok, new_socket }
     else
-      Logger.warn("MOUNT: game name supplied, but game does not exist")
-      {:ok, push_redirect(socket, to: "/changeban", replace: true)}
+      Logger.warn("MOUNT: game name #{game_name} supplied, but game does not exist")
+      {:ok,
+       LiveView.put_flash(socket, :error, "Game #{game_name} does not exist")
+          |> push_redirect(to: "/changeban", replace: true)}
     end
   end
 
@@ -102,7 +104,8 @@ defmodule GamesRoomWeb.ChangebanLive do
   def handle_event(
         "new_game",
         %{"initials" => supplied_initials, "wip" => supplied_wip_type},
-        socket) do
+        supplied_socket) do
+    socket = LiveView.clear_flash(supplied_socket)
     initials = String.upcase(supplied_initials)
     game_name = gen_game_name()
     wip_type = String.to_existing_atom(supplied_wip_type)
@@ -120,15 +123,15 @@ defmodule GamesRoomWeb.ChangebanLive do
   def handle_event(
         "join_game",
         %{"initials" => supplied_initials, "game_name" => supplied_game_name},
-        socket) do
+        supplied_socket) do
+    socket = LiveView.clear_flash(supplied_socket)
     initials = String.upcase(supplied_initials)
     game_name = String.upcase(supplied_game_name)
     Logger.debug("add_player: #{inspect initials} to existing game: #{inspect game_name}")
     cond do
       not GameServer.game_exists?(game_name) ->
         Logger.info("Non existant game")
-        LiveView.put_flash(socket, :info, "Game #{game_name} does not exist")
-        {:noreply, socket}
+        {:noreply, LiveView.put_flash(socket, :error, "Game #{game_name} does not exist")}
       GameServer.joinable?(game_name) ->
         Logger.debug("Allow player to join game: #{game_name}")
         PubSub.subscribe(GamesRoom.PubSub, game_name)
