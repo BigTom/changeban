@@ -23,7 +23,6 @@ defmodule GamesRoomWeb.Router do
     # live "/login", LoginLive, :index
     # live "/login/:id", LoginLive, :index
     live "/changeban", ChangebanLive, :index
-    live "/changeban/:game_name", ChangebanLive, :index
   end
 
   scope "/api", GamesRoomWeb do

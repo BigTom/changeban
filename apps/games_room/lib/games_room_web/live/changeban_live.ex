@@ -8,58 +8,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   alias Changeban.{GameServer, GameSupervisor, Player, Item}
 
   @doc """
-    creates user presence in game
-    If there is a game_name
-     in the socket - carry on
-    If there is no game_name
-     create a game
-
-
-     If game in params then
-      find game
-      add player
-     If no game in params
-      Create Game
-      add player
-  """
-  @impl true
-  def mount(%{"game_name" => game_name}, _session, socket) do
-    if GameServer.game_exists?(game_name) do
-      Logger.info("MOUNT: game name supplied, not a player yet")
-      PubSub.subscribe(GamesRoom.PubSub, game_name)
-      GamesRoomWeb.Endpoint.subscribe(game_name)
-      {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
-
-      new_socket =
-        assign(socket,
-          game_name: game_name,
-          items: items,
-          players: players,
-          turn: turn,
-          score: score,
-          state: state,
-          wip_limits: wip_limits,
-          present: Presence.list(game_name) |> map_size,
-          player: nil,
-          player_id: nil,
-          username: nil,
-          leader: false
-        )
-
-      {:ok, new_socket}
-    else
-      Logger.warn("MOUNT: game name #{game_name} supplied, but game does not exist")
-
-      {:ok,
-       LiveView.put_flash(socket, :error, "Game #{game_name} does not exist")
-       |> push_redirect(to: "/changeban", replace: true)}
-    end
-  end
-
-  @doc """
-    Invoked when there is no game_name in the url.
-    Creates a game and adds the game_name to teh socket then passes on to the
-    main mount function
+    Sets the various keys in the socket
   """
   @impl true
   def mount(_params, _session, socket) do
@@ -98,11 +47,11 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   @impl true
-  def handle_info(%{topic: topic}, %{assigns: assigns} = socket) do
+  def handle_info(%{topic: topic, event: "presence_diff", payload: payload}, %{assigns: assigns} = socket) do
     Logger.debug(
       "Presence notify: #{topic} count: #{Presence.list(topic) |> map_size} seen by: #{
         inspect(assigns.username)
-      }"
+      } diff: #{inspect payload}"
     )
 
     {:noreply, assign(socket, present: Presence.list(topic) |> map_size)}
@@ -133,8 +82,8 @@ defmodule GamesRoomWeb.ChangebanLive do
     GameSupervisor.create_game(game_name)
     GameServer.set_wip(game_name, wip_type, 2)
     {:ok, player_id, player} = GameServer.add_player(game_name, initials)
-    GamesRoomWeb.Endpoint.subscribe(game_name)
-    Presence.track(self(), game_name, socket.id, %{player_id: player_id})
+    # GamesRoomWeb.Endpoint.subscribe(game_name)
+    Presence.track(self(), game_name, socket.id, %{player_id: player_id, initials: initials})
 
     {:noreply,
      update_only(
@@ -167,8 +116,8 @@ defmodule GamesRoomWeb.ChangebanLive do
         Logger.debug("Allow player to join game: #{game_name}")
         PubSub.subscribe(GamesRoom.PubSub, game_name)
         {:ok, player_id, player} = GameServer.add_player(game_name, initials)
-        Presence.track(self(), game_name, socket.id, %{player_id: player_id})
-        GamesRoomWeb.Endpoint.subscribe(game_name)
+        Presence.track(self(), game_name, socket.id, %{player_id: player_id, initials: initials})
+        # GamesRoomWeb.Endpoint.subscribe(game_name)
 
         {:noreply,
          update_and_notify(
@@ -182,8 +131,9 @@ defmodule GamesRoomWeb.ChangebanLive do
 
       true ->
         Logger.debug("Allow player to view game game: #{game_name}")
-        Presence.track(self(), game_name, socket.id, %{player_id: ""})
-        GamesRoomWeb.Endpoint.subscribe(game_name)
+        # Presence.track(self(), game_name, socket.id, %{player_id: nil, initials: nil})
+        PubSub.subscribe(GamesRoom.PubSub, game_name)
+        # GamesRoomWeb.Endpoint.subscribe(game_name)
         {:noreply, update_and_notify(assign(socket, game_name: game_name))}
     end
   end
