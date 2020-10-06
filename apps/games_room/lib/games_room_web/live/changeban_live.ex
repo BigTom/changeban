@@ -47,19 +47,36 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   @impl true
-  def handle_info(%{topic: topic, event: "presence_diff", payload: payload}, %{assigns: assigns} = socket) do
-    Logger.debug(
-      "Presence notify: #{topic} count: #{Presence.list(topic) |> map_size} seen by: #{
-        inspect(assigns.username)
-      } diff: #{inspect payload}"
-    )
+  def handle_info(%{topic: topic, event: "presence_diff", payload: %{leaves: leaves}}, supplied_socket) do
+    socket = LiveView.clear_flash(supplied_socket)
+    if ! Enum.empty?(leaves) do
+      %{initials: initials, player_id: id} =
+        leaves
+        |> Map.values()
+        |> List.first
+        |> Map.get(:metas)
+        |> List.first
 
-    {:noreply, assign(socket, present: Presence.list(topic) |> map_size)}
+      GameServer.remove_player(socket.assigns.game_name, id)
+
+      Logger.debug(
+        "Player: #{initials} id: #{id} has left game: #{topic}"
+      )
+
+      {:noreply,
+      socket
+      |> assign(present: Presence.list(topic) |> map_size)
+      |> LiveView.put_flash(:info, "Player: #{initials} has left game #{topic}")
+      |> update_only
+      }
+    else
+      {:noreply, assign(socket, present: Presence.list(topic) |> map_size)}
+    end
   end
 
   @impl true
   def handle_info(evt, socket) do
-    Logger.warn("**** UNKNOWN-EVENT #{inspect(evt)} ")
+    Logger.warn("**** UNKNOWN-EVENT #{inspect(evt)}")
     {:noreply, socket}
   end
 
@@ -82,7 +99,6 @@ defmodule GamesRoomWeb.ChangebanLive do
     GameSupervisor.create_game(game_name)
     GameServer.set_wip(game_name, wip_type, 2)
     {:ok, player_id, player} = GameServer.add_player(game_name, initials)
-    # GamesRoomWeb.Endpoint.subscribe(game_name)
     Presence.track(self(), game_name, socket.id, %{player_id: player_id, initials: initials})
 
     {:noreply,
@@ -131,21 +147,21 @@ defmodule GamesRoomWeb.ChangebanLive do
 
       true ->
         Logger.debug("Allow player to view game game: #{game_name}")
-        # Presence.track(self(), game_name, socket.id, %{player_id: nil, initials: nil})
         PubSub.subscribe(GamesRoom.PubSub, game_name)
-        # GamesRoomWeb.Endpoint.subscribe(game_name)
         {:noreply, update_and_notify(assign(socket, game_name: game_name))}
     end
   end
 
   @impl true
-  def handle_event("start", _, socket) do
+  def handle_event("start", _, supplied_socket) do
+    socket = LiveView.clear_flash(supplied_socket)
     GameServer.start_game(socket.assigns.game_name)
     {:noreply, update_and_notify(socket)}
   end
 
   @impl true
-  def handle_event("move", %{"id" => id, "type" => type}, socket) do
+  def handle_event("move", %{"id" => id, "type" => type}, supplied_socket) do
+    socket = LiveView.clear_flash(supplied_socket)
     type_atom = String.to_existing_atom(type)
     Logger.debug("MOVE: item: #{id} act: #{type_atom}")
 
