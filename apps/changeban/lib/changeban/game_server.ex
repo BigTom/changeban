@@ -25,6 +25,10 @@ defmodule Changeban.GameServer do
     GenServer.call(via_tuple(game_name), {:add_player, initials})
   end
 
+  def remove_player(game_name, player_id) do
+    GenServer.call(via_tuple(game_name), {:remove_player, player_id})
+  end
+
   def set_wip(game_name, wip_type, limit) do
     GenServer.call(via_tuple(game_name), {:set_wip, wip_type, limit})
   end
@@ -91,6 +95,11 @@ defmodule Changeban.GameServer do
       {:ok, player_id, updated_game} -> {:reply, {:ok, player_id, updated_game}, updated_game, @timeout}
       {:error, msg} -> {:reply, {:error, msg}, game, @timeout}
     end
+  end
+
+  def handle_call({:remove_player, player_id}, _from, game) do
+    updated_game = Game.remove_player(game, player_id)
+    {:reply, updated_game, updated_game, @timeout}
   end
 
   def handle_call({:joinable?}, _from, game) do

@@ -1,5 +1,6 @@
 defmodule Changeban.Game do
   require Logger
+
   @moduledoc """
   Manages the game state.
 
@@ -23,7 +24,14 @@ defmodule Changeban.Game do
   @no_wip_limits %{1 => true, 2 => true, 3 => true}
 
   @enforce_keys [:items]
-  defstruct players: [], max_players: 0, items: [], score: 0, turn: 0, state: :setup, wip_limits: {:none, 0}, turns: []
+  defstruct players: [],
+            max_players: 0,
+            items: [],
+            score: 0,
+            turn: 0,
+            state: :setup,
+            wip_limits: {:none, 0},
+            turns: []
 
   # Valid wip limits:
   # {:none, 0} - default
@@ -33,14 +41,14 @@ defmodule Changeban.Game do
   alias Changeban.{Game, Item, Player}
 
   def new() do
-    %Game{items: initial_items(16), max_players: (@max_player_id + 1), turns: turns()}
+    %Game{items: initial_items(16), max_players: @max_player_id + 1, turns: turns()}
   end
 
   def new_short_game_for_testing() do
-    %Game{items: initial_items(4), max_players: (@max_player_id + 1), turns: turns()}
+    %Game{items: initial_items(4), max_players: @max_player_id + 1, turns: turns()}
   end
 
-  def initial_items(nr_items), do: for id <- 0..(nr_items - 1), do: Item.new(id)
+  def initial_items(nr_items), do: for(id <- 0..(nr_items - 1), do: Item.new(id))
 
   def turns() do
     for _ <- 0..(@turn_cycle - 1), do: Enum.random([:red, :black])
@@ -48,6 +56,7 @@ defmodule Changeban.Game do
 
   def add_player(%Game{players: players} = game, initials) do
     new_player_id = player_count(game)
+
     if new_player_id <= @max_player_id do
       new_player = Player.new(new_player_id, initials)
       {:ok, new_player_id, %{game | players: [new_player | players]}}
@@ -56,9 +65,38 @@ defmodule Changeban.Game do
     end
   end
 
+  def remove_player(%Game{players: players, items: items, state: state} = game, player_id) do
+    # Drop the key
+    new_players = Enum.reject(players, &(&1.id == player_id))
+
+    new_items =
+      if state == :running && Enum.count(new_players) > 0 do
+        items_to_reassign =
+          items
+          |> Enum.filter(&(&1.owner == player_id))
+
+        players_to_assign =
+          new_players
+          |> Enum.map(& &1.id)
+          |> Enum.take(Enum.count(items))
+          |> Stream.cycle()
+          |> Enum.take(Enum.count(items_to_reassign))
+
+        reassigned_items =
+          Enum.zip(players_to_assign, items_to_reassign)
+          |> Enum.map(fn {player_id, item} -> %{item | owner: player_id} end)
+
+        Enum.sort_by(Enum.reject(items, &(&1.owner == player_id)) ++ reassigned_items, & &1.id)
+      else
+        items
+      end
+
+    %{game | players: new_players, items: new_items}
+  end
+
   def joinable?(%Game{state: state} = game) do
-    player_count(game) < @max_player_id + 1
-    && state == :setup
+    player_count(game) < @max_player_id + 1 &&
+      state == :setup
   end
 
   def player_count(%Game{players: players}) do
@@ -69,17 +107,32 @@ defmodule Changeban.Game do
   def start_game(%Game{turn: 0, state: :setup} = game), do: new_turn(%{game | state: :running})
   def start_game(game), do: game
 
-
   def new_turn(%Game{state: :done} = game), do: game
+
   def new_turn(%Game{players: players, turn: turn} = game) do
     cond do
-      game_over?(game) -> %{game | state: :done}
+      game_over?(game) ->
+        %{game | state: :done}
+
       all_blocked?(game) ->
-        %{game | players: Enum.map(players, &(%{&1 | machine: :red, state: :act, past: nil})), turn: turn + 1}
-            |> recalculate_state
+        %{
+          game
+          | players: Enum.map(players, &%{&1 | machine: :red, state: :act, past: nil}),
+            turn: turn + 1
+        }
+        |> recalculate_state
+
       true ->
-        %{game | players: Enum.map(players, &(%{&1 | machine: red_or_black(game, &1, turn), state: :act, past: nil})), turn: turn + 1}
-            |> recalculate_state
+        %{
+          game
+          | players:
+              Enum.map(
+                players,
+                &%{&1 | machine: red_or_black(game, &1, turn), state: :act, past: nil}
+              ),
+            turn: turn + 1
+        }
+        |> recalculate_state
     end
   end
 
@@ -88,17 +141,19 @@ defmodule Changeban.Game do
     Enum.at(turns, position)
   end
 
-  def game_over?(game), do: game_over_all_done(game) # || game_over_single_player_blocked(game)
+  # || game_over_single_player_blocked(game)
+  def game_over?(game), do: game_over_all_done(game)
 
   def game_over_all_done(%Game{items: items}) do
-    Enum.find(items, &Item.active?/1 ) == nil
+    Enum.find(items, &Item.active?/1) == nil
   end
 
-  @doc"""
+  @doc """
     One player, all active items are blocked
   """
   def all_blocked?(%Game{items: items, players: players}) do
-    active = items
+    active =
+      items
       |> Enum.filter(&Item.active?/1)
       |> Enum.reject(&Item.blocked?/1)
       |> Enum.count()
@@ -107,24 +162,34 @@ defmodule Changeban.Game do
   end
 
   def get_item(%Game{items: items}, id) do
-    items |> Enum.find(& ( &1.id == id))
+    items |> Enum.find(&(&1.id == id))
   end
 
-  def update_game(%Game{items: items, players: players} = game, %Item{} = item, %Player{} = player) do
+  def update_game(
+        %Game{items: items, players: players} = game,
+        %Item{} = item,
+        %Player{} = player
+      ) do
     items_ =
       items
-      |> Enum.filter(& ( &1.id != item.id))    # Take out existing version
-      |> List.insert_at(0, item)               # insert new version
-      |> Enum.sort_by(& &1.id)                 # make sure the order is maintained
+      # Take out existing version
+      |> Enum.filter(&(&1.id != item.id))
+      # insert new version
+      |> List.insert_at(0, item)
+      # make sure the order is maintained
+      |> Enum.sort_by(& &1.id)
 
     players_ =
       players
-      |> Enum.filter(& ( &1.id != player.id))  # Take out existing version
-      |> List.insert_at(0, player)             # insert new version
-      |> Enum.sort_by(& &1.id)                 # make sure the order is maintained
+      # Take out existing version
+      |> Enum.filter(&(&1.id != player.id))
+      # insert new version
+      |> List.insert_at(0, player)
+      # make sure the order is maintained
+      |> Enum.sort_by(& &1.id)
 
-      game_ = %{game | items: items_, players: players_}
-      recalculate_state(game_)
+    game_ = %{game | items: items_, players: players_}
+    recalculate_state(game_)
   end
 
   def recalculate_state(game) do
@@ -132,7 +197,8 @@ defmodule Changeban.Game do
     players = recalculate_all_player_options(game)
 
     game_ = %{game | score: score, players: players}
-    case (Enum.find(players, &(&1.state != :done))) do
+
+    case Enum.find(players, &(&1.state != :done)) do
       nil -> new_turn(game_)
       _ -> game_
     end
@@ -140,18 +206,22 @@ defmodule Changeban.Game do
 
   def calculate_score(%Game{items: items}) do
     score_for_completed(items) +
-    Enum.sum(for s <- 5..8, do: score_for_rejected(items, s))
+      Enum.sum(for s <- 5..8, do: score_for_rejected(items, s))
   end
 
   def score_for_completed(items) do
-    task_score = Enum.filter(items, & &1.state == 4 && &1.type == :task) |> Enum.count |> min(4)
-    change_score = Enum.filter(items, & &1.state == 4 && &1.type == :change) |> Enum.count |> min(4)
+    task_score =
+      Enum.filter(items, &(&1.state == 4 && &1.type == :task)) |> Enum.count() |> min(4)
+
+    change_score =
+      Enum.filter(items, &(&1.state == 4 && &1.type == :change)) |> Enum.count() |> min(4)
+
     task_score + change_score
   end
 
   def score_for_rejected(items, state) do
-    task_score = Enum.filter(items, & &1.state == state && &1.type == :task) |> Enum.count
-    change_score = Enum.filter(items, & &1.state == state && &1.type == :change) |> Enum.count
+    task_score = Enum.filter(items, &(&1.state == state && &1.type == :task)) |> Enum.count()
+    change_score = Enum.filter(items, &(&1.state == state && &1.type == :change)) |> Enum.count()
     score = min(task_score, 1) + min(change_score, 1)
     bonus = if task_score == 1 && change_score == 1, do: 1, else: 0
     score + bonus
@@ -159,11 +229,11 @@ defmodule Changeban.Game do
 
   def recalculate_all_player_options(%Game{players: players, items: items} = game) do
     below_wip_limits = wip_limited_states(game)
-    Enum.map(players, &(Player.calculate_player_options(items, &1, below_wip_limits)))
+    Enum.map(players, &Player.calculate_player_options(items, &1, below_wip_limits))
   end
 
-  def get_player(%Game{players: players}, player_id), do: Enum.find(players, &(&1.id == player_id))
-
+  def get_player(%Game{players: players}, player_id),
+    do: Enum.find(players, &(&1.id == player_id))
 
   def exec_action(%Game{} = game, act, item_id, player_id) do
     item = Game.get_item(game, item_id)
@@ -178,43 +248,54 @@ defmodule Changeban.Game do
     end
   end
 
-  def action(:unblock, item, player), do: { Item.unblock(item), %{player | state: :done } }
-  def action(:reject, item, player), do: { Item.reject(item), %{player | state: :done } }
+  def action(:unblock, item, player), do: {Item.unblock(item), %{player | state: :done}}
+  def action(:reject, item, player), do: {Item.reject(item), %{player | state: :done}}
   def action(:hlp_mv, item, player), do: action(:move, item, player)
   def action(:hlp_unblk, item, player), do: action(:unblock, item, player)
+
   def action(:start, item, %Player{machine: machine} = player) do
-    player_ = case machine do
-      :red -> %{player | state: :done }
-      :black ->
-        case player.past do
-          :blocked -> %{player | state: :done, past: nil}
-          _        -> %{player | past: :started}
-        end
+    player_ =
+      case machine do
+        :red ->
+          %{player | state: :done}
+
+        :black ->
+          case player.past do
+            :blocked -> %{player | state: :done, past: nil}
+            _ -> %{player | past: :started}
+          end
       end
-      { Item.start(item, player.id), player_ }
+
+    {Item.start(item, player.id), player_}
   end
+
   def action(:block, item, player) do
     player_ =
       case player.past do
         :started -> %{player | state: :done, past: nil}
-        _        -> %{player | past: :blocked}
+        _ -> %{player | past: :blocked}
       end
-    { Item.block(item, player.id), player_}
+
+    {Item.block(item, player.id), player_}
   end
+
   def action(:move, item, player) do
     item_ = Item.move_right(item)
+
     player_ =
       if Item.complete?(item_) do
-        %{player | past: :completed }
+        %{player | past: :completed}
       else
-        %{player | state: :done }
+        %{player | state: :done}
       end
-      {item_, player_}
+
+    {item_, player_}
   end
-  def action(act, _, _), do: raise "invalid action: #{inspect act}"
+
+  def action(act, _, _), do: raise("invalid action: #{inspect(act)}")
 
   # WIP Limit Management
-    # Valid wip limits:
+  # Valid wip limits:
   # {:none, 0} - default
   # {:std, [n,n,n]}
   # {:con, n}
@@ -224,18 +305,27 @@ defmodule Changeban.Game do
   def set_wip(game, :con, limit), do: %{game | wip_limits: {:con, limit}}
 
   def wip_limited_states(%Game{wip_limits: {:none, _}}), do: @no_wip_limits
+
   def wip_limited_states(%Game{items: items, wip_limits: {:std, limit}}) do
-    Map.new([1,2,3], fn state_id -> {state_id, (limit > item_count_for_state(items, state_id))} end)
+    Map.new([1, 2, 3], fn state_id ->
+      {state_id, limit > item_count_for_state(items, state_id)}
+    end)
   end
+
   # conwip stops you starting
   def wip_limited_states(%Game{items: items, wip_limits: {:con, limit}}) do
-    c = Enum.map([1,2,3], &item_count_for_state(items, &1)) |> Enum.sum
+    c = Enum.map([1, 2, 3], &item_count_for_state(items, &1)) |> Enum.sum()
+
     cond do
       limit == 0 ->
         Logger.warn("Tried to set 0 conwip")
         @no_wip_limits
-      limit > c -> @no_wip_limits
-      true -> %{1 => false, 2 => true, 3 => true}
+
+      limit > c ->
+        @no_wip_limits
+
+      true ->
+        %{1 => false, 2 => true, 3 => true}
     end
   end
 
@@ -244,8 +334,8 @@ defmodule Changeban.Game do
   end
 
   def item_count_for_state(items, state_id) do
-      Enum.group_by(items, &(&1.state))
-        |> Map.get(state_id, [])
-        |> Enum.count
+    Enum.group_by(items, & &1.state)
+    |> Map.get(state_id, [])
+    |> Enum.count()
   end
 end

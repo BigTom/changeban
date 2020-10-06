@@ -394,7 +394,99 @@ defmodule ChangebanGameTest do
     assert %{1 => false, 2 => true, 3 => true} == Game.wip_limited_states(Game.exec_action(game, :start, 0, 0))
   end
 
+  test "removing player when no players has no impact" do
+    game = Game.new()
+    assert game == game |> Game.remove_player(0)
+  end
 
+  test "removing player from single player game  no impact" do
+    game = Game.new() |> add_player("X") |> Game.start_game
+
+    game_after = Game.remove_player(game, 0)
+    assert game.items == game_after.items
+    assert 0 == Enum.count(game_after.players)
+  end
+
+  test "removing player during game setup does not affect items" do
+    game = Game.new() |> add_player("X") |> add_player("Y")
+
+    game_after = Game.remove_player(game, 0)
+    assert game.items == game_after.items
+    assert 1 == Enum.count(game_after.players)  end
+
+  test "removing player when game done does not affect items" do
+    game = won_game()
+
+    game_after = Game.remove_player(game, 0)
+    assert won_game().items == game_after.items
+    assert 4 == Enum.count(game_after.players)
+  end
+
+  test "remove player before any items started" do
+    game = Game.new() |> add_player("X") |> add_player("Y") |> Game.start_game
+
+    game_after = Game.remove_player(game, 0)
+    assert game.items == game_after.items
+    assert 1 == Enum.count(game_after.players)
+  end
+
+  test "remove player with more owned items than remaining player count" do
+    game = %Game{
+      items: [
+        %Changeban.Item{blocked: true, id: 1, owner: 0, state: 1, type: :task},
+        %Changeban.Item{blocked: false, id: 2, owner: 0, state: 1, type: :task},
+        %Changeban.Item{blocked: true, id: 3, owner: 1, state: 1, type: :task},
+        %Changeban.Item{blocked: false, id: 4, owner: 1, state: 1, type: :task},
+        %Changeban.Item{blocked: false, id: 5, owner: 0, state: 3, type: :task},
+      ],
+      players: [
+        %Changeban.Player{id: 0, machine: :black, options: Player.empty_options()},
+        %Changeban.Player{id: 1, machine: :red,   options: Player.empty_options()},
+        %Changeban.Player{id: 2, machine: :red,   options: Player.empty_options()}
+      ],
+      state: :running
+    }
+
+    game_after = Game.remove_player(game, 0)
+    expected_items = [
+      %Changeban.Item{blocked: true, id: 1, owner: 1, state: 1, type: :task},
+      %Changeban.Item{blocked: false, id: 2, owner: 2, state: 1, type: :task},
+      %Changeban.Item{blocked: true, id: 3, owner: 1, state: 1, type: :task},
+      %Changeban.Item{blocked: false, id: 4, owner: 1, state: 1, type: :task},
+      %Changeban.Item{blocked: false, id: 5, owner: 1, state: 3, type: :task}
+    ]
+    assert expected_items == game_after.items
+    assert 2 == Enum.count(game_after.players)
+  end
+
+  test "remove player with fewer owned items than remaining player count" do
+    game = %Game{
+      items: [
+        %Changeban.Item{blocked: true, id: 1, owner: 2, state: 1, type: :task},
+        %Changeban.Item{blocked: false, id: 2, owner: 2, state: 1, type: :task},
+        %Changeban.Item{blocked: true, id: 3, owner: 1, state: 1, type: :task},
+        %Changeban.Item{blocked: false, id: 4, owner: 1, state: 1, type: :task},
+        %Changeban.Item{blocked: false, id: 5, owner: 0, state: 3, type: :task},
+      ],
+      players: [
+        %Changeban.Player{id: 0, machine: :black, options: Player.empty_options()},
+        %Changeban.Player{id: 1, machine: :red,   options: Player.empty_options()},
+        %Changeban.Player{id: 2, machine: :red,   options: Player.empty_options()}
+      ],
+      state: :running
+    }
+
+    game_after = Game.remove_player(game, 0)
+    expected_items = [
+      %Changeban.Item{blocked: true, id: 1, owner: 2, state: 1, type: :task},
+      %Changeban.Item{blocked: false, id: 2, owner: 2, state: 1, type: :task},
+      %Changeban.Item{blocked: true, id: 3, owner: 1, state: 1, type: :task},
+      %Changeban.Item{blocked: false, id: 4, owner: 1, state: 1, type: :task},
+      %Changeban.Item{blocked: false, id: 5, owner: 1, state: 3, type: :task}
+    ]
+    assert expected_items == game_after.items
+    assert 2 == Enum.count(game_after.players)
+  end
 
   defp game_finish() do
     %Game{
@@ -458,20 +550,20 @@ defmodule ChangebanGameTest do
     %Game{
       items: [
         %Changeban.Item{blocked: false, id: 0, owner: 0, state: 4, type: :task},
-        %Changeban.Item{blocked: false, id: 1, owner: 0, state: 4, type: :change},
-        %Changeban.Item{blocked: false, id: 2, owner: 0, state: 4, type: :task},
-        %Changeban.Item{blocked: false, id: 3, owner: 0, state: 4, type: :change},
-        %Changeban.Item{blocked: false, id: 4, owner: 0, state: 4, type: :task},
+        %Changeban.Item{blocked: false, id: 1, owner: 1, state: 4, type: :change},
+        %Changeban.Item{blocked: false, id: 2, owner: 2, state: 4, type: :task},
+        %Changeban.Item{blocked: false, id: 3, owner: 3, state: 4, type: :change},
+        %Changeban.Item{blocked: false, id: 4, owner: 4, state: 4, type: :task},
         %Changeban.Item{blocked: false, id: 5, owner: 0, state: 4, type: :change},
-        %Changeban.Item{blocked: false, id: 6, owner: 0, state: 4, type: :task},
-        %Changeban.Item{blocked: false, id: 7, owner: 0, state: 4, type: :change},
-        %Changeban.Item{blocked: false, id: 8, owner: 0, state: 5, type: :task},
-        %Changeban.Item{blocked: false, id: 9, owner: 0, state: 5, type: :change},
+        %Changeban.Item{blocked: false, id: 6, owner: 1, state: 4, type: :task},
+        %Changeban.Item{blocked: false, id: 7, owner: 2, state: 4, type: :change},
+        %Changeban.Item{blocked: false, id: 8, owner: 3, state: 5, type: :task},
+        %Changeban.Item{blocked: false, id: 9, owner: 4, state: 5, type: :change},
         %Changeban.Item{blocked: false, id: 10, owner: 0, state: 6, type: :task},
-        %Changeban.Item{blocked: false, id: 11, owner: 0, state: 6, type: :change},
-        %Changeban.Item{blocked: false, id: 12, owner: 0, state: 7, type: :task},
-        %Changeban.Item{blocked: false, id: 13, owner: 0, state: 7, type: :change},
-        %Changeban.Item{blocked: false, id: 14, owner: 0, state: 8, type: :task},
+        %Changeban.Item{blocked: false, id: 11, owner: 1, state: 6, type: :change},
+        %Changeban.Item{blocked: false, id: 12, owner: 2, state: 7, type: :task},
+        %Changeban.Item{blocked: false, id: 13, owner: 3, state: 7, type: :change},
+        %Changeban.Item{blocked: false, id: 14, owner: 4, state: 8, type: :task},
         %Changeban.Item{blocked: false, id: 15, owner: 0, state: 8, type: :change}
       ],
       players: [
@@ -480,7 +572,8 @@ defmodule ChangebanGameTest do
         %Changeban.Player{id: 2, machine: :black, state: :done, options: Player.empty_options()},
         %Changeban.Player{id: 3, machine: :black, state: :done, options: Player.empty_options()},
         %Changeban.Player{id: 4, machine: :black, state: :done, options: Player.empty_options()}
-      ]
+      ],
+      state: :done
     }
   end
 
