@@ -12,7 +12,6 @@ defmodule GamesRoomWeb.ChangebanLive do
   """
   @impl true
   def mount(_params, _session, socket) do
-    Logger.info("MOUNT: no game name, not a player yet")
 
     new_socket =
       assign(socket,
@@ -47,28 +46,29 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   @impl true
-  def handle_info(%{topic: topic, event: "presence_diff", payload: %{leaves: leaves}}, supplied_socket) do
+  def handle_info(
+        %{topic: topic, event: "presence_diff", payload: %{leaves: leaves}},
+        supplied_socket
+      ) do
     socket = LiveView.clear_flash(supplied_socket)
-    if ! Enum.empty?(leaves) do
+
+    if !Enum.empty?(leaves) do
       %{initials: initials, player_id: id} =
         leaves
         |> Map.values()
-        |> List.first
+        |> List.first()
         |> Map.get(:metas)
-        |> List.first
+        |> List.first()
 
       GameServer.remove_player(socket.assigns.game_name, id)
 
-      Logger.debug(
-        "Player: #{initials} id: #{id} has left game: #{topic}"
-      )
+      Logger.debug("Player: #{initials} id: #{id} has left game: #{topic}")
 
       {:noreply,
-      socket
-      |> assign(present: Presence.list(topic) |> map_size)
-      |> LiveView.put_flash(:info, "Player: #{initials} has left game #{topic}")
-      |> update_only
-      }
+       socket
+       |> assign(present: Presence.list(topic) |> map_size)
+       |> LiveView.put_flash(:info, "Player: #{initials} has left game #{topic}")
+       |> update_only}
     else
       {:noreply, assign(socket, present: Presence.list(topic) |> map_size)}
     end
@@ -234,29 +234,29 @@ defmodule GamesRoomWeb.ChangebanLive do
   def render(assigns) do
     ~L"""
     <div class="relative">
-      <%= if is_nil(@username) do %>
-        <%= cond do %>
-          <% is_nil(@game_name) -> %>
-            <%= render_join_view(assigns) %>
-          <% GameServer.joinable?(@game_name) -> %>
-            <%= render_join_view(assigns) %>
-          <% true -> %>
-            <%= render_game_full(assigns) %>
-        <% end %>
-      <% end %>
-      <%= if @game_name != nil do %>
-        <div class="z-20">
-          <div class="flex justify-between pt-4 h-32">
-            <%= turn_display(%{turn: @turn, player: @player}) %>
-            <%= render_state_instructions(assigns) %>
-            <%= render_score_display(assigns) %>
+      <%= cond do %>
+        <% is_nil(@username) -> %>
+          <%= cond do %>
+            <% is_nil(@game_name) -> %>
+              <%= render_join_view(assigns) %>
+            <% GameServer.joinable?(@game_name) -> %>
+              <%= render_join_view(assigns) %>
+            <% true -> %>
+              <%= render_game_full(assigns) %>
+          <% end %>
+        <% @game_name != nil -> %>
+          <div class="z-20">
+            <div class="flex justify-between pt-4 h-32">
+              <%= turn_display(%{turn: @turn, player: @player}) %>
+              <%= render_state_instructions(assigns) %>
+              <%= render_score_display(assigns) %>
+            </div>
+            <%= render_game_grid(assigns) %>
           </div>
-          <%= render_game_grid(assigns) %>
-        </div>
-        <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
-          Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
-          Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
-        </p>
+          <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
+            Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
+            Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
+          </p>
       <% end %>
     </div>
     """
@@ -350,20 +350,25 @@ defmodule GamesRoomWeb.ChangebanLive do
         <%= active_items(assigns, 3) %>
       </div>
 
-      <div class="col-start-5 col-span-4 row-start-4 border border-gray-800">
+      <div class="col-start-5 row-start-4 col-span-4 border border-gray-800 bg-contain"
+           style="background-image: url('images/dn_text.svg'); background-repeat: no-repeat; background-position: center;">
         <%= completed_items(assigns, 4) %>
       </div>
 
-      <div class="col-start-5 row-start-7 row-span-2 border border-gray-800">
+      <div class="col-start-5 row-start-7 row-span-2 border border-gray-800 bg-contain"
+           style="background-image: url('images/rj_text.svg'); background-repeat: no-repeat">
         <%= completed_items(assigns, 5) %>
       </div>
-      <div class="col-start-6 row-start-7 row-span-2 border border-gray-800">
+      <div class="col-start-6 row-start-7 row-span-2 border border-gray-800 bg-contain"
+           style="background-image: url('images/rj_text.svg'); background-repeat: no-repeat">
         <%= completed_items(assigns, 6) %>
       </div>
-      <div class="col-start-7 row-start-7 row-span-2 border border-gray-800">
+      <div class="col-start-7 row-start-7 row-span-2 border border-gray-800 bg-contain"
+           style="background-image: url('images/rj_text.svg'); background-repeat: no-repeat">
         <%= completed_items(assigns, 7) %>
       </div>
-      <div class="col-start-8 row-start-7 row-span-2 border border-gray-800">
+      <div class="col-start-8 row-start-7 row-span-2 border border-gray-800 bg-contain"
+           style="background-image: url('images/rj_text.svg'); background-repeat: no-repeat">
         <%= completed_items(assigns, 8) %>
       </div>
     </div>
@@ -626,8 +631,10 @@ defmodule GamesRoomWeb.ChangebanLive do
   def active_items(assigns, state_id) do
     ~L"""
       <div class="flex flex-wrap">
-        <%= for item <- Map.get(assigns.items, state_id, []) do %>
-          <%= collect_item_data(item, assigns.players, @player) |> render_active_item() %>
+        <%= if @state == :running do %>
+          <%= for item <- Map.get(assigns.items, state_id, []) do %>
+            <%= collect_item_data(item, assigns.players, @player) |> render_active_item() %>
+          <% end %>
         <% end %>
       </div>
     """
