@@ -2,13 +2,12 @@ defmodule GamesRoomWeb.ChangebanLive do
   require Logger
   use GamesRoomWeb, :live_view
 
-  # use Phoenix.LiveView
   alias Phoenix.{LiveView, PubSub}
   alias GamesRoom.Presence
   alias Changeban.{GameServer, GameSupervisor, Player, Item}
 
   @doc """
-    Sets the various keys in the socket
+    Sets placeholders for the various keys used by the app in the socket
   """
   @impl true
   def mount(_params, _session, socket) do
@@ -133,7 +132,6 @@ defmodule GamesRoomWeb.ChangebanLive do
         PubSub.subscribe(GamesRoom.PubSub, game_name)
         {:ok, player_id, player} = GameServer.add_player(game_name, initials)
         Presence.track(self(), game_name, socket.id, %{player_id: player_id, initials: initials})
-        # GamesRoomWeb.Endpoint.subscribe(game_name)
 
         {:noreply,
          update_and_notify(
@@ -230,8 +228,8 @@ defmodule GamesRoomWeb.ChangebanLive do
     prep_assigns(socket, items, players, turn, score, state, wip_limits)
   end
 
-  @impl true
-  def render(assigns) do
+    @impl true
+    def render(assigns) do
     ~L"""
     <div class="relative">
       <%= cond do %>
@@ -243,20 +241,10 @@ defmodule GamesRoomWeb.ChangebanLive do
               <%= render_join_view(assigns) %>
             <% true -> %>
               <%= render_game_full(assigns) %>
+              <%= render_game(assigns) %>
           <% end %>
-        <% @game_name != nil -> %>
-          <div class="z-20">
-            <div class="flex justify-between pt-4 h-32">
-              <%= turn_display(%{turn: @turn, player: @player}) %>
-              <%= render_state_instructions(assigns) %>
-              <%= render_score_display(assigns) %>
-            </div>
-            <%= render_game_grid(assigns) %>
-          </div>
-          <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
-            Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
-            Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
-          </p>
+        <% ! is_nil(@game_name) -> %>
+          <%= render_game(assigns) %>
       <% end %>
     </div>
     """
@@ -326,6 +314,23 @@ defmodule GamesRoomWeb.ChangebanLive do
             </form>
           </div>
         </div>
+    """
+  end
+
+  def render_game(assigns) do
+    ~L"""
+      <div class="z-20">
+        <div class="flex justify-between pt-4 h-32">
+          <%= turn_display(%{turn: @turn, player: @player}) %>
+          <%= render_state_instructions(assigns) %>
+          <%= render_score_display(assigns) %>
+        </div>
+        <%= render_game_grid(assigns) %>
+      </div>
+      <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
+        Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
+        Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
+      </p>
     """
   end
 
@@ -507,28 +512,65 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def turn_display(%{player: player, turn: turn}) do
     cond do
-      player == nil || turn == 0 ->
-        render_turn_display(%{color: "gray-400", nr: turn})
-
-      player.state == :done ->
-        render_turn_display(%{color: "gray-400", nr: turn})
+      player == nil || turn == 0 || player.state == :done ->
+        render_non_turn_display(%{colour: "gray-400", nr: turn})
 
       player.machine == :red ->
-        render_turn_display(%{color: "red-700", nr: turn})
+        render_red_turn_display(%{colour: "red-700", nr: turn})
 
       true ->
-        render_turn_display(%{color: "black", nr: turn})
+        render_black_turn_display(%{colour: "black", nr: turn})
     end
   end
 
-  @spec render_turn_display(any) :: Phoenix.LiveView.Rendered.t()
-  def render_turn_display(assigns) do
+  def render_non_turn_display(assigns) do
     ~L"""
-      <div class="w-1/6 flex flex-col
-                  border-2 border-<%= @color %> rounded-md
-                  text-<%= @color %> text-2xl">
-        <div class="text-center">Turn:</div>
-        <div class="text-center"><%= to_string(@nr) %></div>
+      <div class="w-1/6 flex
+                  border-2 border-gray-400 rounded-md">
+        <div class="w-1/4 flex flex-col">
+        </div>
+        <div class="w-2/4 flex flex-col justify-center">
+          <div class="text-center text-gray-400 text-2xl">Turn:</div>
+          <div class="text-center text-gray-400 text-2xl"><%= to_string(@nr) %></div>
+        </div>
+        <div class="w-1/4 flex flex-col flex-col-reverse">
+        </div>
+      </div>
+    """
+  end
+
+  def render_black_turn_display(assigns) do
+    ~L"""
+      <div class="w-1/6 flex-grow-0 flex
+                  border-2 border-black rounded-md">
+        <div class="w-1/4 flex flex-col flex-col-reverse">
+          <img class="p-1 object-contain" src="images/black_spade.svg" alt="black spade">
+        </div>
+        <div class="w-2/4 flex flex-col justify-center">
+          <div class="text-center text-black text-2xl">Turn:</div>
+          <div class="text-center text-black text-2xl"><%= to_string(@nr) %></div>
+        </div>
+        <div class="w-1/4 flex flex-col">
+          <img class="p-1 object-contain" src="images/black_club.svg" alt="black club">
+        </div>
+      </div>
+    """
+  end
+
+  def render_red_turn_display(assigns) do
+    ~L"""
+      <div class="w-1/6 flex-grow-0 flex
+                  border-2 border-red-700 rounded-md">
+        <div class="w-1/4 flex flex-col">
+          <img class="p-1 object-contain" src="images/red_diamond.svg" alt="red diamond">
+        </div>
+        <div class="w-2/4 w-2/4 flex flex-col justify-center">
+          <div class="text-center text-red-700 text-2xl">Turn:</div>
+          <div class="text-center text-red-700 text-2xl"><%= to_string(@nr) %></div>
+        </div>
+        <div class="w-1/4 flex flex-col flex-col-reverse">
+          <img class="p-1 object-contain" src="images/red_heart.svg" alt="red heart">
+        </div>
       </div>
     """
   end
@@ -595,10 +637,10 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_item_body(assigns) do
     ~L"""
-      <div class="rounded-full <%= card_scheme(%{type: @type, action: @action}) %> h-6 w-6 flex items-center justify-center text-sm border-2">
+      <div class="text-sm flex flex-col ml-1 font-bold">
         <%= @initials %>
       </div>
-      <div class="text-xs align-bottom">
+      <div class="text-xs flex flex-col flex-col-reverse mr-1">
         <%= if @blocked do %>B<% end %>
       </div>
     """
@@ -606,7 +648,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_active_item(%{action: action} = assigns) when is_nil(action) do
     ~L"""
-      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %> w-16 h-10 m-1 p-1">
+      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %> w-16 h-10 m-1">
         <%= render_item_body(assigns) %>
       </div>
     """
@@ -614,7 +656,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_active_item(%{action: action} = assigns) do
     ~L"""
-      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %> w-16 h-10 m-1 p-1
+      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %> w-16 h-10 m-1
                   hover:shadow-outline"
           phx-click="move"
           phx-value-type="<%= action %>"
@@ -644,7 +686,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     ~L"""
     <div class="flex flex-wrap">
       <%= for item <- Map.get(assigns.items, state_id, []) do %>
-        <div class="border-2 <%= card_scheme(%{type: item.type, action: nil}) %> w-4 px-1 py-3 m-1"></div>
+        <div class="border-2 <%= card_scheme(%{type: item.type, action: nil}) %> w-5 h-8 mt-1 ml-1"></div>
       <% end %>
     </div>
     """
