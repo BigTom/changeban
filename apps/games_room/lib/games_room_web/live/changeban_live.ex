@@ -11,7 +11,6 @@ defmodule GamesRoomWeb.ChangebanLive do
   """
   @impl true
   def mount(_params, _session, socket) do
-
     new_socket =
       assign(socket,
         game_name: nil,
@@ -228,8 +227,8 @@ defmodule GamesRoomWeb.ChangebanLive do
     prep_assigns(socket, items, players, turn, score, state, wip_limits)
   end
 
-    @impl true
-    def render(assigns) do
+  @impl true
+  def render(assigns) do
     ~L"""
     <div class="relative">
       <%= cond do %>
