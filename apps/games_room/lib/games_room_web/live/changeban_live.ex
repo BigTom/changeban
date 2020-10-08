@@ -318,7 +318,7 @@ defmodule GamesRoomWeb.ChangebanLive do
           </div>
         </div>
         <div class="w-1/3 rounded shadow b-1 p-4 m-4">
-          <p class="text-left  font-bold">Do you want to join one a game?</p>
+          <p class="text-left  font-bold">Do you want to join a game?</p>
           <p class="text-left pb-4">Enter your 6 character game name, your one or two character initials and click "Join Game"</p>
           <form phx-submit="join_game">
             <div class="grid grid-cols-3 grid-rows-2 gap-2 font-bold">
