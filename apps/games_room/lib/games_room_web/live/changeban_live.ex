@@ -11,6 +11,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   """
   @impl true
   def mount(_params, _session, socket) do
+    Logger.debug("Mount")
     new_socket =
       assign(socket,
         game_name: nil,
@@ -84,6 +85,7 @@ defmodule GamesRoomWeb.ChangebanLive do
         %{"initials" => supplied_initials, "wip" => supplied_wip_type},
         supplied_socket
       ) do
+    Logger.debug("event new_game")
     socket = LiveView.clear_flash(supplied_socket)
     initials = String.upcase(supplied_initials)
     game_name = gen_game_name()
@@ -116,6 +118,7 @@ defmodule GamesRoomWeb.ChangebanLive do
         %{"initials" => supplied_initials, "game_name" => supplied_game_name},
         supplied_socket
       ) do
+    Logger.debug("join new_game")
     socket = LiveView.clear_flash(supplied_socket)
     initials = String.upcase(supplied_initials)
     game_name = String.upcase(supplied_game_name)
@@ -266,56 +269,55 @@ defmodule GamesRoomWeb.ChangebanLive do
     ~L"""
       <div class="flex h-screen">
         <div class="w-2/3 flex flex-1 overflow-y-scroll">
-          <div>
-            <h1 class="py-4 text-xl font-black">Instructions</h1>
-            <p class="pb-2">Changeban is a Lean Startup-flavoured Kanban simulation game.</p>
-            <p class="pb-2">It was created by Mike Burrows, the founder of
-              <a class="text-blue-500" href="https://www.agendashift.com" target="_blank">Agendashift</a>,
+          <article class="prose lg:prose-xl">
+            <h1>Instructions</h1>
+            <p>Changeban is a Lean Startup-flavoured Kanban simulation game.</p>
+            <p>It was created by Mike Burrows, the founder of
+              <a class="text-gray-700 underline" href="https://www.agendashift.com" target="_blank">Agendashift</a>,
               as an in-person workshop game.  To understand the objectives and outcomes of playing the
               game have a look at the
-              <a class="text-blue-500" href="https://www.agendashift.com/resources/changeban" target="_blank">Changeban</a>
+              <a class="text-gray-700 underline" href="https://www.agendashift.com/resources/changeban" target="_blank">Changeban</a>
               page, on the Agendashift site.</p>
-
-            <p class="pb-2">In this online version you will see what type of turn you have and what you can do.  The game will
+              <p>In this online version you will see what type of turn you have and what you can do.  The game will
               not allow you to make an invalid move.  Simply look at the bold tickets and pick one.  Clicking
               on it will make the move.</p>
-            <p class="pb-2">When played in person randomness is introduced for play by each player drawing a card,
+              <p>When played in person randomness is introduced for play by each player drawing a card,
               which could be red or black. Here the game will deal your colour for you.</p>
-            <h2 class="py-2 text-lg">For a RED Card</h2>
+              <h2>For a RED Card</h2>
               <li>EITHER advance one of your unblocked items one column rightwards</li>
               <li>OR unblock one of your blocked items by crossing out its ‘B’ mark</li>
               <li>OR start a new item if any remain - move it to the first in-progress column</li>
               <li>If and only if you can’t make one of these moves for yourself, help someone! Advance
                   or unblock another player’s item Whenever you accept an item, reject another, chosen
                   by the whole team</li>
-            <h2 class="py-2 text-lg">For a BLACK Card</h2>
+            <h2>For a BLACK Card</h2>
             <p>After your daily standup meeting:</p>
             <li>BOTH block one of your currently unblocked items if you have any</li>
             <li>AND start a new item if any remain – even if you had nothing to block</li>
             <li>If and only if you can’t <i>start a new item</i>, help someone! Advance or unblock another
                 player’s item.</li>
-            <h2 class="py-2 text-lg">Rejecting Items</h2>
+            <h2>Rejecting Items</h2>
             <p>Whether you are playing a red or black turn whenever you accept an item, reject another,
               chosen by the whole team</p>
-            <h2 class="py-2 text-lg">Scoring</h2>
+            <h2>Scoring</h2>
             <p>Changeban simulates the idea that many of our ideas will be rejected as we find out about them.
                There are two colours of items representing different kinds of work.  To maimise the team's score
                There should be a balance of completeion and rejection and a balance of types of work.</p>
-            <p>1 point for each Accepted item, up to a maximum of 4 per colour – 8 points available</p>
-            <p>1 point for each colour represented in each subcolumn of Rejected – 8 points available</p>
-            <p>A bonus point for each subcolumn of Rejected that contains exactly 2 items, 1 of each colour –
-               4 points available</p>
+            <li>1 point for each Accepted item, up to a maximum of 4 per colour – 8 points available</li>
+            <li>1 point for each colour represented in each subcolumn of Rejected – 8 points available</li>
+            <li>A bonus point for each subcolumn of Rejected that contains exactly 2 items, 1 of each colour –
+               4 points available</li>
             <p>The maximum score is 20</p>
-            <h2 class="py-2 text-lg">Playing Multiple Games</h2>
+            <h2>Playing Multiple Games</h2>
             <p>You cannot restart a game but you can play as many times as you like, simply start a new game.</p>
-            <h2 class="py-2 text-lg">Limiting WIP</h2>
+            <h2>Limiting WIP</h2>
             <p>The game can be played without WIP limits, with a limit for each column or a consolidated
               limit across all the in-progress columns.  Simple check the appropriate box when creating a game.</p>
             <p>After you have started a game the six character game name is displayed in the bottom left
               corner.  Pass this on to the players for them to join.</p>
             <p>Each game can hold a maximum of 5 players and you cannot join after it has begun.
                If you try to join a full, or running game you will be given the opportunity to watch it play."</p>
-          </div>
+          </article>
         </div>
         <div class="w-1/3 rounded shadow b-1 p-4 m-4">
           <p class="text-left  font-bold">Do you want to join a game?</p>
@@ -383,46 +385,48 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
+  def image(file_name), do: Routes.static_path(GamesRoomWeb.Endpoint, "/images/#{file_name}")
+
   def render_game_grid(assigns) do
     ~L"""
     <div class="grid grid-cols-cb grid-rows-cb my-3 container border border-gray-800 text-center">
       <%= headers(assigns) %>
       <div class="col-start-1 row-start-3 row-span-5 border border-gray-800 bg-contain"
-           style="background-image: url('/images/au_text.svg'); background-repeat: no-repeat">
+           style="background-image: url('<%= image("au_text.svg") %>'); background-repeat: no-repeat">
         <%= active_items(assigns, 0) %>
       </div>
       <div class="col-start-2 row-start-3 row-span-5 border border-gray-800 bg-contain"
-           style="background-image: url('/images/nc_text.svg'); background-repeat: no-repeat">
+           style="background-image: url('<%= image("nc_text.svg") %>'); background-repeat: no-repeat">
         <%= active_items(assigns, 1) %>
       </div>
       <div class="col-start-3 row-start-3 row-span-5 border border-gray-800 bg-contain"
-           style="background-image: url('/images/va_text.svg'); background-repeat: no-repeat">
+           style="background-image: url('<%= image("va_text.svg") %>'); background-repeat: no-repeat">
         <%= active_items(assigns, 2) %>
       </div>
       <div class="col-start-4 row-start-3 row-span-5 border border-gray-800 bg-contain"
-           style="background-image: url('/images/vp_text.svg'); background-repeat: no-repeat">
+           style="background-image: url('<%= image("vp_text.svg") %>'); background-repeat: no-repeat">
         <%= active_items(assigns, 3) %>
       </div>
 
       <div class="col-start-5 row-start-4 col-span-4 border border-gray-800 bg-contain"
-           style="background-image: url('/images/dn_text.svg'); background-repeat: no-repeat; background-position: center;">
+           style="background-image: url('<%= image("dn_text.svg") %>'); background-repeat: no-repeat; background-position: center;">
         <%= completed_items(assigns, 4) %>
       </div>
 
       <div class="col-start-5 row-start-7 row-span-2 border border-gray-800 bg-contain"
-           style="background-image: url('/images/rj_text.svg'); background-repeat: no-repeat">
+           style="background-image: url('<%= image("rj_text.svg") %>'); background-repeat: no-repeat">
         <%= completed_items(assigns, 5) %>
       </div>
       <div class="col-start-6 row-start-7 row-span-2 border border-gray-800 bg-contain"
-           style="background-image: url('/images/rj_text.svg'); background-repeat: no-repeat">
+           style="background-image: url('<%= image("rj_text.svg") %>'); background-repeat: no-repeat">
         <%= completed_items(assigns, 6) %>
       </div>
       <div class="col-start-7 row-start-7 row-span-2 border border-gray-800 bg-contain"
-           style="background-image: url('/images/rj_text.svg'); background-repeat: no-repeat">
+           style="background-image: url('<%= image("rj_text.svg") %>'); background-repeat: no-repeat">
         <%= completed_items(assigns, 7) %>
       </div>
       <div class="col-start-8 row-start-7 row-span-2 border border-gray-800 bg-contain"
-           style="background-image: url('/images/rj_text.svg'); background-repeat: no-repeat">
+           style="background-image: url('<%= image("rj_text.svg") %>'); background-repeat: no-repeat">
         <%= completed_items(assigns, 8) %>
       </div>
     </div>
@@ -516,7 +520,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     if ! Enum.empty?(action_list) do
       "font-black"
     else
-      "text-grey-700"
+      "text-gray-500"
     end
   end
 
@@ -579,14 +583,14 @@ defmodule GamesRoomWeb.ChangebanLive do
       <div class="w-1/6 flex-grow-0 flex
                   border-2 border-black rounded-md">
         <div class="w-1/4 flex flex-col flex-col-reverse">
-          <img class="p-1 object-contain" src="/images/black_spade.svg" alt="black spade">
+          <img class="p-1 object-contain" src="<%= image("black_spade.svg") %>" alt="black spade">
         </div>
         <div class="w-2/4 flex flex-col justify-center">
           <div class="text-center text-black text-2xl">Turn:</div>
           <div class="text-center text-black text-2xl"><%= to_string(@nr) %></div>
         </div>
         <div class="w-1/4 flex flex-col">
-          <img class="p-1 object-contain" src="/images/black_club.svg" alt="black club">
+          <img class="p-1 object-contain" src="<%= image("black_club.svg") %>" alt="black club">
         </div>
       </div>
     """
@@ -597,14 +601,14 @@ defmodule GamesRoomWeb.ChangebanLive do
       <div class="w-1/6 flex-grow-0 flex
                   border-2 border-red-700 rounded-md">
         <div class="w-1/4 flex flex-col">
-          <img class="p-1 object-contain" src="/images/red_diamond.svg" alt="red diamond">
+          <img class="p-1 object-contain" src="<%= image("red_diamond.svg") %>" alt="red diamond">
         </div>
         <div class="w-2/4 w-2/4 flex flex-col justify-center">
           <div class="text-center text-red-700 text-2xl">Turn:</div>
           <div class="text-center text-red-700 text-2xl"><%= to_string(@nr) %></div>
         </div>
         <div class="w-1/4 flex flex-col flex-col-reverse">
-          <img class="p-1 object-contain" src="/images/red_heart.svg" alt="red heart">
+          <img class="p-1 object-contain" src="<%= image("red_heart.svg") %>" alt="red heart">
         </div>
       </div>
     """

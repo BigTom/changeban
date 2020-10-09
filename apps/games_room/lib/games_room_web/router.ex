@@ -20,8 +20,6 @@ defmodule GamesRoomWeb.Router do
     pipe_through :browser
 
     live "/", ChangebanLive, :index
-    # live "/login", LoginLive, :index
-    # live "/login/:id", LoginLive, :index
     live "/changeban", ChangebanLive, :index
   end
 
