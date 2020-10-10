@@ -178,7 +178,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   defp prep_assigns(socket, items, players, turn, score, state, wip_limits) do
     player =
       if socket.assigns.player_id do
-        Enum.at(players, socket.assigns.player_id)
+        Enum.find(players, &(&1.id == socket.assigns.player_id))
       else
         nil
       end
@@ -242,7 +242,7 @@ defmodule GamesRoomWeb.ChangebanLive do
             <% GameServer.joinable?(@game_name) -> %>
               <%= render_join_view(assigns) %>
             <% true -> %>
-              <%= render_game_full(assigns) %>
+
               <%= render_game(assigns) %>
           <% end %>
         <% ! is_nil(@game_name) -> %>
@@ -252,18 +252,18 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  def render_game_full(assigns) do
-    ~L"""
-        <div class="absolute z-40 flex flex-col items-center justify-center
-                    w-full h-screen
-                    font-sans">
-          <div class="bg-white opacity-50 rounded shadow p-8 m-4 max-w-s max-h-full text-center overflow-y-scroll">
-            <p class="text-center">Game <%= @game_name %> can no longer be joined.</p>
-            <p class="text-center">You can watch the game in progress here.</p>
-          </div>
-        </div>
-    """
-  end
+  # def render_game_full(assigns) do
+  #   ~L"""
+  #       <div class="absolute z-40 flex flex-col items-center justify-center
+  #                   w-full h-screen
+  #                   font-sans">
+  #         <div class="bg-white opacity-50 rounded shadow p-8 m-4 max-w-s max-h-full text-center overflow-y-scroll">
+  #           <p class="text-center">Game <%= @game_name %> can no longer be joined.</p>
+  #           <p class="text-center">You can watch the game in progress here.</p>
+  #         </div>
+  #       </div>
+  #   """
+  # end
 
   def render_join_view(assigns) do
     ~L"""
@@ -368,12 +368,16 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
+  def half_players(players, x), do: Enum.filter(players, fn p -> rem(p.id, 2) == x end )
+
   def render_game(assigns) do
     ~L"""
       <div class="z-20">
         <div class="flex justify-between pt-4 h-32">
           <%= turn_display(%{turn: @turn, player: @player}) %>
+          <%= render_other_player_state(%{assigns | players: half_players(@players, 0)}) %>
           <%= render_state_instructions(assigns) %>
+          <%= render_other_player_state(%{assigns | players: half_players(@players, 1)}) %>
           <%= render_score_display(assigns) %>
         </div>
         <%= render_game_grid(assigns) %>
@@ -435,16 +439,17 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_state_instructions(assigns) do
     case assigns.state do
-      :setup -> render_setup_instructions(assigns)
+      :setup -> render_joining_instructions(assigns)
       :running -> render_turn_instructions(assigns)
       :done -> render_simulation_over(assigns)
     end
   end
 
-  def render_setup_instructions(assigns) do
+  def render_joining_instructions(assigns) do
     ~L"""
-      <div class="flex-grow flex flex-col border-2 border-green-600 mx-4 rounded-md
-                  text-green-600 items-center text-center">
+      <div class="w-1/2 flex-grow flex flex-col border-2 rounded-md
+                  border-green-600 text-green-600
+                  items-center text-center">
         <p>When all players have joined press "START SIMULATION"</p>
         <button class="border-2 border-gray-800 rounded-md bg-green-400 w-1/2"
                 phx-click="start">START SIMULATION</button>
@@ -454,8 +459,9 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_simulation_over(assigns) do
     ~L"""
-      <div class="flex-grow border-2 border-green-600 mx-4 rounded-md
-                  text-green-600 text-2xl text-center">
+      <div class="w-1/2 flex-grow flex flex-col border-2 rounded-md
+                  border-green-600 text-green-600
+                  text-2xl text-center">
         SIMULATION COMPLETED
       </div>
     """
@@ -463,15 +469,19 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_turn_instructions(assigns) do
     ~L"""
-    <div class="flex-grow border-2 border-gray-700 mx-4 rounded-md text-sm text-center">
-      <p class="text-base font-bold">Instructions</p>
-      <%= render_specific_instructions(assigns.player) %>
+    <div class="w-1/2 flex-grow flex flex-col border-2 rounded-md
+                border-gray-700
+                text-sm text-center">
+      <%= render_specific_instructions(assigns) %>
     </div>
     """
   end
 
-  def render_specific_instructions(%Player{} = player) do
+  def render_specific_instructions(%{player: player} = assigns) do
     cond do
+      player == nil ->
+        render_observer_instructions(assigns)
+
       player.state == :done ->
         render_done_instructions(player)
 
@@ -489,9 +499,11 @@ defmodule GamesRoomWeb.ChangebanLive do
     end
   end
 
-  def render_specific_instructions(assigns) do
+  def render_observer_instructions(assigns) do
     ~L"""
     <p class="text-gray-600">You are observing this game</p>
+    <p class="text-gray-600">Game <%= @game_name %> can no longer be joined.</p>
+    <p class="text-gray-600">You can watch the game in progress here.</p>
     """
   end
 
@@ -503,6 +515,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_help_instructions(assigns) do
     ~L"""
+    <p class="text-base font-bold">Instructions</p>
     <p>You cannot move your own items so you can help someone!</p>
     <p class="font-black" >Unblock or move someone else's item</p>
     """
@@ -510,6 +523,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_reject_instructions(assigns) do
     ~L"""
+    <p class="text-base font-bold">Instructions</p>
     <p>You have accepted an item</p>
     <p>Now you can reject any item on the board</p>
     <p class="font-black" >Discuss with the other players and reject an item</p>
@@ -526,6 +540,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_black_instructions(assigns) do
     ~L"""
+      <p class="text-base font-bold">Instructions</p>
       <p>You must both:</p>
       <p class="<%= can_class(@options.block) %>">block one unblocked item</p>
       <p class="<%= can_class(@options.start) %>">and start one new item</p>
@@ -534,6 +549,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_red_instructions(assigns) do
     ~L"""
+      <p class="text-base font-bold">Instructions</p>
       <p>You must either:</p>
       <p class="<%= can_class(@options.move) %>">move one of your unblocked items one column right</p>
       <p class="<%= can_class(@options.unblock) %>">or unblock one of your blocked items</p>
@@ -547,6 +563,23 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def rejecting?(%{reject: reject}) do
     not Enum.empty?(reject)
+  end
+
+  def render_other_player_state(assigns) do
+    ~L"""
+      <div class="flex-grow mx-1 w-1/12 flex flex-col">
+        <%= for player <- Enum.reject(@players, fn p -> p.id == @player_id end) do %>
+          <%= cond do %>
+            <% player.state == :done -> %>
+              <div class="h-8 mb-1 border-2 rounded-md border-gray-400 text-gray-400 text-center"><%= player.initials %></div>
+            <% player.machine == :red -> %>
+              <div class="h-8 mb-1 border-2 rounded-md border-red-700 text-red-700 text-center"><%= player.initials %></div>
+            <% true -> %>
+            <div class="h-8 mb-1 border-2 rounded-md border-black text-black text-center"><%= player.initials %></div>
+          <% end %>
+        <% end %>
+      </div>
+    """
   end
 
   def turn_display(%{player: player, turn: turn}) do
@@ -564,8 +597,9 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_non_turn_display(assigns) do
     ~L"""
-      <div class="w-1/6 flex
-                  border-2 border-gray-400 rounded-md">
+      <div class="w-1/6 flex-grow border-2 rounded-md
+                  border-gray-400
+                  flex">
         <div class="w-1/4 flex flex-col">
         </div>
         <div class="w-2/4 flex flex-col justify-center">
@@ -580,8 +614,9 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_black_turn_display(assigns) do
     ~L"""
-      <div class="w-1/6 flex-grow-0 flex
-                  border-2 border-black rounded-md">
+      <div class="w-1/6 flex-grow border-2 rounded-md
+                  border-black
+                  flex">
         <div class="w-1/4 flex flex-col flex-col-reverse">
           <img class="p-1 object-contain" src="<%= image("black_spade.svg") %>" alt="black spade">
         </div>
@@ -598,12 +633,13 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_red_turn_display(assigns) do
     ~L"""
-      <div class="w-1/6 flex-grow-0 flex
-                  border-2 border-red-700 rounded-md">
+      <div class="w-1/6 flex-grow border-2 rounded-md
+                  border-red-700
+                  flex">
         <div class="w-1/4 flex flex-col">
           <img class="p-1 object-contain" src="<%= image("red_diamond.svg") %>" alt="red diamond">
         </div>
-        <div class="w-2/4 w-2/4 flex flex-col justify-center">
+        <div class="w-2/4 flex flex-col justify-center">
           <div class="text-center text-red-700 text-2xl">Turn:</div>
           <div class="text-center text-red-700 text-2xl"><%= to_string(@nr) %></div>
         </div>
@@ -616,8 +652,9 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_score_display(assigns) do
     ~L"""
-      <div class="w-1/6 flex flex-col border-2 border-black rounded-md
-                  text-black text-2xl">
+      <div class="w-1/6 flex-grow border-2 rounded-md
+                  border-black text-black
+                  flex flex-col text-2xl">
         <div class="text-center">Score:</div>
         <div class="text-center"><%= to_string(@score) %></div>
       </div>
@@ -664,7 +701,15 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def get_initials(nil, _players), do: ""
-  def get_initials(owner_id, players), do: Enum.at(players, owner_id).initials
+  def get_initials(owner_id, players) do
+    i = Enum.find(players, &(&1.id == owner_id))
+      case i do
+        nil -> ""
+        _ -> i.initials
+      end
+  end
+
+
 
   def card_scheme(%{type: :task, action: nil}), do: "bg-green-300 border-green-500 text-gray-500"
   def card_scheme(%{type: :task, action: _}), do: "bg-green-500 border-green-800"
