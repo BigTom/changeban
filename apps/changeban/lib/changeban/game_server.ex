@@ -35,7 +35,11 @@ defmodule Changeban.GameServer do
 
   def joinable?(nil), do: false
   def joinable?(game_name) do
-    GenServer.call(via_tuple(game_name), {:joinable?})
+    if game_exists?(game_name) do
+      GenServer.call(via_tuple(game_name), {:joinable?})
+    else
+      false
+    end
   end
 
   def start_game(game_name) do

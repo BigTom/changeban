@@ -66,32 +66,32 @@ defmodule Changeban.Game do
   end
 
   def remove_player(%Game{players: players, items: items, state: state} = game, player_id) do
-    # Drop the key
     new_players = Enum.reject(players, &(&1.id == player_id))
 
-    new_items =
-      if state == :running && Enum.count(new_players) > 0 do
-        items_to_reassign =
-          items
-          |> Enum.filter(&(&1.owner == player_id))
-
-        players_to_assign =
-          new_players
-          |> Enum.map(& &1.id)
-          |> Enum.take(Enum.count(items))
-          |> Stream.cycle()
-          |> Enum.take(Enum.count(items_to_reassign))
-
-        reassigned_items =
-          Enum.zip(players_to_assign, items_to_reassign)
-          |> Enum.map(fn {player_id, item} -> %{item | owner: player_id} end)
-
-        Enum.sort_by(Enum.reject(items, &(&1.owner == player_id)) ++ reassigned_items, & &1.id)
-      else
+    if state == :running && Enum.count(new_players) > 0 do
+      items_to_reassign =
         items
-      end
+        |> Enum.filter(&(&1.owner == player_id))
 
-    %{game | players: new_players, items: new_items}
+      players_to_assign =
+        new_players
+        |> Enum.map(& &1.id)
+        |> Enum.take(Enum.count(items))
+        |> Stream.cycle()
+        |> Enum.take(Enum.count(items_to_reassign))
+
+      reassigned_items =
+        Enum.zip(players_to_assign, items_to_reassign)
+        |> Enum.map(fn {player_id, item} -> %{item | owner: player_id} end)
+
+      new_items =
+        Enum.sort_by(Enum.reject(items, &(&1.owner == player_id)) ++ reassigned_items, & &1.id)
+
+      %{game | players: new_players, items: new_items}
+      |> recalculate_state
+    else
+      %{game | players: new_players}
+    end
   end
 
   def joinable?(%Game{state: state} = game) do

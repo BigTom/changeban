@@ -19,8 +19,10 @@ defmodule GamesRoomWeb.Router do
   scope "/", GamesRoomWeb do
     pipe_through :browser
 
-    live "/", ChangebanLive, :index
-    live "/changeban", ChangebanLive, :index
+    live "/", ChangebanJoinLive, :index
+    live "/join", ChangebanJoinLive, :index
+    live "/game/:game_name/:player_id/:player_initials", ChangebanLive, :index
+    live "/game/:game_name", ChangebanLive, :index
   end
 
   scope "/api", GamesRoomWeb do

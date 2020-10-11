@@ -4,31 +4,111 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   alias Phoenix.{LiveView, PubSub}
   alias GamesRoom.Presence
-  alias Changeban.{GameServer, GameSupervisor, Player, Item}
+  alias Changeban.{GameServer, Player, Item}
 
   @doc """
     Sets placeholders for the various keys used by the app in the socket
   """
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(
+        %{
+          "game_name" => game_name,
+          "player_id" => player_id_str,
+          "player_initials" => player_initials
+        },
+        _session,
+        socket
+      ) do
     Logger.debug("Mount")
-    new_socket =
-      assign(socket,
-        game_name: nil,
-        items: nil,
-        players: nil,
-        turn: nil,
-        score: nil,
-        state: nil,
-        wip_limits: nil,
-        present: 0,
-        player: nil,
-        player_id: nil,
-        username: nil,
-        leader: false
+
+    player_id = String.to_integer(player_id_str)
+
+    already_present =
+      not is_nil(
+        Map.values(Presence.list(game_name))
+        |> Enum.map(&(Map.get(&1, :metas) |> List.first()))
+        |> Enum.find(fn %{initials: p, player_id: i} -> p == player_initials && i == player_id end)
       )
 
-    {:ok, new_socket}
+    player = GameServer.get_player(game_name, player_id)
+
+    cond do
+      already_present ->
+        redirect_to_join(socket, "Game #{game_name} - player id #{player_id} is already in game")
+
+      player == nil ->
+        redirect_to_join(socket, "Game #{game_name} - player id #{player_id} is already in game")
+
+      player.initials != player_initials ->
+        redirect_to_join(
+          socket,
+          "Game #{game_name} - Supplied initials #{player_initials} do not match those in game #{
+            player.initials
+          }"
+        )
+
+      true ->
+        {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
+
+        PubSub.subscribe(GamesRoom.PubSub, game_name)
+
+        Presence.track(self(), game_name, "player:#{player_id}:#{player_initials}", %{
+          player_id: player_id,
+          initials: player_initials
+        })
+
+        new_socket =
+          assign(socket,
+            game_name: game_name,
+            items: items,
+            players: players,
+            turn: turn,
+            score: score,
+            state: state,
+            wip_limits: wip_limits,
+            present: Presence.list(game_name) |> map_size,
+            player: player,
+            player_id: player_id,
+            username: player_initials
+          )
+
+        {:ok, new_socket}
+    end
+  end
+
+  @impl true
+  def mount(
+        %{"game_name" => game_name},
+        _session,
+        socket
+      ) do
+    Logger.debug("Mount")
+
+    {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
+
+    PubSub.subscribe(GamesRoom.PubSub, game_name)
+
+    {:ok,
+     assign(socket,
+       game_name: game_name,
+       items: items,
+       players: players,
+       turn: turn,
+       score: score,
+       state: state,
+       wip_limits: wip_limits,
+       present: Presence.list(game_name) |> map_size,
+       player: nil,
+       player_id: nil,
+       username: nil
+     )}
+  end
+
+  def redirect_to_join(socket, msg) do
+    {:ok,
+     socket
+     |> put_flash(:error, msg)
+     |> LiveView.redirect(to: "/join", replace: true)}
   end
 
   @doc """
@@ -52,6 +132,8 @@ defmodule GamesRoomWeb.ChangebanLive do
     socket = LiveView.clear_flash(supplied_socket)
 
     if !Enum.empty?(leaves) do
+      IO.puts("PRESENCE CHANGE - Player leaving")
+
       %{initials: initials, player_id: id} =
         leaves
         |> Map.values()
@@ -65,11 +147,14 @@ defmodule GamesRoomWeb.ChangebanLive do
 
       {:noreply,
        socket
-       |> assign(present: Presence.list(topic) |> map_size)
        |> LiveView.put_flash(:info, "Player: #{initials} has left game #{topic}")
        |> update_only}
     else
-      {:noreply, assign(socket, present: Presence.list(topic) |> map_size)}
+      IO.puts("PRESENCE CHANGE - new player")
+
+      {:noreply,
+       socket
+       |> update_only}
     end
   end
 
@@ -77,79 +162,6 @@ defmodule GamesRoomWeb.ChangebanLive do
   def handle_info(evt, socket) do
     Logger.warn("**** UNKNOWN-EVENT #{inspect(evt)}")
     {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event(
-        "new_game",
-        %{"initials" => supplied_initials, "wip" => supplied_wip_type},
-        supplied_socket
-      ) do
-    Logger.debug("event new_game")
-    socket = LiveView.clear_flash(supplied_socket)
-    initials = String.upcase(supplied_initials)
-    game_name = gen_game_name()
-    wip_type = String.to_existing_atom(supplied_wip_type)
-
-    Logger.debug(
-      "new_game: #{inspect(game_name)} with WIP limit type #{wip_type} and player: #{initials}"
-    )
-
-    PubSub.subscribe(GamesRoom.PubSub, game_name)
-    GameSupervisor.create_game(game_name)
-    GameServer.set_wip(game_name, wip_type, 2)
-    {:ok, player_id, player} = GameServer.add_player(game_name, initials)
-    Presence.track(self(), game_name, socket.id, %{player_id: player_id, initials: initials})
-
-    {:noreply,
-     update_only(
-       assign(socket,
-         game_name: game_name,
-         player: player,
-         player_id: player_id,
-         username: initials
-       )
-     )}
-  end
-
-  @impl true
-  def handle_event(
-        "join_game",
-        %{"initials" => supplied_initials, "game_name" => supplied_game_name},
-        supplied_socket
-      ) do
-    Logger.debug("join new_game")
-    socket = LiveView.clear_flash(supplied_socket)
-    initials = String.upcase(supplied_initials)
-    game_name = String.upcase(supplied_game_name)
-    Logger.debug("add_player: #{inspect(initials)} to existing game: #{inspect(game_name)}")
-
-    cond do
-      not GameServer.game_exists?(game_name) ->
-        Logger.info("Non existant game")
-        {:noreply, LiveView.put_flash(socket, :error, "Game #{game_name} does not exist")}
-
-      GameServer.joinable?(game_name) ->
-        Logger.debug("Allow player to join game: #{game_name}")
-        PubSub.subscribe(GamesRoom.PubSub, game_name)
-        {:ok, player_id, player} = GameServer.add_player(game_name, initials)
-        Presence.track(self(), game_name, socket.id, %{player_id: player_id, initials: initials})
-
-        {:noreply,
-         update_and_notify(
-           assign(socket,
-             game_name: game_name,
-             player: player,
-             player_id: player_id,
-             username: initials
-           )
-         )}
-
-      true ->
-        Logger.debug("Allow player to view game game: #{game_name}")
-        PubSub.subscribe(GamesRoom.PubSub, game_name)
-        {:noreply, update_and_notify(assign(socket, game_name: game_name))}
-    end
   end
 
   @impl true
@@ -175,7 +187,9 @@ defmodule GamesRoomWeb.ChangebanLive do
     {:noreply, update_and_notify(socket)}
   end
 
-  defp prep_assigns(socket, items, players, turn, score, state, wip_limits) do
+  defp prep_assigns(socket) do
+    {items, players, turn, score, state, wip_limits} = GameServer.view(socket.assigns.game_name)
+
     player =
       if socket.assigns.player_id do
         Enum.find(players, &(&1.id == socket.assigns.player_id))
@@ -191,7 +205,8 @@ defmodule GamesRoomWeb.ChangebanLive do
         turn: turn,
         score: score,
         state: state,
-        wip_limits: wip_limits
+        wip_limits: wip_limits,
+        present: Presence.list(socket.assigns.game_name) |> map_size
       )
 
     Logger.debug("""
@@ -219,177 +234,40 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   defp update_and_notify(socket) do
     Logger.debug("UPDATE-AND-NOTIFY - #{socket.assigns.game_name} - #{socket.assigns.username}")
-    {items, players, turn, score, state, wip_limits} = GameServer.view(socket.assigns.game_name)
     PubSub.broadcast(GamesRoom.PubSub, socket.assigns.game_name, :change)
-    prep_assigns(socket, items, players, turn, score, state, wip_limits)
+    prep_assigns(socket)
   end
 
   defp update_only(socket) do
     Logger.debug("UPDATE-ONLY - #{socket.assigns.game_name} - #{socket.assigns.username}")
-    {items, players, turn, score, state, wip_limits} = GameServer.view(socket.assigns.game_name)
-    prep_assigns(socket, items, players, turn, score, state, wip_limits)
+    prep_assigns(socket)
   end
+
+  def half_players(players, x), do: Enum.filter(players, fn p -> rem(p.id, 2) == x end)
+
+  def image(file_name), do: Routes.static_path(GamesRoomWeb.Endpoint, "/images/#{file_name}")
 
   @impl true
   def render(assigns) do
     ~L"""
     <div class="relative">
-      <%= cond do %>
-        <% is_nil(@username) -> %>
-          <%= cond do %>
-            <% is_nil(@game_name) -> %>
-              <%= render_join_view(assigns) %>
-            <% GameServer.joinable?(@game_name) -> %>
-              <%= render_join_view(assigns) %>
-            <% true -> %>
-
-              <%= render_game(assigns) %>
-          <% end %>
-        <% ! is_nil(@game_name) -> %>
-          <%= render_game(assigns) %>
-      <% end %>
+    <div class="z-20">
+    <div class="flex justify-between pt-4 h-32">
+      <%= render_turn_display(%{turn: @turn, player: @player}) %>
+      <%= render_other_player_state(%{assigns | players: half_players(@players, 0)}) %>
+      <%= render_state_instructions(assigns) %>
+      <%= render_other_player_state(%{assigns | players: half_players(@players, 1)}) %>
+      <%= render_score_display(assigns) %>
+    </div>
+    <%= render_game_grid(assigns) %>
+    </div>
+    <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
+    Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
+    Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
+    </p>
     </div>
     """
   end
-
-  # def render_game_full(assigns) do
-  #   ~L"""
-  #       <div class="absolute z-40 flex flex-col items-center justify-center
-  #                   w-full h-screen
-  #                   font-sans">
-  #         <div class="bg-white opacity-50 rounded shadow p-8 m-4 max-w-s max-h-full text-center overflow-y-scroll">
-  #           <p class="text-center">Game <%= @game_name %> can no longer be joined.</p>
-  #           <p class="text-center">You can watch the game in progress here.</p>
-  #         </div>
-  #       </div>
-  #   """
-  # end
-
-  def render_join_view(assigns) do
-    ~L"""
-      <div class="flex h-screen">
-        <div class="w-2/3 flex flex-1 overflow-y-scroll">
-          <article class="prose lg:prose-xl">
-            <h1>Instructions</h1>
-            <p>Changeban is a Lean Startup-flavoured Kanban simulation game.</p>
-            <p>It was created by Mike Burrows, the founder of
-              <a class="text-gray-700 underline" href="https://www.agendashift.com" target="_blank">Agendashift</a>,
-              as an in-person workshop game.  To understand the objectives and outcomes of playing the
-              game have a look at the
-              <a class="text-gray-700 underline" href="https://www.agendashift.com/resources/changeban" target="_blank">Changeban</a>
-              page, on the Agendashift site.</p>
-              <p>In this online version you will see what type of turn you have and what you can do.  The game will
-              not allow you to make an invalid move.  Simply look at the bold tickets and pick one.  Clicking
-              on it will make the move.</p>
-              <p>When played in person randomness is introduced for play by each player drawing a card,
-              which could be red or black. Here the game will deal your colour for you.</p>
-              <h2>For a RED Card</h2>
-              <li>EITHER advance one of your unblocked items one column rightwards</li>
-              <li>OR unblock one of your blocked items by crossing out its ‘B’ mark</li>
-              <li>OR start a new item if any remain - move it to the first in-progress column</li>
-              <li>If and only if you can’t make one of these moves for yourself, help someone! Advance
-                  or unblock another player’s item Whenever you accept an item, reject another, chosen
-                  by the whole team</li>
-            <h2>For a BLACK Card</h2>
-            <p>After your daily standup meeting:</p>
-            <li>BOTH block one of your currently unblocked items if you have any</li>
-            <li>AND start a new item if any remain – even if you had nothing to block</li>
-            <li>If and only if you can’t <i>start a new item</i>, help someone! Advance or unblock another
-                player’s item.</li>
-            <h2>Rejecting Items</h2>
-            <p>Whether you are playing a red or black turn whenever you accept an item, reject another,
-              chosen by the whole team</p>
-            <h2>Scoring</h2>
-            <p>Changeban simulates the idea that many of our ideas will be rejected as we find out about them.
-               There are two colours of items representing different kinds of work.  To maimise the team's score
-               There should be a balance of completeion and rejection and a balance of types of work.</p>
-            <li>1 point for each Accepted item, up to a maximum of 4 per colour – 8 points available</li>
-            <li>1 point for each colour represented in each subcolumn of Rejected – 8 points available</li>
-            <li>A bonus point for each subcolumn of Rejected that contains exactly 2 items, 1 of each colour –
-               4 points available</li>
-            <p>The maximum score is 20</p>
-            <h2>Playing Multiple Games</h2>
-            <p>You cannot restart a game but you can play as many times as you like, simply start a new game.</p>
-            <h2>Limiting WIP</h2>
-            <p>The game can be played without WIP limits, with a limit for each column or a consolidated
-              limit across all the in-progress columns.  Simple check the appropriate box when creating a game.</p>
-            <p>After you have started a game the six character game name is displayed in the bottom left
-              corner.  Pass this on to the players for them to join.</p>
-            <p>Each game can hold a maximum of 5 players and you cannot join after it has begun.
-               If you try to join a full, or running game you will be given the opportunity to watch it play."</p>
-          </article>
-        </div>
-        <div class="w-1/3 rounded shadow b-1 p-4 m-4">
-          <p class="text-left  font-bold">Do you want to join a game?</p>
-          <p class="text-left pb-4">Enter your 6 character game name, your one or two character initials and click "Join Game"</p>
-          <form phx-submit="join_game">
-            <div class="grid grid-cols-3 grid-rows-2 gap-2 font-bold">
-              <label class="col-start-1 row-start-1 text-gray-700 text-sm font-bold" for="game_name">Game Name:</label>
-              <input class="col-start-1 row-start-row-2 shadow appearance-none border rounded text-gray-700 uppercase
-                            placeholder-gray-300 focus:outline-none focus:shadow-outline"
-                      placeholder="XXXXXX" name="game_name" id="game_name" type="text" maxlength="6"
-                      <%= if ! is_nil(@game_name) do %> value="<%= @game_name %>" <% end %> >
-              <label class="col-start-2 row-start-1 text-gray-700 text-sm font-bold" for="initials placeholder="XX">Initials:</label>
-              <input class="col-start-2 row-start-2 shadow appearance-none border rounded focus:outline-none focus:shadow-outline placeholder-gray-300"
-                      name="initials" id="initials" type="text" maxlength="2" placeholder="XX">
-              <button type="submit" class="col-start-3 row-start-2  bg-green-300 hover:bg-green-700 text-white font-bold
-                                            rounded focus:outline-none focus:shadow-outline" >
-                Join Game
-              </button>
-            </div>
-          </form>
-          <p class="text-left pt-2 font-bold">Or start a new one?</p>
-          <p class="text-left pb-4">Enter your one or two character initials, select your Work in Progress (WIP) limit type and click "New Game"</p>
-          <form phx-submit="new_game">
-            <div class="grid grid-cols-3 grid-rows-3 gap-2">
-              <label class="col-start-2 row-start-1 text-gray-700 text-sm font-bold" for="initials">Initials:</label>
-              <input class="col-start-2 row-start-2 shadow appearance-none border rounded focus:outline-nonefocus:shadow-outline placeholder-gray-300"
-                    name="initials" id="initials" type="text" maxlength="2" placeholder="XX">
-              <button type="submit" class="col-start-3 row-start-2 bg-green-300 hover:bg-green-700 text-white font-bold
-                                            rounded focus:outline-none focus:shadow-outline" >
-                New Game
-              </button>
-              <div class="col-start-1 row-start-3">
-                <input type="radio" id="none" name="wip" value="none" checked>
-                <label for="none">None</label>
-              </div>
-                <div class="col-start-2 row-start-3">
-                <input type="radio" id="std" name="wip" value="std">
-                <label for="std">WIP</label>
-              </div>
-              <div class="col-start-3 row-start-3">
-                <input type="radio" id="con" name="wip" value="con">
-                <label for="con">ConWIP</label>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-    """
-  end
-
-  def half_players(players, x), do: Enum.filter(players, fn p -> rem(p.id, 2) == x end )
-
-  def render_game(assigns) do
-    ~L"""
-      <div class="z-20">
-        <div class="flex justify-between pt-4 h-32">
-          <%= turn_display(%{turn: @turn, player: @player}) %>
-          <%= render_other_player_state(%{assigns | players: half_players(@players, 0)}) %>
-          <%= render_state_instructions(assigns) %>
-          <%= render_other_player_state(%{assigns | players: half_players(@players, 1)}) %>
-          <%= render_score_display(assigns) %>
-        </div>
-        <%= render_game_grid(assigns) %>
-      </div>
-      <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
-        Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
-        Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
-      </p>
-    """
-  end
-
-  def image(file_name), do: Routes.static_path(GamesRoomWeb.Endpoint, "/images/#{file_name}")
 
   def render_game_grid(assigns) do
     ~L"""
@@ -530,13 +408,8 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  def can_class(action_list) do
-    if ! Enum.empty?(action_list) do
-      "font-black"
-    else
-      "text-gray-500"
-    end
-  end
+  def can_class(actions) when length(actions) > 0, do: "font-black"
+  def can_class(_), do: "text-gray-500"
 
   def render_black_instructions(assigns) do
     ~L"""
@@ -561,9 +434,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     not (Enum.empty?(hlp_mv) && Enum.empty?(hlp_unblk))
   end
 
-  def rejecting?(%{reject: reject}) do
-    not Enum.empty?(reject)
-  end
+  def rejecting?(%{reject: reject}), do: not Enum.empty?(reject)
 
   def render_other_player_state(assigns) do
     ~L"""
@@ -582,7 +453,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  def turn_display(%{player: player, turn: turn}) do
+  def render_turn_display(%{player: player, turn: turn}) do
     cond do
       player == nil || turn == 0 || player.state == :done ->
         render_non_turn_display(%{colour: "gray-400", nr: turn})
@@ -701,15 +572,15 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def get_initials(nil, _players), do: ""
+
   def get_initials(owner_id, players) do
     i = Enum.find(players, &(&1.id == owner_id))
-      case i do
-        nil -> ""
-        _ -> i.initials
-      end
+
+    case i do
+      nil -> ""
+      _ -> i.initials
+    end
   end
-
-
 
   def card_scheme(%{type: :task, action: nil}), do: "bg-green-300 border-green-500 text-gray-500"
   def card_scheme(%{type: :task, action: _}), do: "bg-green-500 border-green-800"
@@ -835,11 +706,5 @@ defmodule GamesRoomWeb.ChangebanLive do
     <div class="col-start-7 row-start-6 border border-gray-800">VA</div>
     <div class="col-start-8 row-start-6 border border-gray-800">VP</div>
     """
-  end
-
-  defp gen_game_name() do
-    chars = "ABCDEFGHIJKLMNPQRSTUVWXYZ123456789"
-    end_index = String.length(chars) - 1
-    List.to_string(for _n <- 0..5, do: String.at(chars, Enum.random(0..end_index)))
   end
 end
