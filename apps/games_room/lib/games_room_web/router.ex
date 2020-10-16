@@ -21,7 +21,7 @@ defmodule GamesRoomWeb.Router do
 
     live "/", ChangebanJoinLive, :index
     live "/join", ChangebanJoinLive, :index
-    live "/stats", ChangebanStatsLive, :index
+    live "/stats/:game_name", ChangebanStatsLive, :index
     live "/game/:game_name/:player_id/:player_initials", ChangebanLive, :index
     live "/game/:game_name", ChangebanLive, :index
   end

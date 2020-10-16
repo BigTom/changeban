@@ -18,7 +18,19 @@ defmodule Changeban.Game do
   future
     moves - the list of :red and :black moves
     turn - current turn number
+
+  states
+    0 AU  Agree Urgency
+    1 NC  Negotiate Change
+    2 VA  Validate Adoption
+    3 VP  Verify Performance
+    4 C   Complete
+    5 RAU Rejected - Agree Urgency
+    6 RNC Rejected - Negotiate Change
+    7 RVA Rejected - Validate Adoption
+    8 RVP Rejected - Verify Performance
   """
+  @states 0..8
   @max_player_id 4
   @turn_cycle 100
   @no_wip_limits %{1 => true, 2 => true, 3 => true}
@@ -31,7 +43,8 @@ defmodule Changeban.Game do
             turn: 0,
             state: :setup,
             wip_limits: {:none, 0},
-            turns: []
+            turns: [],
+            history: []
 
   # Valid wip limits:
   # {:none, 0} - default
@@ -39,6 +52,20 @@ defmodule Changeban.Game do
   # {:con, n}
 
   alias Changeban.{Game, Item, Player}
+
+  def states() do
+    %{
+      0 => "Agree Urgency",
+      1 => "Negotiate Change",
+      2 => "Validate Adoption",
+      3 => "Verify Performance",
+      4 => "Complete",
+      5 => "Rejected - Agree Urgency",
+      6 => "Rejected - Negotiate Change",
+      7 => "Rejected - Validate Adoption",
+      8 => "Rejected - Verify Performance"
+    }
+  end
 
   def new() do
     %Game{items: initial_items(16), max_players: @max_player_id + 1, turns: turns()}
@@ -110,13 +137,15 @@ defmodule Changeban.Game do
   def new_turn(%Game{state: :done} = game), do: game
 
   def new_turn(%Game{players: players, turn: turn} = game) do
-    cond do
-      game_over?(game) ->
-        %{game | state: :done}
+    new_game = update_history(game)
 
-      all_blocked?(game) ->
+    cond do
+      game_over?(new_game) ->
+        %{new_game | state: :done}
+
+      all_blocked?(new_game) ->
         %{
-          game
+          new_game
           | players: Enum.map(players, &%{&1 | machine: :red, state: :act, past: nil}),
             turn: turn + 1
         }
@@ -124,11 +153,11 @@ defmodule Changeban.Game do
 
       true ->
         %{
-          game
+          new_game
           | players:
               Enum.map(
                 players,
-                &%{&1 | machine: red_or_black(game, &1, turn), state: :act, past: nil}
+                &%{&1 | machine: red_or_black(new_game, &1, turn), state: :act, past: nil}
               ),
             turn: turn + 1
         }
@@ -235,7 +264,7 @@ defmodule Changeban.Game do
   def get_player(%Game{players: players}, player_id),
     do: Enum.find(players, &(&1.id == player_id))
 
-  def exec_action(%Game{} = game, act, item_id, player_id) do
+  def exec_action(%Game{turn: turn} = game, act, item_id, player_id) do
     item = Game.get_item(game, item_id)
     player = Game.get_player(game, player_id)
 
@@ -243,17 +272,19 @@ defmodule Changeban.Game do
       Logger.warn("Tried to make a move in :done state")
       game
     else
-      {item_, player_} = action(act, item, player)
+      {item_, player_} = action(act, item, player, turn)
       update_game(game, item_, player_)
     end
   end
 
-  def action(:unblock, item, player), do: {Item.unblock(item), %{player | state: :done}}
-  def action(:reject, item, player), do: {Item.reject(item), %{player | state: :done}}
-  def action(:hlp_mv, item, player), do: action(:move, item, player)
-  def action(:hlp_unblk, item, player), do: action(:unblock, item, player)
+  def action(:unblock, item, player, turn),
+    do: {Item.unblock(item, turn), %{player | state: :done}}
 
-  def action(:start, item, %Player{machine: machine} = player) do
+  def action(:reject, item, player, turn), do: {Item.reject(item, turn), %{player | state: :done}}
+  def action(:hlp_mv, item, player, turn), do: action(:move, item, player, turn)
+  def action(:hlp_unblk, item, player, turn), do: action(:unblock, item, player, turn)
+
+  def action(:start, item, %Player{machine: machine} = player, turn) do
     player_ =
       case machine do
         :red ->
@@ -266,21 +297,21 @@ defmodule Changeban.Game do
           end
       end
 
-    {Item.start(item, player.id), player_}
+    {Item.start(item, player.id, turn), player_}
   end
 
-  def action(:block, item, player) do
+  def action(:block, item, player, turn) do
     player_ =
       case player.past do
         :started -> %{player | state: :done, past: nil}
         _ -> %{player | past: :blocked}
       end
 
-    {Item.block(item, player.id), player_}
+    {Item.block(item, player.id, turn), player_}
   end
 
-  def action(:move, item, player) do
-    item_ = Item.move_right(item)
+  def action(:move, item, player, turn) do
+    item_ = Item.move_right(item, turn)
 
     player_ =
       if Item.complete?(item_) do
@@ -292,7 +323,7 @@ defmodule Changeban.Game do
     {item_, player_}
   end
 
-  def action(act, _, _), do: raise("invalid action: #{inspect(act)}")
+  def action(act, _, _, _), do: raise("invalid action: #{inspect(act)}")
 
   # WIP Limit Management
   # Valid wip limits:
@@ -337,5 +368,23 @@ defmodule Changeban.Game do
     Enum.group_by(items, & &1.state)
     |> Map.get(state_id, [])
     |> Enum.count()
+  end
+
+# History - CFD
+  def state_counts(items),
+    do: for(id <- @states, into: %{}, do: {id, item_count_for_state(items, id)})
+
+  def create_history_line(items, turn),
+    do: ["#{turn}" | for(x <- 8..0, into: [], do: Map.get(items, x))]
+
+  def add_line(new_line, history), do: [new_line | Enum.reverse(history)] |> Enum.reverse()
+
+  def update_history(%Game{items: items, history: history, turn: turn} = game) do
+    new_state_history =
+      state_counts(items)
+      |> create_history_line(turn)
+      |> add_line(history)
+
+    %{game | history: new_state_history}
   end
 end

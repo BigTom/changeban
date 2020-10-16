@@ -19,11 +19,21 @@ defmodule GamesRoomWeb.ChangebanJoinLive do
       ) do
     Logger.debug("joining  existing game")
     socket = LiveView.clear_flash(supplied_socket)
-    initials = String.upcase(supplied_initials)
-    game_name = String.upcase(supplied_game_name)
+    initials = String.trim(supplied_initials) |> String.upcase
+    game_name = String.trim(supplied_game_name) |> String.upcase
     Logger.debug("adding player: #{inspect(initials)} to existing game: #{inspect(game_name)}")
 
     cond do
+      String.length(game_name) == 0 ->
+        Logger.info("Non existant game")
+        {:noreply,
+          LiveView.put_flash(socket, :error, "No game name supplied")}
+
+      String.length(initials) == 0 ->
+        Logger.info("Non existant game")
+        {:noreply,
+          LiveView.put_flash(socket, :error, "No initials supplied")}
+
       GameServer.joinable?(game_name) ->
         Logger.debug("Allow player to join game: #{game_name}")
         {:ok, player_id, _player} = GameServer.add_player(game_name, initials)
@@ -52,20 +62,29 @@ defmodule GamesRoomWeb.ChangebanJoinLive do
       ) do
     Logger.debug("event new_game")
     socket = LiveView.clear_flash(supplied_socket)
-    initials = String.upcase(supplied_initials)
-    game_name = gen_game_name()
-    wip_type = String.to_existing_atom(supplied_wip_type)
+    initials = String.trim(supplied_initials) |> String.upcase
 
-    Logger.debug(
-      "new_game: #{inspect(game_name)} with WIP limit type #{wip_type} and player: #{initials}"
-    )
+    cond do
+      String.length(String.trim initials) == 0 ->
+        Logger.info("Non existant game")
+        {:noreply,
+          LiveView.put_flash(socket, :error, "No initials supplied")}
 
-    GameSupervisor.create_game(game_name)
-    GameServer.set_wip(game_name, wip_type, 2)
-    {:ok, player_id, _player} = GameServer.add_player(game_name, initials)
-    {:noreply,
-      LiveView.push_redirect(socket, to: "/game/#{game_name}/#{player_id}/#{initials}",
-      replace: true)}
+      true ->
+        game_name = gen_game_name()
+        wip_type = String.to_existing_atom(supplied_wip_type)
+
+        Logger.debug(
+          "new_game: #{inspect(game_name)} with WIP limit type #{wip_type} and player: #{initials}"
+        )
+
+        GameSupervisor.create_game(game_name)
+        GameServer.set_wip(game_name, wip_type, 2)
+        {:ok, player_id, _player} = GameServer.add_player(game_name, initials)
+        {:noreply,
+          LiveView.push_redirect(socket, to: "/game/#{game_name}/#{player_id}/#{initials}",
+          replace: true)}
+    end
   end
 
   @impl true

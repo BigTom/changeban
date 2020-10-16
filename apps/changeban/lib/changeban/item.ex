@@ -24,9 +24,10 @@ defmodule Changeban.Item do
     turn         - current turn number
     blocked list - history blocked status
   """
-  defstruct type: :task, id: 0, state: 0, owner: nil, blocked: false
 
-  alias Changeban.Item
+  alias Changeban.{Item, ItemHistory}
+
+  defstruct type: :task, id: 0, state: 0, owner: nil, blocked: false, history: %ItemHistory{}
 
   def new(id) do
     if (rem(id, 2) == 0) do
@@ -35,17 +36,6 @@ defmodule Changeban.Item do
       %Item{type: :change, id: id}
     end
   end
-
-  def block(%Item{blocked: false} = item, player_id) do
-    if in_progress?(item) && item.owner == player_id do
-      %{item | blocked: true }
-    else
-      raise "Player #{player_id} cannot block #{inspect(item)} "
-    end
-  end
-
-  def unblock(%Item{blocked: true} = item), do: %{item | blocked: false }
-  def unblock(item, _player_id), do: item
 
   def in_agree_urgency?(%Item{state: state}), do: state == 0
   def in_progress?(%Item{state: state}), do: 0 < state && state < 4
@@ -56,23 +46,40 @@ defmodule Changeban.Item do
   def active?(item), do: in_agree_urgency?(item) || in_progress?(item)
   def finished?(item), do: complete?(item) || rejected?(item)
 
-  def start(%Item{state: 0} = item, owner), do: %{item | state: 1, owner: owner}
-  def start(%Item{}, _), do: raise "Trying to start a started item"
+  def start(%Item{state: 0, history: history} = item, owner, turn) do
+    %{item | state: 1, owner: owner, history: ItemHistory.start(history, turn)}
+  end
 
-  def move_right(%Item{} = item) do
+  def start(%Item{}, _owner, _turn), do: raise "Trying to start a started item"
+
+  def move_right(%Item{history: history} = item, turn) do
+    new_state = item.state + 1
     if active?(item) do
-      %{item | state: item.state + 1}
+      %{item | state: new_state, history: ItemHistory.move(history, new_state, turn)}
     else
       raise "Trying to move a completed item"
     end
   end
 
-  def reject(%Item{state: state} = item) do
+  def reject(%Item{state: state, history: history} = item, turn) do
+    new_state = state + 5
     if Item.active?(item) do
-      %{item | state: state + 5, blocked: false}
+      %{item | state: new_state, history: ItemHistory.reject(history, new_state, turn)}
     else
       raise "Trying to reject a completed item"
     end
+  end
+
+  def block(%Item{blocked: false, history: history} = item, player_id, turn) do
+    if in_progress?(item) && item.owner == player_id do
+      %{item | blocked: true, history: ItemHistory.block(history, turn) }
+    else
+      raise "Player #{player_id} cannot block #{inspect(item)} "
+    end
+  end
+
+  def unblock(%Item{blocked: true, history: history} = item, turn) do
+    %{item | blocked: false, history: ItemHistory.unblock(history, turn) }
   end
 
   def owned?(%Item{owner: owner_id}, player_id), do: owner_id == player_id

@@ -17,6 +17,10 @@ defmodule Changeban.GameServer do
     GenServer.call(via_tuple(game_name), :view)
   end
 
+  def history(game_name) do
+    GenServer.call(via_tuple(game_name), :history)
+  end
+
   def get_player(game_name, player_id) do
     GenServer.call(via_tuple(game_name), {:get_player, player_id})
   end
@@ -128,6 +132,13 @@ defmodule Changeban.GameServer do
 
   def handle_call(:view, _from, game) do
     {:reply, view_game(game), game, @timeout}
+  end
+
+  def handle_call(:history, _from, game) do
+    case game.history do
+      [] -> {:reply, [["-", 0, 0, 0, 0, 0, 0, 0, 0, 0]], game, @timeout}
+      _ -> {:reply, game.history, game, @timeout}
+    end
   end
 
   def handle_call({:set_wip, wip_type, limit}, _from, game) do
