@@ -21,88 +21,102 @@ defmodule GamesRoomWeb.ChangebanLive do
       ) do
     Logger.debug("Mount")
 
-    player_id = String.to_integer(player_id_str)
+    if !GameServer.game_exists?(game_name) do
+      msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
+      Logger.info(msg)
+      redirect_to_join(socket, msg)
+    else
+      player_id = String.to_integer(player_id_str)
 
-    already_present =
-      not is_nil(
-        Map.values(Presence.list(game_name))
-        |> Enum.map(&(Map.get(&1, :metas) |> List.first()))
-        |> Enum.find(fn %{initials: p, player_id: i} -> p == player_initials && i == player_id end)
-      )
-
-    player = GameServer.get_player(game_name, player_id)
-
-    cond do
-      already_present ->
-        redirect_to_join(socket, "Game #{game_name} - player id #{player_id} is already in game")
-
-      player == nil ->
-        redirect_to_join(socket, "Game #{game_name} - player id #{player_id} is already in game")
-
-      player.initials != player_initials ->
-        redirect_to_join(
-          socket,
-          "Game #{game_name} - Supplied initials #{player_initials} do not match those in game #{
-            player.initials
-          }"
+      already_present =
+        not is_nil(
+          Map.values(Presence.list(game_name))
+          |> Enum.map(&(Map.get(&1, :metas) |> List.first()))
+          |> Enum.find(fn %{initials: p, player_id: i} ->
+            p == player_initials && i == player_id
+          end)
         )
 
-      true ->
-        {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
+      player = GameServer.get_player(game_name, player_id)
 
-        PubSub.subscribe(GamesRoom.PubSub, game_name)
-
-        Presence.track(self(), game_name, "player:#{player_id}:#{player_initials}", %{
-          player_id: player_id,
-          initials: player_initials
-        })
-
-        new_socket =
-          assign(socket,
-            game_name: game_name,
-            items: items,
-            players: players,
-            turn: turn,
-            score: score,
-            state: state,
-            wip_limits: wip_limits,
-            present: Presence.list(game_name) |> map_size,
-            player: player,
-            player_id: player_id,
-            username: player_initials
+      cond do
+        already_present ->
+          redirect_to_join(
+            socket,
+            "Game #{game_name} - player id #{player_id} is already in game"
           )
 
-        {:ok, new_socket}
+        player == nil ->
+          redirect_to_join(
+            socket,
+            "Game #{game_name} - player id #{player_id} is already in game"
+          )
+
+        player.initials != player_initials ->
+          redirect_to_join(
+            socket,
+            "Game #{game_name} - Supplied initials #{player_initials} do not match those in game #{
+              player.initials
+            }"
+          )
+
+        true ->
+          {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
+
+          PubSub.subscribe(GamesRoom.PubSub, game_name)
+
+          Presence.track(self(), game_name, "player:#{player_id}:#{player_initials}", %{
+            player_id: player_id,
+            initials: player_initials
+          })
+
+          new_socket =
+            assign(socket,
+              game_name: game_name,
+              items: items,
+              players: players,
+              turn: turn,
+              score: score,
+              state: state,
+              wip_limits: wip_limits,
+              present: Presence.list(game_name) |> map_size,
+              player: player,
+              player_id: player_id,
+              username: player_initials
+            )
+
+          {:ok, new_socket}
+      end
     end
   end
 
-  @impl true
-  def mount(
-        %{"game_name" => game_name},
-        _session,
-        socket
-      ) do
-    Logger.debug("Mount")
+  # @impl true
+  # def mount(
+  #       %{"game_name" => game_name},
+  #       _session,
+  #       socket
+  #     ) do
+  #   Logger.debug("Mount")
 
-    {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
+  #   {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
 
-    PubSub.subscribe(GamesRoom.PubSub, game_name)
+  #   PubSub.subscribe(GamesRoom.PubSub, game_name)
 
-    {:ok,
-     assign(socket,
-       game_name: game_name,
-       items: items,
-       players: players,
-       turn: turn,
-       score: score,
-       state: state,
-       wip_limits: wip_limits,
-       present: Presence.list(game_name) |> map_size,
-       player: nil,
-       player_id: nil,
-       username: nil
-     )}
-  end
+  #   {:ok,
+  #    assign(socket,
+  #      game_name: game_name,
+  #      items: items,
+  #      players: players,
+  #      turn: turn,
+  #      score: score,
+  #      state: state,
+  #      wip_limits: wip_limits,
+  #      present: Presence.list(game_name) |> map_size,
+  #      player: nil,
+  #      player_id: nil,
+  #      username: nil
+  #    )}
+  # end
 
   def redirect_to_join(socket, msg) do
     {:ok,

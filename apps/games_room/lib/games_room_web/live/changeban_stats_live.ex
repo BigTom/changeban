@@ -2,20 +2,33 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
   require Logger
   use GamesRoomWeb, :live_view
 
-  alias Phoenix.{PubSub}
+  alias Phoenix.{PubSub, LiveView}
   alias Contex.{BarChart, Plot, Dataset}
   alias Changeban.{Game, GameServer}
 
   @impl true
   def mount(%{"game_name" => game_name}, _session, socket) do
-    history = GameServer.history(game_name)
+    if !GameServer.game_exists?(game_name) do
+      msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
+      Logger.info(msg)
+      redirect_to_join(socket, msg)
+    else
+      history = GameServer.history(game_name)
 
-    IO.puts("history #{inspect(history)}")
+      IO.puts("history #{inspect(history)}")
 
-    cfd = generate_cfd(history)
-    PubSub.subscribe(GamesRoom.PubSub, game_name)
+      cfd = generate_cfd(history)
+      PubSub.subscribe(GamesRoom.PubSub, game_name)
 
-    {:ok, assign(socket, game_name: game_name, cfd: cfd)}
+      {:ok, assign(socket, game_name: game_name, cfd: cfd)}
+    end
+  end
+
+  def redirect_to_join(socket, msg) do
+    {:ok,
+     socket
+     |> put_flash(:error, msg)
+     |> LiveView.redirect(to: "/join", replace: true)}
   end
 
   @impl true
@@ -30,6 +43,8 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
 
   def generate_cfd(history) do
     dataset = Dataset.new(history, ["CFD" | col_names()])
+
+    IO.puts("dataset: #{inspect(dataset, pretty: true)}")
 
     plot_content =
       BarChart.new(dataset)
