@@ -17,10 +17,15 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
 
       IO.puts("history #{inspect(history)}")
 
-      cfd = generate_cfd(history)
+      {line_cfd, bar_cfd} = generate_charts(game_name)
+
       PubSub.subscribe(GamesRoom.PubSub, game_name)
 
-      {:ok, assign(socket, game_name: game_name, cfd: cfd)}
+      {:ok,
+      socket
+      |> assign(game_name: game_name)
+      |> assign(bar_cfd: bar_cfd)
+      |> push_event("line_cfd", line_cfd)}
     end
   end
 
@@ -31,14 +36,50 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
      |> LiveView.redirect(to: "/join", replace: true)}
   end
 
+  # @impl true
+  # def handle_info(:change, %{assigns: assigns} = socket) do
+  #   Logger.debug("Change notify: #{inspect(assigns.game_name)} stats view")
+
+  #   history = GameServer.history(assigns.game_name)
+  #   cfd = generate_cfd(history)
+
+  #   {:noreply, assign(socket, cfd: cfd)}
+  # end
+
   @impl true
-  def handle_info(:change, %{assigns: assigns} = socket) do
-    Logger.debug("Change notify: #{inspect(assigns.game_name)} stats view")
+  def handle_info(:change, %{assigns: %{game_name: game_name}} = socket) do
+    Logger.debug("Change notify: #{inspect(game_name)} stats view")
 
-    history = GameServer.history(assigns.game_name)
-    cfd = generate_cfd(history)
+    {line_cfd, bar_cfd} = generate_charts(game_name)
 
-    {:noreply, assign(socket, cfd: cfd)}
+    IO.puts("send #{inspect line_cfd}")
+
+    {:noreply,
+      socket
+      |> assign(bar_cfd: bar_cfd)
+      |> push_event("line_cfd", line_cfd)}
+  end
+
+  def generate_charts(game_name) do
+    history = GameServer.history(game_name)
+    turn = Enum.count(history)
+    turn_ticks = Enum.map(0..turn, &Integer.to_string/1)
+
+    points = convert_to_state_sequences(history)
+
+    line_cfd = %{x:
+      %{"data" => points,
+        "headers" => turn_ticks }
+    }
+
+    bar_cfd = generate_cfd(history)
+    {line_cfd, bar_cfd}
+  end
+
+  @impl true
+  def handle_info(evt, socket) do
+    Logger.warn("**** CHANGEBAN_STATS_LIVE UNKNOWN-EVENT #{inspect(evt)}")
+    {:noreply, socket}
   end
 
   def generate_cfd(history) do
@@ -97,9 +138,13 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
   @impl true
   def render(assigns) do
     ~L"""
-    <div class="flex">
-      <div class="w-2/3 mt-4">
-        <%= @cfd %>
+      <div class="flex">
+        <div phx-update="ignore" class="w-1/2 mt-4">
+          <canvas id="myChart" phx-hook="chart"></canvas>
+        </div>
+        <div class="w-1/2 mt-4">
+          <%= @bar_cfd %>
+        </div>
       </div>
     """
   end
@@ -107,4 +152,20 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
   def state_name(id), do: Map.get(Game.states(), id)
 
   def col_names(), do: for(id <- 8..0, do: state_name(id))
+
+  def convert_to_state_sequences(history) do
+    flipped =
+      for state_id <- 9..1,
+          do:
+            for(
+              turn <- 0..(Enum.count(history) - 1),
+              do: Enum.at(history, turn) |> Enum.at(state_id)
+            )
+
+    {active, d} = Enum.split(flipped, 4)
+
+    done = Enum.zip(d) |> Enum.map(&Tuple.to_list/1) |> Enum.map(&Enum.sum/1)
+    [_ | turns] = (active ++ [done])
+    turns
+  end
 end

@@ -90,34 +90,6 @@ defmodule GamesRoomWeb.ChangebanLive do
     end
   end
 
-  # @impl true
-  # def mount(
-  #       %{"game_name" => game_name},
-  #       _session,
-  #       socket
-  #     ) do
-  #   Logger.debug("Mount")
-
-  #   {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
-
-  #   PubSub.subscribe(GamesRoom.PubSub, game_name)
-
-  #   {:ok,
-  #    assign(socket,
-  #      game_name: game_name,
-  #      items: items,
-  #      players: players,
-  #      turn: turn,
-  #      score: score,
-  #      state: state,
-  #      wip_limits: wip_limits,
-  #      present: Presence.list(game_name) |> map_size,
-  #      player: nil,
-  #      player_id: nil,
-  #      username: nil
-  #    )}
-  # end
-
   def redirect_to_join(socket, msg) do
     {:ok,
      socket
@@ -174,7 +146,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   @impl true
   def handle_info(evt, socket) do
-    Logger.warn("**** UNKNOWN-EVENT #{inspect(evt)}")
+    Logger.warn("**** CHANGEBAN_LIVE UNKNOWN-EVENT #{inspect(evt)}")
     {:noreply, socket}
   end
 
