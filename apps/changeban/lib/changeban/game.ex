@@ -51,7 +51,7 @@ defmodule Changeban.Game do
   # {:std, [n,n,n]}
   # {:con, n}
 
-  alias Changeban.{Game, Item, Player}
+  alias Changeban.{Game, Item, ItemHistory, Player}
 
   def states() do
     %{
@@ -370,7 +370,7 @@ defmodule Changeban.Game do
     |> Enum.count()
   end
 
-# History - CFD
+  # History - CFD
   def state_counts(items),
     do: for(id <- @states, into: %{}, do: {id, item_count_for_state(items, id)})
 
@@ -386,5 +386,43 @@ defmodule Changeban.Game do
       |> add_line(history)
 
     %{game | history: new_state_history}
+  end
+
+  def ages(%Game{items: items}) do
+    Enum.map(items, &(&1.history))
+    |> Enum.filter(&(!is_nil(&1.done)))
+    |> Enum.map(&(%{x: &1.done, y: ItemHistory.age(&1, 0)}))
+  end
+
+  def efficency(%Game{items: items}) do
+    sum = Enum.map(items, fn i -> ItemHistory.efficency(i.history) end) |> Enum.sum()
+    count = Enum.count(items)
+    sum / count
+  end
+
+  def block_count(%Game{items: items}) do
+    Enum.map(items, fn i -> ItemHistory.block_count(i.history) end) |> Enum.sum()
+  end
+
+  def stats(%Game{state: state} = game) do
+    stats = if state == :setup do
+      %{
+        turns: [["-", 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+        ticket_ages: [],
+        efficiency: 0,
+        block_count: 0,
+        turn: 0
+      }
+    else
+      %{
+        turns: game.history,
+        ticket_ages: ages(game),
+        efficiency: efficency(game),
+        block_count: block_count(game),
+        turn: game.turn,
+        score: game.score
+      }
+    end
+    stats
   end
 end

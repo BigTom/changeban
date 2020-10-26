@@ -90,6 +90,41 @@ defmodule GamesRoomWeb.ChangebanLive do
     end
   end
 
+  @impl true
+  def mount(
+        %{"game_name" => game_name},
+        _session,
+        socket
+      ) do
+    Logger.debug("Mount")
+
+    if !GameServer.game_exists?(game_name) do
+      msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
+      Logger.info(msg)
+      redirect_to_join(socket, msg)
+    else
+
+      {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
+
+      PubSub.subscribe(GamesRoom.PubSub, game_name)
+
+      {:ok,
+      assign(socket,
+        game_name: game_name,
+        items: items,
+        players: players,
+        turn: turn,
+        score: score,
+        state: state,
+        wip_limits: wip_limits,
+        present: Presence.list(game_name) |> map_size,
+        player: nil,
+        player_id: nil,
+        username: nil
+      )}
+    end
+  end
+
   def redirect_to_join(socket, msg) do
     {:ok,
      socket
@@ -315,9 +350,25 @@ defmodule GamesRoomWeb.ChangebanLive do
                   border-green-600 text-green-600
                   items-center text-center">
         <p>When all players have joined press "START SIMULATION"</p>
-        <button class="border-2 border-gray-800 rounded-md bg-green-400 w-1/2"
+        <button class="border-2 rounded-md border-gray-800 bg-green-400 w-1/2"
                 phx-click="start">START SIMULATION</button>
       </div>
+    """
+  end
+
+  def render_observer_instructions(assigns) do
+    ~L"""
+    <div class="flex-grow flex flex-col items-center">
+      <p class="text-gray-600">You are observing game <%= @game_name %></p>
+      <p class="text-gray-600">You can watch the game in progress here.</p>
+      <a href="/stats/<%= @game_name %>"
+          target="_blank"
+          class="mt-2 border-2 rounded-md w-1/2
+                 border-gray-800 bg-gray-400
+                 hover:shadow-outline hover:bg-gray-600">
+        View Statistics
+      </a>
+    </div>
     """
   end
 
@@ -325,8 +376,15 @@ defmodule GamesRoomWeb.ChangebanLive do
     ~L"""
       <div class="w-1/2 flex-grow flex flex-col border-2 rounded-md
                   border-green-600 text-green-600
-                  text-2xl text-center">
-        SIMULATION COMPLETED
+                  items-center text-center">
+        <p class="text-2xl text-center">SIMULATION COMPLETED</p>
+        <a href="/stats/<%= @game_name %>"
+        target="_blank"
+        class="mt-2 border-2 rounded-md w-1/2
+               border-gray-800 bg-green-400
+               hover:shadow-outline hover:bg-green-600 hover:text-white">
+      View Statistics
+    </a>
       </div>
     """
   end
@@ -361,14 +419,6 @@ defmodule GamesRoomWeb.ChangebanLive do
           :red -> render_red_instructions(player)
         end
     end
-  end
-
-  def render_observer_instructions(assigns) do
-    ~L"""
-    <p class="text-gray-600">You are observing this game</p>
-    <p class="text-gray-600">Game <%= @game_name %> can no longer be joined.</p>
-    <p class="text-gray-600">You can watch the game in progress here.</p>
-    """
   end
 
   def render_done_instructions(assigns) do

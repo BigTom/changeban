@@ -20,11 +20,10 @@ import Chart from "chart.js"
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 
-
-var makeChart = (ctx) => new Chart(ctx, {
+var makeCFD = (ctx) => new Chart(ctx, {
   type: 'line', // The type of chart we want to create
   data: {
-    labels: 0, // The data for our dataset
+    // labels: 0, // The data for our dataset
     datasets: [
       {
         label: 'Complete',
@@ -51,23 +50,39 @@ var makeChart = (ctx) => new Chart(ctx, {
         fill: 'origin'
       },
       {
-      label: 'Negotiate Change',
-      backgroundColor: '#cccccc',
-      borderColor: '#cccccc',
-      data: [0],
-      lineTension: 0,
-      fill: 'origin'
+        label: 'Negotiate Change',
+        backgroundColor: '#cccccc',
+        borderColor: '#cccccc',
+        data: [0],
+        lineTension: 0,
+        fill: 'origin'
       }
     ]
   },
   options: { // Configuration options go here
     scales: {
       yAxes: [{
+        scaleLabel: {
+          display: true,
+          labelString: 'Ticket Count'
+        },
         stacked: true,
         ticks: {
           max: 16,
           min: 0,
           stepSize: 1
+        }
+      }],
+      xAxes: [{
+        scaleLabel: {
+          display: true,
+          labelString: 'Turn'
+        },
+        position: 'bottom',
+        ticks: {
+          suggestedMax: 10,
+          min: 0,
+          stepSize: 5
         }
       }]
     },
@@ -75,30 +90,88 @@ var makeChart = (ctx) => new Chart(ctx, {
       point:{
           radius: 0
       }
-  }
+    },
+    legend: {
+      reverse: true
+    }
   }
 });
 
-let hooks = {}
-hooks.chart = {
+var makeAge = (ctx) => new Chart(ctx, {
+  type: 'scatter', // The type of chart we want to create
+  data: {
+    labels: 0, // The data for our dataset
+    datasets: [
+      {
+        data: [],
+        label: "Ticket Age",
+        backgroundColor: '#666666',
+      }
+    ]
+  },
+  options: { // Configuration options go here
+    scales: {
+      yAxes: [{
+        scaleLabel: {
+          display: true,
+          labelString: 'Ticket Age'
+        },
+        ticks: {
+          suggestedMax: 10,
+          min: 0,
+          stepSize: 1
+        }
+      }],
+      xAxes: [{
+        scaleLabel: {
+          display: true,
+          labelString: 'Turn Completed'
+        },
+        position: 'bottom',
+        ticks: {
+          suggestedMax: 10,
+          min: 0,
+          stepSize: 1
+        }
+      }]
+    }
+  }
+});
+
+let Hooks = {}
+Hooks.cfd = {
   mounted() {
     var ctx = this.el.getContext('2d');
-    var chart = makeChart(ctx);
+    var chart = makeCFD(ctx);
 
-    this.handleEvent("line_cfd", ({
-      x
+    this.handleEvent("chart_data", ({
+      cfd
     }) => {
-      chart.data.datasets[0].data = x.data[3]
-      chart.data.datasets[1].data = x.data[2]
-      chart.data.datasets[2].data = x.data[1]
-      chart.data.datasets[3].data = x.data[0]
-      chart.data.labels = x.headers
+      chart.data.datasets[0].data = cfd.data[3]
+      chart.data.datasets[1].data = cfd.data[2]
+      chart.data.datasets[2].data = cfd.data[1]
+      chart.data.datasets[3].data = cfd.data[0]
+      chart.data.labels = cfd.turns
+      chart.update()
+    })
+  }
+}
+Hooks.age = {
+  mounted() {
+    var ctx = this.el.getContext('2d');
+    var chart = makeAge(ctx);
+
+    this.handleEvent("chart_data", ({
+      age
+    }) => {
+      chart.data.datasets[0].data = age.data
+      // chart.data.labels = age.turns
       chart.update()
     })
   }
 }
 
-let liveSocket = new LiveSocket("/live", Socket, {params: {_csrf_token: csrfToken}, hooks})
+let liveSocket = new LiveSocket("/live", Socket, {params: {_csrf_token: csrfToken}, hooks: Hooks})
 
 // Show progress bar on live navigation and form submits
 window.addEventListener("phx:page-loading-start", info => NProgress.start())

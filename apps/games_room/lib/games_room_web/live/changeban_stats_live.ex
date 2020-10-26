@@ -3,29 +3,34 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
   use GamesRoomWeb, :live_view
 
   alias Phoenix.{PubSub, LiveView}
-  alias Contex.{BarChart, Plot, Dataset}
-  alias Changeban.{Game, GameServer}
+  alias Changeban.{GameServer}
+
+  # Stats map
+  # %{
+  #   turns: [["-", 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+  #   ticket_ages: [],
+  #   efficiency: 0,
+  #   block_count: 0,
+  #   turn: 0
+  # }
 
   @impl true
   def mount(%{"game_name" => game_name}, _session, socket) do
+    Logger.info("stats mount")
+
     if !GameServer.game_exists?(game_name) do
       msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
       Logger.info(msg)
       redirect_to_join(socket, msg)
     else
-      history = GameServer.history(game_name)
-
-      IO.puts("history #{inspect(history)}")
-
-      {line_cfd, bar_cfd} = generate_charts(game_name)
-
       PubSub.subscribe(GamesRoom.PubSub, game_name)
+      game_stats = GameServer.stats(game_name)
 
       {:ok,
-      socket
-      |> assign(game_name: game_name)
-      |> assign(bar_cfd: bar_cfd)
-      |> push_event("line_cfd", line_cfd)}
+       socket
+       |> assign(game_name: game_name)
+       |> assign(game_stats: game_stats)
+       |> push_event("chart_data", generate_charts(game_stats))}
     end
   end
 
@@ -36,44 +41,15 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
      |> LiveView.redirect(to: "/join", replace: true)}
   end
 
-  # @impl true
-  # def handle_info(:change, %{assigns: assigns} = socket) do
-  #   Logger.debug("Change notify: #{inspect(assigns.game_name)} stats view")
-
-  #   history = GameServer.history(assigns.game_name)
-  #   cfd = generate_cfd(history)
-
-  #   {:noreply, assign(socket, cfd: cfd)}
-  # end
-
   @impl true
   def handle_info(:change, %{assigns: %{game_name: game_name}} = socket) do
-    Logger.debug("Change notify: #{inspect(game_name)} stats view")
-
-    {line_cfd, bar_cfd} = generate_charts(game_name)
-
-    IO.puts("send #{inspect line_cfd}")
+    Logger.debug("STATS - Change notify: #{inspect(game_name)} stats view")
+    game_stats = GameServer.stats(game_name)
 
     {:noreply,
-      socket
-      |> assign(bar_cfd: bar_cfd)
-      |> push_event("line_cfd", line_cfd)}
-  end
-
-  def generate_charts(game_name) do
-    history = GameServer.history(game_name)
-    turn = Enum.count(history)
-    turn_ticks = Enum.map(0..turn, &Integer.to_string/1)
-
-    points = convert_to_state_sequences(history)
-
-    line_cfd = %{x:
-      %{"data" => points,
-        "headers" => turn_ticks }
-    }
-
-    bar_cfd = generate_cfd(history)
-    {line_cfd, bar_cfd}
+     socket
+     |> assign(game_stats: game_stats)
+     |> push_event("chart_data", generate_charts(game_stats))}
   end
 
   @impl true
@@ -82,78 +58,61 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
     {:noreply, socket}
   end
 
-  def generate_cfd(history) do
-    dataset = Dataset.new(history, ["CFD" | col_names()])
+  defp generate_charts(stats) do
+    turn_ticks = Enum.map(0..stats.turn, &Integer.to_string/1)
+    points = convert_to_state_sequences(stats.turns)
 
-    IO.puts("dataset: #{inspect(dataset, pretty: true)}")
-
-    plot_content =
-      BarChart.new(dataset)
-      |> BarChart.set_val_col_names(col_names())
-      |> BarChart.orientation(:vertical)
-      |> BarChart.type(:stacked)
-      |> BarChart.data_labels(false)
-      |> BarChart.padding(0)
-      |> BarChart.force_value_range({0, 20})
-      |> BarChart.colours(colours())
-
-    Plot.new(500, 400, plot_content)
-    |> Plot.plot_options(%{legend_setting: :legend_right})
-    |> Plot.titles("CFD", "")
-    |> Plot.to_svg()
-  end
-
-  def chart_options() do
     %{
-      # turns
-      categories: 50,
-      # states
-      series: 3,
-      type: :stacked,
-      orientation: :vertical,
-      show_data_labels: "no",
-      show_selected: "no",
-      show_axislabels: "no",
-      title: nil,
-      subtitle: nil,
-      colour_scheme: "pastel",
-      show_legend: "no"
+      cfd: %{"data" => points, "turns" => turn_ticks},
+      age: %{"data" => stats.ticket_ages, "turns" => turn_ticks}
     }
-  end
-
-  def colours() do
-    [
-      "88aabb",
-      "88aabb",
-      "88aabb",
-      "88aabb",
-      "88aabb",
-      "ddffdd",
-      "ffffdd",
-      "ffdddd",
-      "ffffff"
-    ]
   end
 
   @impl true
   def render(assigns) do
     ~L"""
-      <div class="flex">
-        <div phx-update="ignore" class="w-1/2 mt-4">
-          <canvas id="myChart" phx-hook="chart"></canvas>
+      <div class="flex flex-col">
+        <div class="text-center text-2xl mt-4">Statistics for game: <%= @game_name %></div>
+        <div class="flex mt-4 text-xl text-center border-2">
+          <div class="w-1/2 relative ">
+            <p>Culmulative Flow</p>
+            <div phx-update="ignore">
+              <canvas id="myCFD" phx-hook="cfd" aria-label="CFD chart for current state of game" role="img"></canvas>
+            </div>
+          </div>
+
+          <div class="w-1/2 relative">
+            <p>Ticket Age on Completion</p>
+            <div phx-update="ignore">
+              <canvas id="myAge" phx-hook="age" aria-label="Arrival age chart for current state of game" role="img"></canvas>
+            </div>
+          </div>
         </div>
-        <div class="w-1/2 mt-4">
-          <%= @bar_cfd %>
+        <div class="text-center text-xl flex justify-around mt-4 border-2">
+          <div class="w-1/6 m-2 border-2">
+            <p>Turns</p>
+            <p class="font-black"><%= @game_stats.turn %></p>
+          </div>
+          <div class="w-1/6 m-2 border-2">
+            <p>Score</p>
+            <p class="font-black"><%= @game_stats.score %></p>
+          </div>
+          <div class="w-1/6 m-2 border-2">
+            <p>Blocked count</p>
+            <p class="font-black"><%= @game_stats.block_count %></p>
+          </div>
+          <div class="w-1/6 m-2 border-2">
+            <p>Flow Efficiency</p>
+            <p class="font-black"><%= render_percent(@game_stats.efficiency) %></p>
+          </div>
         </div>
       </div>
     """
   end
 
-  def state_name(id), do: Map.get(Game.states(), id)
+  def render_percent(nr), do: "#{Float.round(nr * 100, 1)}%"
 
-  def col_names(), do: for(id <- 8..0, do: state_name(id))
-
-  def convert_to_state_sequences(history) do
+  defp convert_to_state_sequences(history) do
     flipped =
       for state_id <- 9..1,
           do:
@@ -165,7 +124,7 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
     {active, d} = Enum.split(flipped, 4)
 
     done = Enum.zip(d) |> Enum.map(&Tuple.to_list/1) |> Enum.map(&Enum.sum/1)
-    [_ | turns] = (active ++ [done])
+    [_ | turns] = active ++ [done]
     turns
   end
 end

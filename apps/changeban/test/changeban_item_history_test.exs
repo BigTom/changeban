@@ -10,7 +10,7 @@ defmodule ChangebanItemHistoryTest do
 
   # @au  0 # Agree Urgency
   # Negotiate Change
-  @nc 1
+  # @nc 1
   # Validate Adoption
   @va 2
   # Verify Performance
@@ -30,10 +30,14 @@ defmodule ChangebanItemHistoryTest do
     end
   end
 
-  describe "ItemHistory :moves tests" do
+  describe "ItemHistory :start & :done tests" do
+    test "Unstarted Item" do
+      assert %ItemHistory{start: nil} = ItemHistory.new()
+    end
+
     test "Start Item" do
       history = ItemHistory.new() |> ItemHistory.start(@turn1)
-      assert %ItemHistory{moves: %{@turn1 => @nc}} = history
+      assert %ItemHistory{start: @turn1} = history
     end
 
     test "Move Item" do
@@ -42,7 +46,7 @@ defmodule ChangebanItemHistoryTest do
         |> ItemHistory.start(@turn1)
         |> ItemHistory.move(@va, @turn2)
 
-      assert %ItemHistory{moves: %{@turn1 => @nc, @turn2 => @va}} = history
+      assert %ItemHistory{start: @turn1} = history
     end
 
     test "Reject Unstarted Item" do
@@ -50,7 +54,7 @@ defmodule ChangebanItemHistoryTest do
         ItemHistory.new()
         |> ItemHistory.reject(@rau, @turn1)
 
-      assert %ItemHistory{moves: %{@turn1 => @rau}} = history
+      assert %ItemHistory{start: @turn1, done: @turn1} = history
     end
 
     test "Reject Started Item" do
@@ -59,7 +63,7 @@ defmodule ChangebanItemHistoryTest do
         |> ItemHistory.start(@turn1)
         |> ItemHistory.reject(@rnc, @turn2)
 
-      assert %ItemHistory{moves: %{@turn1 => @nc, @turn2 => @rnc}} = history
+      assert %ItemHistory{start: @turn1, done: @turn2} = history
     end
 
     test "Complete Item" do
@@ -70,49 +74,9 @@ defmodule ChangebanItemHistoryTest do
         |> ItemHistory.move(@vp, 9)
         |> ItemHistory.move(@c, 11)
 
-      assert %ItemHistory{moves: %{1 => @nc, 5 => @va, 9 => @vp, 11 => @c}} = history
+      assert %ItemHistory{start: 1, done: 11} = history
     end
   end
-
-  # describe "ItemHistory :ends tests" do
-  #   test "Start Item" do
-  #     history = ItemHistory.new |> ItemHistory.start(@turn1)
-  #     assert %ItemHistory{end: nil} = history
-  #   end
-
-  #   test "Move Item but do not finish" do
-  #     history = ItemHistory.new
-  #       |> ItemHistory.start(@turn1)
-  #       |> ItemHistory.move(@nc, @turn2)
-
-  #     assert %ItemHistory{end: nil} = history
-  #   end
-
-  #   test "Moves - Reject Unstarted Item" do
-  #     history = ItemHistory.new
-  #       |> ItemHistory.reject(@turn1)
-
-  #     assert %ItemHistory{end: @turn1} = history
-  #   end
-
-  #   test "Reject Started Item" do
-  #     history = ItemHistory.new
-  #       |> ItemHistory.start(@turn1)
-  #       |> ItemHistory.reject(@turn2)
-
-  #     assert %ItemHistory{end: @turn2} = history
-  #   end
-
-  #   test "Complete Item" do
-  #     history = ItemHistory.new
-  #       |> ItemHistory.start(1)
-  #       |> ItemHistory.move(@va, 5)
-  #       |> ItemHistory.move(@vp, 9)
-  #       |> ItemHistory.move(@c, 11)
-
-  #     assert %ItemHistory{end: 11} = history
-  #   end
-  # end
 
   describe "ItemHistory :blocks & unblocks tests" do
     test "Start Item" do
@@ -122,7 +86,7 @@ defmodule ChangebanItemHistoryTest do
 
     test "Block Item" do
       history = ItemHistory.new() |> ItemHistory.start(1) |> ItemHistory.block(2)
-      assert %ItemHistory{blocked: [{2, true}]} = history
+      assert %ItemHistory{blocked: [2]} = history
     end
 
     test "unblock Item in same turn" do
@@ -132,7 +96,7 @@ defmodule ChangebanItemHistoryTest do
         |> ItemHistory.block(2)
         |> ItemHistory.unblock(2)
 
-      assert %ItemHistory{blocked: [{2, true}, {2, false}]} = history
+      assert %ItemHistory{blocked: [2, 2]} = history
     end
 
     test "unblock Item in different turn" do
@@ -142,7 +106,7 @@ defmodule ChangebanItemHistoryTest do
         |> ItemHistory.block(2)
         |> ItemHistory.unblock(3)
 
-      assert %ItemHistory{blocked: [{2, true}, {3, false}]} = history
+      assert %ItemHistory{blocked: [3, 2]} = history
     end
   end
 
@@ -151,74 +115,235 @@ defmodule ChangebanItemHistoryTest do
       turn = 1
       item = Item.new(0) |> Item.start(@owner_id, turn)
 
-      assert %ItemHistory{moves: %{^turn => @nc}} = item.history
+      assert %ItemHistory{start: ^turn} = item.history
     end
 
     test "Reject new Item" do
       turn = 1
       item = Item.new(0) |> Item.reject(turn)
 
-      assert %ItemHistory{moves: %{^turn => @rau}} = item.history
+      assert %ItemHistory{start: ^turn, done: ^turn} = item.history
+    end
+  end
+
+  describe "ticket age tests" do
+    test "unstarted ticket has no age" do
+      item = Item.new(0)
+      assert 0 = ItemHistory.age(item.history, 3)
+    end
+
+    test "unstarted & rejected ticket has no age" do
+      item = Item.new(0) |> Item.reject(5)
+      assert 0 = ItemHistory.age(item.history, 7)
+    end
+
+
+    test "started ticket has age from start to turn" do
+      item = Item.new(0) |> Item.start(@owner_id, 3)
+      assert 5 = ItemHistory.age(item.history, 8)
+    end
+
+    test "started and done ticket has age from start to done" do
+      history =
+        ItemHistory.new()
+        |> ItemHistory.start(1)
+        |> ItemHistory.move(@va, 5)
+        |> ItemHistory.move(@vp, 9)
+        |> ItemHistory.move(@c, 11)
+
+        assert 10 = ItemHistory.age(history, 17)
+    end
+  end
+
+  describe "ticket blocked tests" do
+    test "unstarted ticket has no blocked time" do
+      item = Item.new(0)
+      assert 0 = ItemHistory.blocked_time(item.history, 8)
+    end
+    test "started ticket has no blocked time" do
+      item = Item.new(0) |> Item.start(@owner_id, 3)
+      assert 0 = ItemHistory.blocked_time(item.history, 8)
+    end
+    test "started & blocked ticket is blocked to current turn" do
+      item = Item.new(0) |> Item.start(@owner_id, 3) |> Item.block(@owner_id, 5)
+      assert 3 = ItemHistory.blocked_time(item.history, 8)
+    end
+    test "started & blocked one same turn ticket has no blocked time" do
+      item = Item.new(0) |> Item.start(@owner_id, 3) |> Item.block(@owner_id, 5) |> Item.unblock(5)
+      assert 0 = ItemHistory.blocked_time(item.history, 8)
+    end
+    test "multiple blocks then finished" do
+      item =
+        Item.new(0)
+        |> Item.start(1, 1)
+        |> Item.block(1, 1)
+        |> Item.unblock(2)
+        |> Item.move_right(3)
+        |> Item.block(1, 4)
+        |> Item.unblock(6)
+        |> Item.block(1, 7)
+        |> Item.unblock(7)
+        |> Item.move_right(8)
+        |> Item.move_right(8)
+
+        assert 3 = ItemHistory.blocked_time(item.history, 8)
+    end
+  end
+
+  describe "ticket efficiency" do
+    test "unfinished item has 0% efficiency" do
+      item = Item.new(0)
+      assert 0 = ItemHistory.efficency(item.history)
+    end
+    test "unstarted, rejected item has 100% efficiency" do
+      item = Item.new(0) |> Item.reject(1)
+      assert 1 = ItemHistory.efficency(item.history)
+    end
+    test "started, completed, unblocked item has 100% efficiency" do
+      item =
+          Item.new(0)
+          |> Item.start(1, 1)
+          |> Item.move_right(3)
+          |> Item.move_right(8)
+          |> Item.move_right(8)
+
+      assert 1.0 = ItemHistory.efficency(item.history)
+    end
+
+    test "blocked & unblocked on same turn leaves 100% efficiency" do
+      item =
+          Item.new(0)
+          |> Item.start(1, 1)
+          |> Item.block(1, 1)
+          |> Item.unblock(1)
+          |> Item.reject(2)
+
+      assert 1.0 = ItemHistory.efficency(item.history)
+    end
+
+    test "blocked 2, age 4 gives 50% efficiency" do
+      item =
+          Item.new(0)
+          |> Item.start(1, 1)
+          |> Item.block(1, 1)
+          |> Item.unblock(3)
+          |> Item.reject(5)
+
+      assert 0.5 = ItemHistory.efficency(item.history)
+    end
+  end
+
+  describe "block counts" do
+    test "unstarted item has 0 block count" do
+      item = Item.new(0) |> Item.start(1, 1) |> Item.reject(5)
+      assert 0 = ItemHistory.block_count(item.history)
+    end
+    test "started, rejected item has 0 block count" do
+      item = Item.new(0)
+      assert 0 = ItemHistory.block_count(item.history)
+    end
+    test "started, blocked item has block count 1" do
+      item = Item.new(0) |> Item.start(1, 1) |> Item.block(1, 2)
+      assert 1 = ItemHistory.block_count(item.history)
+    end
+    test "started, blocked, unblocked item has block count 1" do
+      item = Item.new(0) |> Item.start(1, 1) |> Item.block(1, 2) |> Item.unblock(3)
+      assert 1 = ItemHistory.block_count(item.history)
+    end
+    test "started, blocked twice, unblocked and rejected item has block count 2" do
+      item =
+        Item.new(0)
+        |> Item.start(1, 1)
+        |> Item.block(1, 2)
+        |> Item.unblock(3)
+        |> Item.block(1, 3)
+        |> Item.reject(5)
+
+      assert 2 = ItemHistory.block_count(item.history)
+    end
+    test "started, blocked twice, unblocked twice has block count 2" do
+      item =
+        Item.new(0)
+        |> Item.start(1, 1)
+        |> Item.block(1, 2)
+        |> Item.unblock(3)
+        |> Item.block(1, 3)
+        |> Item.unblock(3)
+
+      assert 2 = ItemHistory.block_count(item.history)
     end
   end
 
   describe "generate turn history" do
     test "few items" do
-      game =
-        %{
-          Game.new_short_game_for_testing()
-          | turns: [:red, :red, :red, :red, :red, :red, :red, :red, :red, :red, :red, :red]
-        }
-        |> add_player("A")
-        |> add_player("B")
-        |> Game.start_game()
-        # history at turn 0
-        |> Game.exec_action(:start, 0, 0)
-        |> Game.exec_action(:start, 1, 1)
-        # history at turn 1
-        |> Game.exec_action(:move, 0, 0)
-        |> Game.exec_action(:start, 2, 1)
-        # history at turn 2
-        |> Game.exec_action(:move, 0, 0)
-        |> Game.exec_action(:move, 1, 1)
-        # history at turn 3
-        |> Game.exec_action(:move, 0, 0)
-        |> Game.exec_action(:reject, 3, 0)
-        |> Game.exec_action(:move, 1, 1)
-        # history at turn 4
-        |> Game.exec_action(:move, 1, 1)
-        |> Game.exec_action(:reject, 2, 1)
-        # history at turn 5
+      game = short_game()
+      # history at turn 5
 
-        IO.puts("GAME HISTORY #{game.turn}, #{inspect(game.history, pretty: true)}")
+      IO.puts("GAME HISTORY #{game.turn}, #{inspect(game.history, pretty: true)}")
     end
   end
 
-  # Turn 1 [
-  #  {0, %{1 => 1}},
-  #  {1, %{1 => 1}},
-  #  {2, %{}},
-  #  {3, %{}}]
-  # Turn 2 [
-  #  {0, %{1 => 1, 2 => 2}},
-  #  {1, %{1 => 1}},
-  #  {2, %{2 => 1}},
-  #  {3, %{}}]
-  # Turn 3 [
-  #   {0, %{1 => 1, 2 => 2, 3 => 3}},
-  #   {1, %{1 => 1, 3 => 2}},
-  #   {2, %{2 => 1}},
-  #   {3, %{}}]
-  # Turn 4 [
-  #   {0, %{1 => 1, 2 => 2, 3 => 3, 4 => 4}},
-  #   {1, %{1 => 1, 3 => 2}},
-  #   {2, %{2 => 1, 4 => 4}},
-  #   {3, %{}}]
-  # Turn 5 [
-  #   {0, %{1 => 1, 2 => 2, 3 => 3, 4 => 4}},
-  #   {1, %{1 => 1, 3 => 2, 4 => 3}},
-  #   {2, %{2 => 1, 4 => 4}},
-  #   {3, %{}}]
+  test "capture" do
+    short_game_with_blocks_with_capture()
+  end
+
+  def short_game() do
+    %{
+      Game.new_short_game_for_testing()
+      | turns: [:red, :red, :red, :red, :red, :red, :red, :red, :red, :red, :red, :red]
+    }
+    |> add_player("A")
+    |> add_player("B")
+    |> Game.start_game()
+    # history at turn 0
+    |> Game.exec_action(:start, 0, 0)
+    |> Game.exec_action(:start, 1, 1)
+    # history at turn 1
+    |> Game.exec_action(:move, 0, 0)
+    |> Game.exec_action(:start, 2, 1)
+    # history at turn 2
+    |> Game.exec_action(:move, 0, 0)
+    |> Game.exec_action(:move, 1, 1)
+    # history at turn 3
+    |> Game.exec_action(:move, 0, 0)
+    |> Game.exec_action(:reject, 3, 0)
+    |> Game.exec_action(:move, 1, 1)
+    # history at turn 4
+    |> Game.exec_action(:move, 1, 1)
+    |> Game.exec_action(:reject, 2, 1)
+  end
+
+  def short_game_with_blocks() do
+    %{
+      Game.new_short_game_for_testing()
+      | turns: [:red, :red, :black, :black, :red, :red, :red, :red, :red, :red, :red, :red]
+    }
+    |> add_player("A")
+    |> add_player("B")
+    |> Game.start_game()
+    # history at turn 0
+    |> Game.exec_action(:start, 0, 0)    # 1
+    |> Game.exec_action(:start, 1, 1)    # 1
+    # history at turn 1
+    |> Game.exec_action(:block, 0, 0)    # 1
+    |> Game.exec_action(:block, 1, 1)    # 1
+    |> Game.exec_action(:start, 2, 0)    # 1
+    |> Game.exec_action(:start, 3, 1)    # 1
+    # history at turn 2
+    |> Game.exec_action(:move, 2, 0)     # 2
+    |> Game.exec_action(:unblock, 1, 1)  # 1
+    # history at turn 3
+    |> Game.exec_action(:move, 2, 0)     # 3
+    |> Game.exec_action(:move, 1, 1)     # 2
+    # history at turn 4
+    |> Game.exec_action(:move, 2, 0)     # 4 *
+    |> Game.exec_action(:reject, 0, 0)   # 5 *
+    |> Game.exec_action(:move, 1, 1)     # 3
+    # history at turn 5
+    |> Game.exec_action(:move, 1, 1)     # 4 *
+    |> Game.exec_action(:reject, 3, 1)   # 5 *
+  end
+
 
   def endstate_small_game() do
     %Changeban.Game{
@@ -227,7 +352,8 @@ defmodule ChangebanItemHistoryTest do
           blocked: false,
           history: %Changeban.ItemHistory{
             blocked: [],
-            moves: %{1 => 1, 2 => 2, 3 => 3, 4 => 4}
+            start: 1,
+            done: 4
           },
           id: 0,
           owner: 0,
@@ -238,7 +364,8 @@ defmodule ChangebanItemHistoryTest do
           blocked: false,
           history: %Changeban.ItemHistory{
             blocked: [],
-            moves: %{1 => 1, 2 => 2, 3 => 3, 4 => 4}
+            start: 1,
+            done: 4
           },
           id: 1,
           owner: 1,
@@ -249,7 +376,8 @@ defmodule ChangebanItemHistoryTest do
           blocked: false,
           history: %Changeban.ItemHistory{
             blocked: [],
-            moves: %{4 => 4}
+            start: 4,
+            done: 4
           },
           id: 2,
           owner: nil,
@@ -260,7 +388,8 @@ defmodule ChangebanItemHistoryTest do
           blocked: false,
           history: %Changeban.ItemHistory{
             blocked: [],
-            moves: %{4 => 4}
+            start: 4,
+            done: 4
           },
           id: 3,
           owner: nil,
@@ -317,4 +446,59 @@ defmodule ChangebanItemHistoryTest do
     {:ok, _, game} = Game.add_player(game, initials)
     game
   end
+
+  def short_game_with_blocks_with_capture() do
+  history_track = []
+  game = %{
+    Game.new_short_game_for_testing()
+    | turns: [:red, :red, :black, :black, :red, :red, :red, :red, :red, :red, :red, :red]
+  }
+  |> add_player("A")
+  |> add_player("B")
+  |> Game.start_game()
+  history_track = [Game.stats(game) | history_track]
+  # history at turn 0
+  game =
+    game
+  |> Game.exec_action(:start, 0, 0)    # 1
+  |> Game.exec_action(:start, 1, 1)    # 1
+  history_track = [Game.stats(game) | history_track]
+  # history at turn 1
+  game =
+    game
+  |> Game.exec_action(:block, 0, 0)    # 1
+  |> Game.exec_action(:block, 1, 1)    # 1
+  |> Game.exec_action(:start, 2, 0)    # 1
+  |> Game.exec_action(:start, 3, 1)    # 1
+  history_track = [Game.stats(game) | history_track]
+  # history at turn 2
+  game =
+    game
+  |> Game.exec_action(:move, 2, 0)     # 2
+  |> Game.exec_action(:unblock, 1, 1)  # 1
+  history_track = [Game.stats(game) | history_track]
+  # history at turn 3
+  game =
+    game
+  |> Game.exec_action(:move, 2, 0)     # 3
+  |> Game.exec_action(:move, 1, 1)     # 2
+  history_track = [Game.stats(game) | history_track]
+  # history at turn 4
+  game =
+    game
+  |> Game.exec_action(:move, 2, 0)     # 4 *
+  |> Game.exec_action(:reject, 0, 0)   # 5 *
+  |> Game.exec_action(:move, 1, 1)     # 3
+  history_track = [Game.stats(game) | history_track]
+  # history at turn 5
+  game =
+    game
+  |> Game.exec_action(:move, 1, 1)     # 4 *
+  |> Game.exec_action(:reject, 3, 1)   # 5 *
+  history_track = [Game.stats(game) | history_track]
+
+  IO.puts("GAME HISTORY HISTORY -
+          #{inspect Enum.reverse(history_track), pretty: true}")
+  game
+end
 end
