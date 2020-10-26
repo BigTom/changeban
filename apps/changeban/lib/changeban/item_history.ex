@@ -11,10 +11,12 @@ defmodule Changeban.ItemHistory do
   def move(history, state, turn) when state >= 4, do: %{history | done: turn}
   def move(history, _state, _turn), do: history
 
-  def reject(history, _state, turn) when is_nil(history.start),
-    do: %{history | start: turn, done: turn}
-
-  def reject(history, _state, turn), do: %{history | done: turn}
+  def reject(history, _state, turn) do
+    case history.start do
+      nil -> %{history | start: turn, done: turn}
+      _ -> %{history | done: turn}
+    end
+  end
 
   def block(history, turn), do: toggle_block(history, turn)
   def unblock(history, turn), do: toggle_block(history, turn)
