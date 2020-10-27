@@ -3,7 +3,7 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
   use GamesRoomWeb, :live_view
 
   alias Phoenix.{PubSub, LiveView}
-  alias Changeban.{GameServer, Game}
+  alias Changeban.{GameServer}
 
   # Stats map
   # %{
