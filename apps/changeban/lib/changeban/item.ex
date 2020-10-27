@@ -61,6 +61,11 @@ defmodule Changeban.Item do
     end
   end
 
+  def help_move_right(item, turn) do
+    move_right(item, turn)
+    |> help(turn)
+  end
+
   def reject(%Item{state: state, history: history} = item, turn) do
     new_state = state + 5
     if Item.active?(item) do
@@ -80,6 +85,15 @@ defmodule Changeban.Item do
 
   def unblock(%Item{blocked: true, history: history} = item, turn) do
     %{item | blocked: false, history: ItemHistory.unblock(history, turn) }
+  end
+
+  def help_unblock(item, turn) do
+    unblock(item, turn)
+    |> help(turn)
+  end
+
+  def help(%Item{history: history} = item, turn) do
+    %{item | history: ItemHistory.help(history, turn) }
   end
 
   def owned?(%Item{owner: owner_id}, player_id), do: owner_id == player_id

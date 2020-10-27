@@ -280,9 +280,10 @@ defmodule Changeban.Game do
   def action(:unblock, item, player, turn),
     do: {Item.unblock(item, turn), %{player | state: :done}}
 
+  def action(:hlp_unblk, item, player, turn),
+    do: {Item.help_unblock(item, turn), %{player | state: :done}}
+
   def action(:reject, item, player, turn), do: {Item.reject(item, turn), %{player | state: :done}}
-  def action(:hlp_mv, item, player, turn), do: action(:move, item, player, turn)
-  def action(:hlp_unblk, item, player, turn), do: action(:unblock, item, player, turn)
 
   def action(:start, item, %Player{machine: machine} = player, turn) do
     player_ =
@@ -312,18 +313,23 @@ defmodule Changeban.Game do
 
   def action(:move, item, player, turn) do
     item_ = Item.move_right(item, turn)
+    {item_, move_done(item_, player)}
+  end
 
-    player_ =
-      if Item.complete?(item_) do
-        %{player | past: :completed}
-      else
-        %{player | state: :done}
-      end
-
-    {item_, player_}
+  def action(:hlp_mv, item, player, turn) do
+    item_ = Item.help_move_right(item, turn)
+    {item_, move_done(item_, player)}
   end
 
   def action(act, _, _, _), do: raise("invalid action: #{inspect(act)}")
+
+  def move_done(item, player) do
+    if Item.complete?(item) do
+      %{player | past: :completed}
+    else
+      %{player | state: :done}
+    end
+  end
 
   # WIP Limit Management
   # Valid wip limits:
@@ -389,9 +395,9 @@ defmodule Changeban.Game do
   end
 
   def ages(%Game{items: items}) do
-    Enum.map(items, &(&1.history))
+    Enum.map(items, & &1.history)
     |> Enum.filter(&(!is_nil(&1.done)))
-    |> Enum.map(&(%{x: &1.done, y: ItemHistory.age(&1, 0)}))
+    |> Enum.map(&%{x: &1.done, y: ItemHistory.age(&1, 0)})
   end
 
   def efficency(%Game{items: items}) do
@@ -404,25 +410,34 @@ defmodule Changeban.Game do
     Enum.map(items, fn i -> ItemHistory.block_count(i.history) end) |> Enum.sum()
   end
 
+  def help_count(%Game{items: items}) do
+    Enum.map(items, fn i -> ItemHistory.help_count(i.history) end) |> Enum.sum()
+  end
+
   def stats(%Game{state: state} = game) do
-    stats = if state == :setup do
-      %{
-        turns: [["-", 0, 0, 0, 0, 0, 0, 0, 0, 0]],
-        ticket_ages: [],
-        efficiency: 0,
-        block_count: 0,
-        turn: 0
-      }
-    else
-      %{
-        turns: game.history,
-        ticket_ages: ages(game),
-        efficiency: efficency(game),
-        block_count: block_count(game),
-        turn: game.turn,
-        score: game.score
-      }
-    end
+    stats =
+      if state == :setup do
+        %{
+          turns: [["-", 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+          ticket_ages: [],
+          efficiency: 0,
+          block_count: 0,
+          help_count: 0,
+          turn: 0,
+          score: 0
+        }
+      else
+        %{
+          turns: game.history,
+          ticket_ages: ages(game),
+          efficiency: efficency(game),
+          block_count: block_count(game),
+          help_count: help_count(game),
+          turn: game.turn,
+          score: game.score
+        }
+      end
+
     stats
   end
 end

@@ -1,7 +1,7 @@
 defmodule Changeban.ItemHistory do
   alias Changeban.ItemHistory
 
-  defstruct start: nil, done: nil, blocked: []
+  defstruct start: nil, done: nil, blocked: [], helped: []
 
   def new(), do: %ItemHistory{}
 
@@ -21,24 +21,28 @@ defmodule Changeban.ItemHistory do
   def block(history, turn), do: toggle_block(history, turn)
   def unblock(history, turn), do: toggle_block(history, turn)
 
+  def help(%ItemHistory{helped: helped} = history, turn), do: %{history | helped: [turn | helped]}
+
   def toggle_block(%ItemHistory{blocked: blocked} = history, turn) do
     %{history | blocked: [turn | blocked]}
   end
 
   def blocked_time(%ItemHistory{blocked: blocked}, turn) do
-    if rem(Enum.count(blocked),2) == 1 do
+    if rem(Enum.count(blocked), 2) == 1 do
       [turn | blocked]
     else
       blocked
     end
     |> Enum.chunk_every(2)
     |> Enum.map(fn pair -> List.first(pair) - List.last(pair) end)
-    |> Enum.sum
+    |> Enum.sum()
   end
 
   def block_count(%ItemHistory{blocked: blocked}), do: div(Enum.count(blocked) + 1, 2)
+  def help_count(%ItemHistory{helped: helped}), do: Enum.count(helped)
 
   def age(%ItemHistory{start: start}, _turn) when is_nil(start), do: 0
+
   def age(%ItemHistory{start: start, done: done}, turn) do
     case done do
       nil -> turn - start
@@ -47,9 +51,11 @@ defmodule Changeban.ItemHistory do
   end
 
   def efficency(%ItemHistory{done: done}) when is_nil(done), do: 0
+
   def efficency(%ItemHistory{done: done} = history) do
     age = ItemHistory.age(history, done)
     blocked = ItemHistory.blocked_time(history, done)
+
     case age do
       0 -> 1
       _ -> (age - blocked) / age

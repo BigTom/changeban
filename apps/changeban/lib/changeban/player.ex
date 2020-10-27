@@ -70,8 +70,6 @@ defmodule Changeban.Player do
 
   defstruct id: nil, machine: nil, state: nil, past: nil, options: Map.new, initials: nil, name: nil
 
-  @no_wip_limits %{1 => true, 2 => true, 3 => true}
-
   def new(id, initials) do
      %Player{id: id, options: empty_options(), initials: initials}
   end
@@ -117,7 +115,7 @@ defmodule Changeban.Player do
     move = for %{id: id} = item <- items, Item.can_move?(item, pid, is_wip_open), do: id
     unblock = for %{id: id} = item <- items, Item.can_unblock?(item, pid), do: id
     if Enum.empty?(start) && Enum.empty?(move) && Enum.empty?(unblock) do
-      help_options(items, player, @no_wip_limits)
+      help_options(items, player, is_wip_open)
     else
       %{player | state: :act, options: %{Player.empty_options() | move: move, unblock: unblock, start: start}}
     end
@@ -142,13 +140,13 @@ defmodule Changeban.Player do
 
     case past do
       :blocked -> cond do
-          Enum.empty?(start) -> help_options(items, player, @no_wip_limits)
+          Enum.empty?(start) -> help_options(items, player, is_wip_open)
           :true -> %{player | state: :act, options: %{player.options | start: start}}
         end
       :started ->
         %{player | state: :done, options: Player.empty_options()}
       nil -> cond do
-          Enum.empty?(block) && Enum.empty?(start) -> help_options(items, player, @no_wip_limits)
+          Enum.empty?(block) && Enum.empty?(start) -> help_options(items, player, is_wip_open)
           Enum.empty?(block) -> %{player | state: :act, options: %{player.options | start: start}}
           :true -> %{player | state: :act, options: %{player.options | block: block}}
         end
