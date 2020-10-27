@@ -144,7 +144,8 @@ defmodule GamesRoomWeb.ChangebanJoinLive do
             game have a look at the
             <a class="text-gray-700 underline" href="https://www.agendashift.com/resources/changeban" target="_blank">Changeban</a>
             page, on the Agendashift site.</p>
-          <p>Normally teh game is played twice, once with WIP limits and once without.  Results are compared.</p>
+          <p>Normally the game is played twice, once with WIP limits and once without.  Results are
+            compared and discussed.</p>
 
           <h2>Starting and Joining a Game</h2>
           <p>The first player creates a game with the "New Game" button, supplying their initials.</p>
@@ -194,7 +195,7 @@ defmodule GamesRoomWeb.ChangebanJoinLive do
           <p>You cannot restart a game but you can play as many times as you like, simply start a new game.</p>
 
           <h2>Limiting WIP</h2>
-          <p>The game can be played without WIP limits, with a limit for each column or a consolidated
+          <p>The game can be played without WIP limits, with a limit for each column or a aggregated
             limit across all the in-progress columns.  Simple check the appropriate box when creating a game.</p>
           <p>After you have started a game the six character game name is displayed in the bottom left
             corner.  Pass this on to the players for them to join.</p>
@@ -224,8 +225,8 @@ defmodule GamesRoomWeb.ChangebanJoinLive do
               <label for="std">Column WIP limits</label>
             </div>
             <div class="col-start-3 row-start-3">
-              <input type="radio" id="con" name="wip" value="con">
-              <label for="con">Con WIP Limit</label>
+              <input type="radio" id="agg" name="wip" value="agg">
+              <label for="agg">Aggregate WIP Limits</label>
             </div>
           </div>
         </form>

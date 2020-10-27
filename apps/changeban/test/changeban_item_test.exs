@@ -323,6 +323,64 @@ defmodule ChangebanItemTest do
     refute Item.can_help_unblock?(rejected_item(1), 0), "Rejected items don't count"
   end
 
+  describe "Stats collection" do
+    test "collect ages" do
+      game = ChangebanItemHistoryTest.short_game()
+      assert [%{x: 4, y: 3}, %{x: 5, y: 4}, %{x: 5, y: 3}, %{x: 4, y: 0}] = Item.ages(game.items)
+    end
+
+    test "median age test odd number" do
+      items = [
+        %Changeban.Item{
+          blocked: false,
+          history: %Changeban.ItemHistory{blocked: [], done: 4, helped: [], start: 1},
+          id: 0,
+          owner: 0,
+          state: 4,
+          type: :task
+        },
+        %Changeban.Item{
+          blocked: true,
+          history: %Changeban.ItemHistory{blocked: [5, 4, 2], done: 7, helped: [], start: 1},
+          id: 1,
+          owner: 1,
+          state: 6,
+          type: :change
+        },
+        %Changeban.Item{
+          blocked: false,
+          history: %Changeban.ItemHistory{blocked: [5, 3], done: 7, helped: [6, 5], start: 2},
+          id: 2,
+          owner: 1,
+          state: 4,
+          type: :task
+        }
+      ]
+      assert 5 = Item.median_age(items)
+    end
+    test "median age test even number half value" do
+      items = [
+        %Changeban.Item{
+          blocked: false,
+          history: %Changeban.ItemHistory{blocked: [], done: 4, helped: [], start: 1},
+          id: 0,
+          owner: 0,
+          state: 4,
+          type: :task
+        },
+        %Changeban.Item{
+          blocked: true,
+          history: %Changeban.ItemHistory{blocked: [5, 4, 2], done: 7, helped: [], start: 1},
+          id: 1,
+          owner: 1,
+          state: 6,
+          type: :change
+        },
+      ]
+      assert 4.5 = Item.median_age(items)
+    end
+  end
+
   def new_item(), do: Item.new(@item_id)
 
   def in_progress_item(player),

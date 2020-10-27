@@ -515,16 +515,16 @@ defmodule ChangebanGameTest do
       assert %{1 => false, 2 => false, 3 => true} = Game.wip_limited_states(game)
     end
 
-    test "Con WIP limits integrate with open 2 limit" do
-      game = %{Game.new() | wip_limits: {:con, 2}} |> add_player("X") |> Game.start_game()
+    test "Agg WIP limits integrate with open 2 limit" do
+      game = %{Game.new() | wip_limits: {:agg, 2}} |> add_player("X") |> Game.start_game()
 
       assert %{1 => true, 2 => true, 3 => true} =
                Game.wip_limited_states(Game.exec_action(game, :start, 0, 0))
     end
 
-    test "Con WIP limits integrate with open" do
+    test "Agg WIP limits integrate with open" do
       game =
-        %{Game.new() | wip_limits: {:con, 1}, turns: [:red, :red, :red, :red]}
+        %{Game.new() | wip_limits: {:agg, 1}, turns: [:red, :red, :red, :red]}
         |> add_player("X")
         |> Game.start_game()
 
@@ -637,20 +637,17 @@ defmodule ChangebanGameTest do
   end
 
   describe "Stats collection" do
-    test "collect ages" do
-      game = ChangebanItemHistoryTest.short_game()
-      assert [%{x: 4, y: 3}, %{x: 5, y: 4}, %{x: 5, y: 3}, %{x: 4, y: 0}] = Game.ages(game)
-    end
-
     test "Stats at startup" do
       expected = %{
         turns: [["-", 0, 0, 0, 0, 0, 0, 0, 0, 0]],
         ticket_ages: [],
+        median_age: 0,
         efficiency: 0,
         block_count: 0,
         help_count: 0,
         turn: 0,
-        score: 0
+        score: 0,
+        players: 0
       }
 
       assert ^expected = Game.stats(Game.new())
@@ -695,8 +692,12 @@ defmodule ChangebanGameTest do
 
     test "Helps for shortgame" do
       game = ChangebanItemHistoryTest.short_game_with_blocks_and_helps()
-      IO.puts("HELP STATS #{inspect(Game.stats(game), pretty: true)}")
       assert %{help_count: 2} = Game.stats(game)
+    end
+
+    test "Median age for shortgame" do
+      game = ChangebanItemHistoryTest.short_game_with_blocks_and_helps()
+      assert %{median_age: 4.0} = Game.stats(game)
     end
   end
 

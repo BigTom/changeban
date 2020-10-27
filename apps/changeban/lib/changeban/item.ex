@@ -121,4 +121,45 @@ defmodule Changeban.Item do
   def can_help_unblock?(%Item{owner: owner, blocked: blocked} = item, player_id) do
     Item.in_progress?(item) && owner != player_id && blocked
   end
+
+  # STATS
+
+  def ages(items) do
+    Enum.map(items, & &1.history)
+    |> Enum.filter(&(!is_nil(&1.done)))
+    |> Enum.map(&%{x: &1.done, y: ItemHistory.age(&1, 0)})
+  end
+
+  def efficency(items) do
+    sum = Enum.map(items, fn i -> ItemHistory.efficency(i.history) end) |> Enum.sum()
+    count = Enum.count(items)
+    sum / count
+  end
+
+  def block_count(items) do
+    Enum.map(items, fn i -> ItemHistory.block_count(i.history) end) |> Enum.sum()
+  end
+
+  def help_count(items) do
+    Enum.map(items, fn i -> ItemHistory.help_count(i.history) end) |> Enum.sum()
+  end
+
+  def median_age(items) do
+    ages =
+      Enum.map(items, & &1.history)
+      |> Enum.filter(&(!is_nil(&1.done)))
+      |> Enum.map(&ItemHistory.age(&1, 0))
+      |> Enum.sort
+
+    if Enum.empty?(ages) do
+      0
+    else
+      len = Enum.count(ages)
+      mid = div(len,2)
+      case rem(len, 2) do
+        1 -> Enum.at(ages, mid)
+        0 -> (Enum.at(ages, mid) + Enum.at(ages, mid - 1)) / 2
+      end
+    end
+  end
 end

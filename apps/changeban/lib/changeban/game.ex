@@ -49,7 +49,7 @@ defmodule Changeban.Game do
   # Valid wip limits:
   # {:none, 0} - default
   # {:std, [n,n,n]}
-  # {:con, n}
+  # {:agg, n}
 
   alias Changeban.{Game, Item, ItemHistory, Player}
 
@@ -335,11 +335,11 @@ defmodule Changeban.Game do
   # Valid wip limits:
   # {:none, 0} - default
   # {:std, [n,n,n]}
-  # {:con, n}
+  # {:agg, n}
 
   def set_wip(game, :none, _), do: %{game | wip_limits: {:none, 0}}
   def set_wip(game, :std, limit), do: %{game | wip_limits: {:std, limit}}
-  def set_wip(game, :con, limit), do: %{game | wip_limits: {:con, limit}}
+  def set_wip(game, :agg, limit), do: %{game | wip_limits: {:agg, limit}}
 
   def wip_limited_states(%Game{wip_limits: {:none, _}}), do: @no_wip_limits
 
@@ -350,7 +350,7 @@ defmodule Changeban.Game do
   end
 
   # conwip stops you starting
-  def wip_limited_states(%Game{items: items, wip_limits: {:con, limit}}) do
+  def wip_limited_states(%Game{items: items, wip_limits: {:agg, limit}}) do
     c = Enum.map([1, 2, 3], &item_count_for_state(items, &1)) |> Enum.sum()
 
     cond do
@@ -394,47 +394,52 @@ defmodule Changeban.Game do
     %{game | history: new_state_history}
   end
 
-  def ages(%Game{items: items}) do
+  def ages(items) do
     Enum.map(items, & &1.history)
     |> Enum.filter(&(!is_nil(&1.done)))
     |> Enum.map(&%{x: &1.done, y: ItemHistory.age(&1, 0)})
   end
 
-  def efficency(%Game{items: items}) do
+  def efficency(items) do
     sum = Enum.map(items, fn i -> ItemHistory.efficency(i.history) end) |> Enum.sum()
     count = Enum.count(items)
     sum / count
   end
 
-  def block_count(%Game{items: items}) do
+  def block_count(items) do
     Enum.map(items, fn i -> ItemHistory.block_count(i.history) end) |> Enum.sum()
   end
 
-  def help_count(%Game{items: items}) do
+  def help_count(items) do
     Enum.map(items, fn i -> ItemHistory.help_count(i.history) end) |> Enum.sum()
   end
 
-  def stats(%Game{state: state} = game) do
+  def stats(%Game{state: state, items: items, players: players} = game) do
     stats =
       if state == :setup do
         %{
           turns: [["-", 0, 0, 0, 0, 0, 0, 0, 0, 0]],
           ticket_ages: [],
+          median_age: 0,
           efficiency: 0,
           block_count: 0,
           help_count: 0,
           turn: 0,
-          score: 0
+          score: 0,
+          players: Enum.count(players)
         }
       else
         %{
           turns: game.history,
-          ticket_ages: ages(game),
-          efficiency: efficency(game),
-          block_count: block_count(game),
-          help_count: help_count(game),
+          ticket_ages: Item.ages(items),
+          efficiency: Item.efficency(items),
+          median_age: Item.median_age(items),
+          block_count: Item.block_count(items),
+          help_count: Item.help_count(items),
           turn: game.turn,
-          score: game.score
+          score: game.score,
+          players: Enum.count(players),
+          wip_limits: game.wip_limits
         }
       end
 

@@ -3,7 +3,7 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
   use GamesRoomWeb, :live_view
 
   alias Phoenix.{PubSub, LiveView}
-  alias Changeban.{GameServer}
+  alias Changeban.{GameServer, Game}
 
   # Stats map
   # %{
@@ -68,11 +68,24 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
     }
   end
 
+  defp wip_type({type, size}) do
+    case type do
+      :none -> "No WIP Limits"
+      :std -> "Column WIP limit of #{size}"
+      :agg -> "Aggregate WIP limit of #{size}"
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~L"""
       <div class="flex flex-col">
-        <div class="text-center text-2xl mt-4">Statistics for game: <%= @game_name %></div>
+        <div class="text-center text-xl flex justify-around mt-4 border-2">
+          <div class="w-1/4 m-2 border-2">Game name: <%= @game_name %></div>
+          <div class="w-1/4 m-2 border-2">Player count: <%= @game_stats.players %></div>
+          <div class="w-1/4 m-2 border-2"><%= wip_type(@game_stats.wip_limits) %></div>
+        </div>
+
         <div class="flex mt-4 text-xl text-center border-2">
           <div class="w-1/2 relative ">
             <p>Culmulative Flow</p>
@@ -89,22 +102,30 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
           </div>
         </div>
         <div class="text-center text-xl flex justify-around mt-4 border-2">
-          <div class="w-1/6 m-2 border-2">
+          <div class="w-1/12 m-2 border-2">
             <p>Turns</p>
             <p class="font-black"><%= @game_stats.turn %></p>
           </div>
-          <div class="w-1/6 m-2 border-2">
+          <div class="w-1/12 m-2 border-2">
             <p>Score</p>
             <p class="font-black"><%= @game_stats.score %></p>
           </div>
-          <div class="w-1/6 m-2 border-2">
+          <div class="w-1/12 m-2 border-2">
             <p>Blocked count</p>
             <p class="font-black"><%= @game_stats.block_count %></p>
           </div>
-          <div class="w-1/6 m-2 border-2">
-            <p>Flow Efficiency</p>
-            <p class="font-black"><%= render_percent(@game_stats.efficiency) %></p>
+          <div class="w-1/12 m-2 border-2">
+            <p>Helped count</p>
+            <p class="font-black"><%= @game_stats.help_count %></p>
           </div>
+          <div class="w-1/12 m-2 border-2">
+            <p>Median Age</p>
+            <p class="font-black"><%= @game_stats.median_age %></p>
+          </div>
+          <div class="w-1/12 m-2 border-2">
+          <p>Flow Efficiency</p>
+          <p class="font-black"><%= render_percent(@game_stats.efficiency) %></p>
+        </div>
         </div>
       </div>
     """

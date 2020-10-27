@@ -699,7 +699,7 @@ defmodule GamesRoomWeb.ChangebanLive do
       <p>In progress</p>
       <div class="grid place-items-center">
         <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items, [1,2,3]) %></div>
-        <%= if is_wip_type?(@wip_limits, :con) do %>
+        <%= if is_wip_type?(@wip_limits, :agg) do %>
           <div class="col-start-2 row-start-1">Limit: <%= wip_limit(@wip_limits) %></div>
         <% end %>
       </div>
