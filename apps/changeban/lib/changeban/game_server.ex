@@ -154,13 +154,31 @@ defmodule Changeban.GameServer do
 
   def terminate(_reason, _game), do: :ok
 
+  # def view_game(game) do
+  #   {Enum.group_by(game.items, &(&1.state)),
+  #    game.players,
+  #    game.turn,
+  #    game.score,
+  #    game.state,
+  #    game.wip_limits}
+  # end
+
   def view_game(game) do
-    {Enum.group_by(game.items, &(&1.state)),
+    {collate_items(game.items),
      game.players,
      game.turn,
      game.score,
      game.state,
      game.wip_limits}
+  end
+
+  defp collate_items(items) do
+    new_items = items
+    |> Enum.group_by(&(&1.state))
+    |> Enum.map(fn {state, items} -> {state, Enum.sort(items, &(&1.moved <= &2.moved))} end )
+    |> Enum.into(%{})
+    IO.puts("\n\n new items #{inspect new_items, pretty: true}")
+    new_items
   end
 
   defp my_game_name do

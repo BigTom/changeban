@@ -45,9 +45,16 @@ module.exports = {
         '10': '10',
         '11': '11'
       }
-
-  }
-
+    },
+    keyframes: {
+      arrive: {
+        '0%, 100%': { transform: 'rotate(-15deg)' },
+        '50%': { transform: 'rotate(15deg)' },
+      }
+    },
+    animation: {
+      arrive: 'arrive 1s ease-in-out'
+    }
   },
   variants: {},
   plugins: [

@@ -621,25 +621,35 @@ defmodule GamesRoomWeb.ChangebanLive do
   def card_scheme(%{type: :task, action: nil}), do: "bg-green-300 border-green-500 text-gray-500"
   def card_scheme(%{type: :task, action: _}), do: "bg-green-500 border-green-800"
 
-  def card_scheme(%{type: :change, action: nil}),
-    do: "bg-yellow-300 border-yellow-500 text-gray-500"
-
+  def card_scheme(%{type: :change, action: nil}), do: "bg-yellow-300 border-yellow-500 text-gray-500"
   def card_scheme(%{type: :change, action: _}), do: "bg-yellow-300 border-yellow-800"
+
+  def block_scheme(nil), do: "bg-red-300"
+  def block_scheme(_), do: "bg-red-500"
 
   def render_item_body(assigns) do
     ~L"""
-      <div class="text-sm flex flex-col ml-1 font-bold">
-        <%= @initials %>
+      <div class="flex flex-col ml-1">
+        <div class="text-sm font-bold"><%= @initials %></div>
       </div>
-      <div class="text-xs flex flex-col flex-col-reverse mr-1">
-        <%= if @blocked do %>B<% end %>
+      <div class="w-4 flex flex-col">
+        <div class="text-xs"><%= @id %></div>
+        <%= if @blocked do %>
+          <div class="transform rotate-45 font-black
+                      animate-arrive
+                      <%= block_scheme(@action) %> text-xs px-1">
+           B
+          </div>
+        <% end %>
       </div>
     """
   end
 
   def render_active_item(%{action: action} = assigns) when is_nil(action) do
     ~L"""
-      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %> w-16 h-10 m-1">
+      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %>
+                  animate-arrive
+                  w-16 h-10 m-1">
         <%= render_item_body(assigns) %>
       </div>
     """
@@ -647,8 +657,11 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   def render_active_item(%{action: action} = assigns) do
     ~L"""
-      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %> w-16 h-10 m-1
-                  hover:shadow-outline"
+      <div class="cursor-pointer flex justify-between border-2
+                  <%= card_scheme(%{type: @type, action: @action}) %>
+                  w-16 h-10 m-1
+                  animate-arrive
+                  hover:shadow-xl transform hover:-translate-y-px hover:-translate-x-px"
           phx-click="move"
           phx-value-type="<%= action %>"
           phx-value-id="<%= @id %>">
@@ -677,7 +690,9 @@ defmodule GamesRoomWeb.ChangebanLive do
     ~L"""
     <div class="flex flex-wrap">
       <%= for item <- Map.get(assigns.items, state_id, []) do %>
-        <div class="border-2 <%= card_scheme(%{type: item.type, action: nil}) %> w-5 h-8 mt-1 ml-1"></div>
+        <div class="border-2 <%= card_scheme(%{type: item.type, action: nil}) %>
+                    animate-arrive
+                    w-5 h-8 mt-1 ml-1"></div>
       <% end %>
     </div>
     """

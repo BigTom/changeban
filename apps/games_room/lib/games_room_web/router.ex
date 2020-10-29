@@ -19,6 +19,8 @@ defmodule GamesRoomWeb.Router do
   scope "/", GamesRoomWeb do
     pipe_through :browser
 
+    get "/new_stats", StatsController, :stats
+
     live "/", ChangebanJoinLive, :index
     live "/join", ChangebanJoinLive, :index
     live "/stats/:game_name", ChangebanStatsLive, :index
@@ -28,8 +30,6 @@ defmodule GamesRoomWeb.Router do
 
   scope "/api", GamesRoomWeb do
     pipe_through :api
-
-    post "/session", SessionController, :set
   end
 
   # Other scopes may use custom stacks.

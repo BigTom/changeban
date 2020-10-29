@@ -27,7 +27,7 @@ defmodule Changeban.Item do
 
   alias Changeban.{Item, ItemHistory}
 
-  defstruct type: :task, id: 0, state: 0, owner: nil, blocked: false, history: %ItemHistory{}
+  defstruct type: :task, id: 0, state: 0, owner: nil, blocked: false, moved: 0, history: %ItemHistory{}
 
   def new(id) do
     if (rem(id, 2) == 0) do
@@ -47,7 +47,7 @@ defmodule Changeban.Item do
   def finished?(item), do: complete?(item) || rejected?(item)
 
   def start(%Item{state: 0, history: history} = item, owner, turn) do
-    %{item | state: 1, owner: owner, history: ItemHistory.start(history, turn)}
+    %{item | moved: turn, state: 1, owner: owner, history: ItemHistory.start(history, turn)}
   end
 
   def start(%Item{}, _owner, _turn), do: raise "Trying to start a started item"
@@ -55,7 +55,7 @@ defmodule Changeban.Item do
   def move_right(%Item{history: history} = item, turn) do
     new_state = item.state + 1
     if active?(item) do
-      %{item | state: new_state, history: ItemHistory.move(history, new_state, turn)}
+      %{item | state: new_state, moved: turn, history: ItemHistory.move(history, new_state, turn)}
     else
       raise "Trying to move a completed item"
     end
@@ -69,7 +69,7 @@ defmodule Changeban.Item do
   def reject(%Item{state: state, history: history} = item, turn) do
     new_state = state + 5
     if Item.active?(item) do
-      %{item | state: new_state, history: ItemHistory.reject(history, new_state, turn)}
+      %{item | moved: turn, state: new_state, history: ItemHistory.reject(history, new_state, turn)}
     else
       raise "Trying to reject a completed item"
     end

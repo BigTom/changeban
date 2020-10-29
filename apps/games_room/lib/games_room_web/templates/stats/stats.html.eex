@@ -1,0 +1,4 @@
+<section>
+  <h1>Stats Page</h1>
+  <p>Initial <%= @name %></p>
+</section>
