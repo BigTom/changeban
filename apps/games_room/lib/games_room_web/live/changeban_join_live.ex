@@ -156,7 +156,7 @@ defmodule GamesRoomWeb.ChangebanJoinLive do
               watch it play."</p>
 
           <h2>Playing a Game</h2>
-          <p>In this online version you will see what type of turn you have and what you can do.  The game will
+          <p>In this online version you will see what type of day you have and what you can do.  The game will
           not allow you to make an invalid move.  Simply look at the bold tickets and pick one.  Clicking
           on it will make the move.</p>
           <p>When played in person randomness is introduced for play by each player drawing a card,
@@ -178,7 +178,7 @@ defmodule GamesRoomWeb.ChangebanJoinLive do
               player’s item.</li>
 
           <h3>Rejecting Items</h3>
-          <p>Whether you are playing a red or black turn whenever you accept an item, reject another,
+          <p>Whether you are playing a red or black day whenever you accept an item, reject another,
             chosen by the whole team</p>
 
           <h2>Scoring</h2>

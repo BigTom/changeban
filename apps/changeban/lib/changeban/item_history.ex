@@ -5,31 +5,31 @@ defmodule Changeban.ItemHistory do
 
   def new(), do: %ItemHistory{}
 
-  def start(history, turn), do: %{history | start: turn}
+  def start(history, day), do: %{history | start: day}
 
   # move has a special case when it completes
-  def move(history, state, turn) when state >= 4, do: %{history | done: turn}
+  def move(history, state, day) when state >= 4, do: %{history | done: day}
   def move(history, _state, _turn), do: history
 
-  def reject(history, _state, turn) do
+  def reject(history, _state, day) do
     case history.start do
-      nil -> %{history | start: turn, done: turn}
-      _ -> %{history | done: turn}
+      nil -> %{history | start: day, done: day}
+      _ -> %{history | done: day}
     end
   end
 
-  def block(history, turn), do: toggle_block(history, turn)
-  def unblock(history, turn), do: toggle_block(history, turn)
+  def block(history, day), do: toggle_block(history, day)
+  def unblock(history, day), do: toggle_block(history, day)
 
-  def help(%ItemHistory{helped: helped} = history, turn), do: %{history | helped: [turn | helped]}
+  def help(%ItemHistory{helped: helped} = history, day), do: %{history | helped: [day | helped]}
 
-  def toggle_block(%ItemHistory{blocked: blocked} = history, turn) do
-    %{history | blocked: [turn | blocked]}
+  def toggle_block(%ItemHistory{blocked: blocked} = history, day) do
+    %{history | blocked: [day | blocked]}
   end
 
-  def blocked_time(%ItemHistory{blocked: blocked}, turn) do
+  def blocked_time(%ItemHistory{blocked: blocked}, day) do
     if rem(Enum.count(blocked), 2) == 1 do
-      [turn | blocked]
+      [day | blocked]
     else
       blocked
     end
@@ -43,9 +43,9 @@ defmodule Changeban.ItemHistory do
 
   def age(%ItemHistory{start: start}, _turn) when is_nil(start), do: 0
 
-  def age(%ItemHistory{start: start, done: done}, turn) do
+  def age(%ItemHistory{start: start, done: done}, day) do
     case done do
-      nil -> turn - start
+      nil -> day - start
       _ -> done - start
     end
   end

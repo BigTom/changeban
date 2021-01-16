@@ -21,7 +21,7 @@ defmodule Changeban.Item do
 
   future - track history of game
     moves        - the list of :red and :black moves
-    turn         - current turn number
+    day         - current day number
     blocked list - history blocked status
   """
 
@@ -46,54 +46,54 @@ defmodule Changeban.Item do
   def active?(item), do: in_agree_urgency?(item) || in_progress?(item)
   def finished?(item), do: complete?(item) || rejected?(item)
 
-  def start(%Item{state: 0, history: history} = item, owner, turn) do
-    %{item | moved: turn, state: 1, owner: owner, history: ItemHistory.start(history, turn)}
+  def start(%Item{state: 0, history: history} = item, owner, day) do
+    %{item | moved: day, state: 1, owner: owner, history: ItemHistory.start(history, day)}
   end
 
   def start(%Item{}, _owner, _turn), do: raise "Trying to start a started item"
 
-  def move_right(%Item{history: history} = item, turn) do
+  def move_right(%Item{history: history} = item, day) do
     new_state = item.state + 1
     if active?(item) do
-      %{item | state: new_state, moved: turn, history: ItemHistory.move(history, new_state, turn)}
+      %{item | state: new_state, moved: day, history: ItemHistory.move(history, new_state, day)}
     else
       raise "Trying to move a completed item"
     end
   end
 
-  def help_move_right(item, turn) do
-    move_right(item, turn)
-    |> help(turn)
+  def help_move_right(item, day) do
+    move_right(item, day)
+    |> help(day)
   end
 
-  def reject(%Item{state: state, history: history} = item, turn) do
+  def reject(%Item{state: state, history: history} = item, day) do
     new_state = state + 5
     if Item.active?(item) do
-      %{item | moved: turn, state: new_state, history: ItemHistory.reject(history, new_state, turn)}
+      %{item | moved: day, state: new_state, history: ItemHistory.reject(history, new_state, day)}
     else
       raise "Trying to reject a completed item"
     end
   end
 
-  def block(%Item{blocked: false, history: history} = item, player_id, turn) do
+  def block(%Item{blocked: false, history: history} = item, player_id, day) do
     if in_progress?(item) && item.owner == player_id do
-      %{item | blocked: true, history: ItemHistory.block(history, turn) }
+      %{item | blocked: true, history: ItemHistory.block(history, day) }
     else
       raise "Player #{player_id} cannot block #{inspect(item)} "
     end
   end
 
-  def unblock(%Item{blocked: true, history: history} = item, turn) do
-    %{item | blocked: false, history: ItemHistory.unblock(history, turn) }
+  def unblock(%Item{blocked: true, history: history} = item, day) do
+    %{item | blocked: false, history: ItemHistory.unblock(history, day) }
   end
 
-  def help_unblock(item, turn) do
-    unblock(item, turn)
-    |> help(turn)
+  def help_unblock(item, day) do
+    unblock(item, day)
+    |> help(day)
   end
 
-  def help(%Item{history: history} = item, turn) do
-    %{item | history: ItemHistory.help(history, turn) }
+  def help(%Item{history: history} = item, day) do
+    %{item | history: ItemHistory.help(history, day) }
   end
 
   def owned?(%Item{owner: owner_id}, player_id), do: owner_id == player_id

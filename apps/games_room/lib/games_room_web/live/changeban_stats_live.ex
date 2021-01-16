@@ -11,7 +11,7 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
   #   ticket_ages: [],
   #   efficiency: 0,
   #   block_count: 0,
-  #   turn: 0
+  #   day: 0
   # }
 
   @impl true
@@ -59,7 +59,7 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
   end
 
   defp generate_charts(stats) do
-    turn_ticks = Enum.map(0..stats.turn, &Integer.to_string/1)
+    turn_ticks = Enum.map(0..stats.day, &Integer.to_string/1)
     points = convert_to_state_sequences(stats.turns)
 
     %{
@@ -104,7 +104,7 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
         <div class="text-center text-xl flex justify-around mt-4 border-2">
           <div class="w-1/12 m-2 border-2">
             <p>Turns</p>
-            <p class="font-black"><%= @game_stats.turn %></p>
+            <p class="font-black"><%= @game_stats.day %></p>
           </div>
           <div class="w-1/12 m-2 border-2">
             <p>Score</p>
@@ -138,8 +138,8 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
       for state_id <- 9..1,
           do:
             for(
-              turn <- 0..(Enum.count(history) - 1),
-              do: Enum.at(history, turn) |> Enum.at(state_id)
+              day <- 0..(Enum.count(history) - 1),
+              do: Enum.at(history, day) |> Enum.at(state_id)
             )
 
     {active, d} = Enum.split(flipped, 4)

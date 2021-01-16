@@ -157,7 +157,7 @@ defmodule Changeban.GameServer do
   # def view_game(game) do
   #   {Enum.group_by(game.items, &(&1.state)),
   #    game.players,
-  #    game.turn,
+  #    game.day,
   #    game.score,
   #    game.state,
   #    game.wip_limits}
@@ -166,7 +166,7 @@ defmodule Changeban.GameServer do
   def view_game(game) do
     {collate_items(game.items),
      game.players,
-     game.turn,
+     game.day,
      game.score,
      game.state,
      game.wip_limits}

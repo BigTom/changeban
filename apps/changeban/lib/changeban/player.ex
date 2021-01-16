@@ -1,6 +1,6 @@
 defmodule Changeban.Player do
   @moduledoc """
-    Tracks players information and turn state
+    Tracks players information and day state
 
     :id must be an integer from 0-4 for an active player
     :machine must be :red, :black or :help
@@ -61,7 +61,7 @@ defmodule Changeban.Player do
     :help    *calc     :done      other 0 start|move|unblock   game is probably over
     :done    *calc     :done      -
 
-    at start of turn is calculated as :red or :black
+    at start of day is calculated as :red or :black
     if :red, after moving state goes to done (unless move was accept)
     if :black, both block and start
 
@@ -96,7 +96,7 @@ defmodule Changeban.Player do
   end
 
   @doc"""
-  Identifies the possible actions for a player on a "red" turn.any()
+  Identifies the possible actions for a player on a "red" day.any()
 
   Returns:
   %Player{machine: :red, state: :done, :past _, options: Map.new}

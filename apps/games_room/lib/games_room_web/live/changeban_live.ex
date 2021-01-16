@@ -61,7 +61,7 @@ defmodule GamesRoomWeb.ChangebanLive do
           )
 
         true ->
-          {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
+          {items, players, day, score, state, wip_limits} = GameServer.view(game_name)
 
           PubSub.subscribe(GamesRoom.PubSub, game_name)
 
@@ -75,7 +75,7 @@ defmodule GamesRoomWeb.ChangebanLive do
               game_name: game_name,
               items: items,
               players: players,
-              turn: turn,
+              day: day,
               score: score,
               state: state,
               wip_limits: wip_limits,
@@ -104,7 +104,7 @@ defmodule GamesRoomWeb.ChangebanLive do
       redirect_to_join(socket, msg)
     else
 
-      {items, players, turn, score, state, wip_limits} = GameServer.view(game_name)
+      {items, players, day, score, state, wip_limits} = GameServer.view(game_name)
 
       PubSub.subscribe(GamesRoom.PubSub, game_name)
 
@@ -113,7 +113,7 @@ defmodule GamesRoomWeb.ChangebanLive do
         game_name: game_name,
         items: items,
         players: players,
-        turn: turn,
+        day: day,
         score: score,
         state: state,
         wip_limits: wip_limits,
@@ -207,7 +207,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   defp prep_assigns(socket) do
-    {items, players, turn, score, state, wip_limits} = GameServer.view(socket.assigns.game_name)
+    {items, players, day, score, state, wip_limits} = GameServer.view(socket.assigns.game_name)
 
     player =
       if socket.assigns.player_id do
@@ -221,14 +221,14 @@ defmodule GamesRoomWeb.ChangebanLive do
         items: items,
         players: players,
         player: player,
-        turn: turn,
+        day: day,
         score: score,
         state: state,
         wip_limits: wip_limits,
         present: Presence.list(socket.assigns.game_name) |> map_size
       )
 
-    Logger.debug("ASSIGNS: name: #{inspect(new_socket.assigns.username)} game_name: #{inspect(new_socket.assigns.game_name)} present: #{inspect(new_socket.assigns.present)} turn: #{inspect(new_socket.assigns.turn)} game_state: #{inspect(new_socket.assigns.state)} wip_limits: #{inspect(new_socket.assigns.wip_limits)}")
+    Logger.debug("ASSIGNS: name: #{inspect(new_socket.assigns.username)} game_name: #{inspect(new_socket.assigns.game_name)} present: #{inspect(new_socket.assigns.present)} day: #{inspect(new_socket.assigns.day)} game_state: #{inspect(new_socket.assigns.state)} wip_limits: #{inspect(new_socket.assigns.wip_limits)}")
 
     if not is_nil(new_socket.assigns.player) do
       Logger.debug("PLAYER_ASSIGNS name: #{inspect(new_socket.assigns.username)} turn_type: #{inspect(new_socket.assigns.player.machine)} state: #{inspect(new_socket.assigns.player.state)} past: #{inspect(new_socket.assigns.player.past)} options: #{inspect(new_socket.assigns.player.options)}")
@@ -257,7 +257,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     <div class="relative">
     <div class="z-20">
     <div class="flex justify-between pt-4 h-32">
-      <%= render_turn_display(%{turn: @turn, player: @player}) %>
+      <%= render_turn_display(%{day: @day, player: @player}) %>
       <%= render_other_player_state(%{assigns | players: half_players(@players, 0)}) %>
       <%= render_state_instructions(assigns) %>
       <%= render_other_player_state(%{assigns | players: half_players(@players, 1)}) %>
@@ -472,16 +472,16 @@ defmodule GamesRoomWeb.ChangebanLive do
     """
   end
 
-  def render_turn_display(%{player: player, turn: turn}) do
+  def render_turn_display(%{player: player, day: day}) do
     cond do
-      player == nil || turn == 0 || player.state == :done ->
-        render_non_turn_display(%{colour: "gray-400", nr: turn})
+      player == nil || day == 0 || player.state == :done ->
+        render_non_turn_display(%{colour: "gray-400", nr: day})
 
       player.machine == :red ->
-        render_red_turn_display(%{colour: "red-700", nr: turn})
+        render_red_turn_display(%{colour: "red-700", nr: day})
 
       true ->
-        render_black_turn_display(%{colour: "black", nr: turn})
+        render_black_turn_display(%{colour: "black", nr: day})
     end
   end
 
@@ -493,7 +493,7 @@ defmodule GamesRoomWeb.ChangebanLive do
         <div class="w-1/4 flex flex-col">
         </div>
         <div class="w-2/4 flex flex-col justify-center">
-          <div class="text-center text-gray-400 text-2xl">Turn:</div>
+          <div class="text-center text-gray-400 text-2xl">Day:</div>
           <div class="text-center text-gray-400 text-2xl"><%= to_string(@nr) %></div>
         </div>
         <div class="w-1/4 flex flex-col flex-col-reverse">
@@ -511,7 +511,7 @@ defmodule GamesRoomWeb.ChangebanLive do
           <img class="p-1 object-contain" src="<%= image("black_spade.svg") %>" alt="black spade">
         </div>
         <div class="w-2/4 flex flex-col justify-center">
-          <div class="text-center text-black text-2xl">Turn:</div>
+          <div class="text-center text-black text-2xl">Day:</div>
           <div class="text-center text-black text-2xl"><%= to_string(@nr) %></div>
         </div>
         <div class="w-1/4 flex flex-col">
@@ -530,7 +530,7 @@ defmodule GamesRoomWeb.ChangebanLive do
           <img class="p-1 object-contain" src="<%= image("red_diamond.svg") %>" alt="red diamond">
         </div>
         <div class="w-2/4 flex flex-col justify-center">
-          <div class="text-center text-red-700 text-2xl">Turn:</div>
+          <div class="text-center text-red-700 text-2xl">Day:</div>
           <div class="text-center text-red-700 text-2xl"><%= to_string(@nr) %></div>
         </div>
         <div class="w-1/4 flex flex-col flex-col-reverse">

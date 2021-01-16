@@ -12,7 +12,7 @@
     1. Group discusses
     1. Make moves
     1. Team chooses (if available)
-    1. competing all moves activates new turn
+    1. competing all moves activates new day
 
 ##  Objective
 Players move the items across the board to "accepted" column.
@@ -32,23 +32,23 @@ Setup
 Each player is issued a move type (RED or BLACK)
 
 #### RED
-- You MUST MOVE:   
-  - EITHER:  
+- You MUST MOVE:
+  - EITHER:
       move ONE of your unblocked items ONE column right
-  - OR:  
+  - OR:
     unblock ONE of your blocked items
-  - OR:  
+  - OR:
     start ONE new item (if any remain)
 
 #### BLACK
   - YOU MUST BOTH:
-    - BLOCK:  
+    - BLOCK:
       block ONE unblocked item, if you own one
-    - AND MOVE:  
+    - AND MOVE:
       start ONE new item (if any remain)
 
-#### BOTH 
-  If you cannot MOVE, HELP someone!  
+#### BOTH
+  If you cannot MOVE, HELP someone!
   Advance or unblock ONE item from another player
 
 #### BOTH

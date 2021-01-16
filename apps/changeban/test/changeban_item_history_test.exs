@@ -90,7 +90,7 @@ defmodule ChangebanItemHistoryTest do
       assert %ItemHistory{blocked: [2]} = history
     end
 
-    test "unblock Item in same turn" do
+    test "unblock Item in same day" do
       history =
         ItemHistory.new()
         |> ItemHistory.start(1)
@@ -100,7 +100,7 @@ defmodule ChangebanItemHistoryTest do
       assert %ItemHistory{blocked: [2, 2]} = history
     end
 
-    test "unblock Item in different turn" do
+    test "unblock Item in different day" do
       history =
         ItemHistory.new()
         |> ItemHistory.start(1)
@@ -113,17 +113,17 @@ defmodule ChangebanItemHistoryTest do
 
   describe "Item and ItemHistory integration" do
     test "Start Item" do
-      turn = 1
-      item = Item.new(0) |> Item.start(  @owner_0, turn)
+      day = 1
+      item = Item.new(0) |> Item.start(  @owner_0, day)
 
-      assert %ItemHistory{start: ^turn} = item.history
+      assert %ItemHistory{start: ^day} = item.history
     end
 
     test "Reject new Item" do
-      turn = 1
-      item = Item.new(0) |> Item.reject(turn)
+      day = 1
+      item = Item.new(0) |> Item.reject(day)
 
-      assert %ItemHistory{start: ^turn, done: ^turn} = item.history
+      assert %ItemHistory{start: ^day, done: ^day} = item.history
     end
   end
 
@@ -139,7 +139,7 @@ defmodule ChangebanItemHistoryTest do
     end
 
 
-    test "started ticket has age from start to turn" do
+    test "started ticket has age from start to day" do
       item = Item.new(0) |> Item.start(  @owner_0, 3)
       assert 5 = ItemHistory.age(item.history, 8)
     end
@@ -165,11 +165,11 @@ defmodule ChangebanItemHistoryTest do
       item = Item.new(0) |> Item.start(  @owner_0, 3)
       assert 0 = ItemHistory.blocked_time(item.history, 8)
     end
-    test "started & blocked ticket is blocked to current turn" do
+    test "started & blocked ticket is blocked to current day" do
       item = Item.new(0) |> Item.start(  @owner_0, 3) |> Item.block(  @owner_0, 5)
       assert 3 = ItemHistory.blocked_time(item.history, 8)
     end
-    test "started & blocked one same turn ticket has no blocked time" do
+    test "started & blocked one same day ticket has no blocked time" do
       item = Item.new(0) |> Item.start(  @owner_0, 3) |> Item.block(  @owner_0, 5) |> Item.unblock(5)
       assert 0 = ItemHistory.blocked_time(item.history, 8)
     end
@@ -211,7 +211,7 @@ defmodule ChangebanItemHistoryTest do
       assert 1.0 = ItemHistory.efficency(item.history)
     end
 
-    test "blocked & unblocked on same turn leaves 100% efficiency" do
+    test "blocked & unblocked on same day leaves 100% efficiency" do
       item =
           Item.new(0)
           |> Item.start(1, 1)
@@ -319,20 +319,20 @@ defmodule ChangebanItemHistoryTest do
     |> add_player("A")
     |> add_player("B")
     |> Game.start_game()
-    # history at turn 0
+    # history at day 0
     |> Game.exec_action(:start, 0, 0)
     |> Game.exec_action(:start, 1, 1)
-    # history at turn 1
+    # history at day 1
     |> Game.exec_action(:move, 0, 0)
     |> Game.exec_action(:start, 2, 1)
-    # history at turn 2
+    # history at day 2
     |> Game.exec_action(:move, 0, 0)
     |> Game.exec_action(:move, 1, 1)
-    # history at turn 3
+    # history at day 3
     |> Game.exec_action(:move, 0, 0)
     |> Game.exec_action(:reject, 3, 0)
     |> Game.exec_action(:move, 1, 1)
-    # history at turn 4
+    # history at day 4
     |> Game.exec_action(:move, 1, 1)
     |> Game.exec_action(:reject, 2, 1)
   end
@@ -345,25 +345,25 @@ defmodule ChangebanItemHistoryTest do
     |> add_player("A")
     |> add_player("B")
     |> Game.start_game()
-    # history at turn 0
+    # history at day 0
     |> Game.exec_action(:start, 0, 0)    # 1
     |> Game.exec_action(:start, 1, 1)    # 1
-    # history at turn 1
+    # history at day 1
     |> Game.exec_action(:block, 0, 0)    # 1
     |> Game.exec_action(:block, 1, 1)    # 1
     |> Game.exec_action(:start, 2, 0)    # 1
     |> Game.exec_action(:start, 3, 1)    # 1
-    # history at turn 2
+    # history at day 2
     |> Game.exec_action(:move, 2, 0)     # 2
     |> Game.exec_action(:unblock, 1, 1)  # 1
-    # history at turn 3
+    # history at day 3
     |> Game.exec_action(:move, 2, 0)     # 3
     |> Game.exec_action(:move, 1, 1)     # 2
-    # history at turn 4
+    # history at day 4
     |> Game.exec_action(:move, 2, 0)     # 4 *
     |> Game.exec_action(:reject, 0, 0)   # 5 *
     |> Game.exec_action(:move, 1, 1)     # 3
-    # history at turn 5
+    # history at day 5
     |> Game.exec_action(:move, 1, 1)     # 4 *
     |> Game.exec_action(:reject, 3, 1)   # 5 *
   end
@@ -383,31 +383,31 @@ defmodule ChangebanItemHistoryTest do
     |> add_player("A")
     |> add_player("B")
     |> Game.start_game()
-    # history at turn 0
+    # history at day 0
     |> Game.exec_action(:start, 0, @owner_0)     # 1
     |> Game.exec_action(:start, 1, @owner_1)     # 1
-    # history at turn 1
+    # history at day 1
     |> Game.exec_action(:move, 0, @owner_0)      # 2
     |> Game.exec_action(:block, 1, @owner_1)     # 1
     |> Game.exec_action(:start, 2, @owner_1)     # 1
-    # history at turn 2
+    # history at day 2
     |> Game.exec_action(:move, 0, @owner_0)      # 3
     |> Game.exec_action(:block, 2, @owner_1)     # 1
     |> Game.exec_action(:start, 3, @owner_1)     # 1
-    # history at turn 3
+    # history at day 3
     |> Game.exec_action(:move, 0, @owner_0)      # 4
     |> Game.exec_action(:reject, 3, @owner_0)    # 5 *
     |> Game.exec_action(:unblock, 1, @owner_1)   # 1
-    # history at turn 4
+    # history at day 4
     |> Game.exec_action(:hlp_unblk, 2, @owner_0) # 1
     |> Game.exec_action(:block, 1, @owner_1)     # 1
-    # history at turn 5
+    # history at day 5
     |> Game.exec_action(:hlp_mv, 2, @owner_0)    # 2
     |> Game.exec_action(:move, 2, @owner_1)      # 3
-    # history at turn 6
+    # history at day 6
     |> Game.exec_action(:move, 2, @owner_1)      # 4
     |> Game.exec_action(:reject, 1, @owner_1)    # 5 *
-    # history at turn 7
+    # history at day 7
   end
 
   def endstate_small_game() do
@@ -501,7 +501,7 @@ defmodule ChangebanItemHistoryTest do
       ],
       score: 5,
       state: :done,
-      turn: 4,
+      day: 4,
       turns: [:red, :red, :red, :red, :red, :red, :red, :red, :red, :red, :red, :red],
       wip_limits: {:none, 0}
     }
@@ -522,13 +522,13 @@ defmodule ChangebanItemHistoryTest do
   |> add_player("B")
   |> Game.start_game()
   history_track = [Game.stats(game) | history_track]
-  # history at turn 0
+  # history at day 0
   game =
     game
   |> Game.exec_action(:start, 0, 0)    # 1
   |> Game.exec_action(:start, 1, 1)    # 1
   history_track = [Game.stats(game) | history_track]
-  # history at turn 1
+  # history at day 1
   game =
     game
   |> Game.exec_action(:block, 0, 0)    # 1
@@ -536,26 +536,26 @@ defmodule ChangebanItemHistoryTest do
   |> Game.exec_action(:start, 2, 0)    # 1
   |> Game.exec_action(:start, 3, 1)    # 1
   history_track = [Game.stats(game) | history_track]
-  # history at turn 2
+  # history at day 2
   game =
     game
   |> Game.exec_action(:move, 2, 0)     # 2
   |> Game.exec_action(:unblock, 1, 1)  # 1
   history_track = [Game.stats(game) | history_track]
-  # history at turn 3
+  # history at day 3
   game =
     game
   |> Game.exec_action(:move, 2, 0)     # 3
   |> Game.exec_action(:move, 1, 1)     # 2
   history_track = [Game.stats(game) | history_track]
-  # history at turn 4
+  # history at day 4
   game =
     game
   |> Game.exec_action(:move, 2, 0)     # 4 *
   |> Game.exec_action(:reject, 0, 0)   # 5 *
   |> Game.exec_action(:move, 1, 1)     # 3
   history_track = [Game.stats(game) | history_track]
-  # history at turn 5
+  # history at day 5
   game =
     game
   |> Game.exec_action(:move, 1, 1)     # 4 *

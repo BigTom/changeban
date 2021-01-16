@@ -39,9 +39,9 @@ defmodule ChangebanGameServerTest do
     GameServer.add_player(game_name, "Y")
     GameServer.add_player(game_name, "Z")
 
-    %Game{turn: turn, score: score, players: players} = GameServer.start_game(game_name)
+    %Game{day: day, score: score, players: players} = GameServer.start_game(game_name)
     player = Enum.at(players, 1)
-    assert 1 == turn
+    assert 1 == day
     assert 0 == score
     assert :act == player.state
   end
@@ -67,13 +67,13 @@ defmodule ChangebanGameServerTest do
   #   GameServer.add_player(game_name)
   #   game1 = GameServer.start_game(game_name)
 
-  #   assert 1 == game1.turn
-  #   IO.puts("After start - turn: #{inspect game1.turn} player: #{inspect Enum.at(game1.players,0)}")
+  #   assert 1 == game1.day
+  #   IO.puts("After start - day: #{inspect game1.day} player: #{inspect Enum.at(game1.players,0)}")
   #   game2 = GameServer.move(game_name, :start, 0, 0)
-  #   IO.puts("After move  - turn: #{inspect game2.turn} player: #{inspect Enum.at(game2.players,0)}")
+  #   IO.puts("After move  - day: #{inspect game2.day} player: #{inspect Enum.at(game2.players,0)}")
   #   case (Game.get_player(game2, 0)).machine do
-  #     :red -> assert 2 == game2.turn
-  #     :black -> assert 1 == game2.turn
+  #     :red -> assert 2 == game2.day
+  #     :black -> assert 1 == game2.day
   #   end
   # end
 end

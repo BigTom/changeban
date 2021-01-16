@@ -76,7 +76,7 @@ var makeCFD = (ctx) => new Chart(ctx, {
       xAxes: [{
         scaleLabel: {
           display: true,
-          labelString: 'Turn'
+          labelString: 'Day'
         },
         position: 'bottom',
         ticks: {
@@ -125,7 +125,7 @@ var makeAge = (ctx) => new Chart(ctx, {
       xAxes: [{
         scaleLabel: {
           display: true,
-          labelString: 'Turn Completed'
+          labelString: 'Day Completed'
         },
         position: 'bottom',
         ticks: {

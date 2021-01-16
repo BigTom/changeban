@@ -5,7 +5,7 @@ defmodule ChangebanItemTest do
   alias Changeban.Item
 
   @no_wip_limits %{1 => true, 2 => true, 3 => true}
-  @turn 0
+  @day 0
   @owner_0 0
   @owner_1 0
   @item_id 1
@@ -16,78 +16,78 @@ defmodule ChangebanItemTest do
   end
 
   test "Start an item" do
-    started = Item.new(@item_id) |> Item.start(@owner_0, @turn)
+    started = Item.new(@item_id) |> Item.start(@owner_0, @day)
 
     assert %Item{blocked: false, id: @item_id, owner: @owner_0, state: 1} = started
   end
 
   test "Start a started item" do
-    started = Item.new(@item_id) |> Item.start(@owner_0, @turn)
+    started = Item.new(@item_id) |> Item.start(@owner_0, @day)
 
     assert_raise RuntimeError, "Trying to start a started item", fn ->
-      Item.start(started, @owner_1, @turn)
+      Item.start(started, @owner_1, @day)
     end
   end
 
   test "basic move_right test" do
-    item = Item.new(@item_id) |> Item.start(@owner_0, @turn)
-    assert 2 == Item.move_right(item, @turn).state
+    item = Item.new(@item_id) |> Item.start(@owner_0, @day)
+    assert 2 == Item.move_right(item, @day).state
   end
 
   test "will move_right to complete" do
     item =
       Item.new(@item_id)
-      |> Item.start(@owner_0, @turn)
-      |> Item.move_right(@turn)
-      |> Item.move_right(@turn)
+      |> Item.start(@owner_0, @day)
+      |> Item.move_right(@day)
+      |> Item.move_right(@day)
 
-    assert 4 == Item.move_right(item, @turn).state
+    assert 4 == Item.move_right(item, @day).state
   end
 
   test "won't move completed items move_right test" do
     item =
       Item.new(@item_id)
-      |> Item.start(@owner_0, @turn)
-      |> Item.move_right(@turn)
-      |> Item.move_right(@turn)
-      |> Item.move_right(@turn)
+      |> Item.start(@owner_0, @day)
+      |> Item.move_right(@day)
+      |> Item.move_right(@day)
+      |> Item.move_right(@day)
 
     assert_raise RuntimeError, "Trying to move a completed item", fn ->
-      Item.move_right(item, @turn)
+      Item.move_right(item, @day)
     end
   end
 
   test "basic reject test" do
     item = Item.new(@item_id)
-    assert 5 == Item.reject(item, @turn).state
+    assert 5 == Item.reject(item, @day).state
   end
 
   test "latest chance to reject test" do
     item =
       Item.new(@item_id)
-      |> Item.start(@owner_0, @turn)
-      |> Item.move_right(@turn)
-      |> Item.move_right(@turn)
+      |> Item.start(@owner_0, @day)
+      |> Item.move_right(@day)
+      |> Item.move_right(@day)
 
-    assert 8 == Item.reject(item, @turn).state
+    assert 8 == Item.reject(item, @day).state
   end
 
   test "cannot reject completed item test" do
     item =
       Item.new(@item_id)
-      |> Item.start(@owner_0, @turn)
-      |> Item.move_right(@turn)
-      |> Item.move_right(@turn)
-      |> Item.move_right(@turn)
+      |> Item.start(@owner_0, @day)
+      |> Item.move_right(@day)
+      |> Item.move_right(@day)
+      |> Item.move_right(@day)
 
     assert_raise RuntimeError, "Trying to reject a completed item", fn ->
-      Item.reject(item, @turn)
+      Item.reject(item, @day)
     end
   end
 
   test "basic block test" do
-    item = Item.new(@item_id) |> Item.start(@owner_0, @turn)
-    assert Item.block(item, @owner_0, @turn).blocked
+    item = Item.new(@item_id) |> Item.start(@owner_0, @day)
+    assert Item.block(item, @owner_0, @day).blocked
   end
 
   test "block failure cannot block unstarted item test" do
@@ -96,16 +96,16 @@ defmodule ChangebanItemTest do
 
     assert_raise RuntimeError,
                  ~r/^Player 0 cannot block %Changeban.Item/,
-                 fn -> Item.block(item, @owner_0, @turn) end
+                 fn -> Item.block(item, @owner_0, @day) end
   end
 
   test "block failure cannot block completed item test" do
     item =
       Item.new(@item_id)
-      |> Item.start(@owner_0, @turn)
-      |> Item.move_right(@turn)
-      |> Item.move_right(@turn)
-      |> Item.move_right(@turn)
+      |> Item.start(@owner_0, @day)
+      |> Item.move_right(@day)
+      |> Item.move_right(@day)
+      |> Item.move_right(@day)
 
     assert_raise UndefinedFunctionError,
                  "function Changeban.Item.block/2 is undefined or private",
@@ -115,7 +115,7 @@ defmodule ChangebanItemTest do
   test "block failure cannot block rejected item test" do
     item =
       Item.new(@item_id)
-      |> Item.reject(@turn)
+      |> Item.reject(@day)
 
     assert_raise UndefinedFunctionError,
                  "function Changeban.Item.block/2 is undefined or private",
@@ -125,55 +125,55 @@ defmodule ChangebanItemTest do
   test "basic unblock test" do
     item =
       Item.new(@item_id)
-      |> Item.start(@owner_0, @turn)
-      |> Item.block(@owner_0, @turn)
+      |> Item.start(@owner_0, @day)
+      |> Item.block(@owner_0, @day)
 
-    refute Item.unblock(item, @turn).blocked
+    refute Item.unblock(item, @day).blocked
   end
 
   test "try to unblock an unblocked item test" do
-    item = Item.new(@item_id) |> Item.start(@owner_0, @turn)
+    item = Item.new(@item_id) |> Item.start(@owner_0, @day)
 
     assert_raise FunctionClauseError, ~r/^no function clause matching/, fn ->
-      Item.unblock(item, @turn)
+      Item.unblock(item, @day)
     end
   end
 
   test "not_started? test" do
     assert Item.in_agree_urgency?(Item.new(@item_id))
-    refute Item.in_agree_urgency?(Item.new(@item_id) |> Item.start(@owner_0, @turn))
+    refute Item.in_agree_urgency?(Item.new(@item_id) |> Item.start(@owner_0, @day))
 
     refute Item.in_agree_urgency?(
              Item.new(@item_id)
-             |> Item.start(@owner_0, @turn)
-             |> Item.reject(@turn)
+             |> Item.start(@owner_0, @day)
+             |> Item.reject(@day)
            )
 
     refute Item.in_agree_urgency?(
              Item.new(@item_id)
-             |> Item.start(@owner_0, @turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
+             |> Item.start(@owner_0, @day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
            )
   end
 
   test "started? test" do
-    assert Item.in_progress?(Item.new(@item_id) |> Item.start(@owner_0, @turn))
+    assert Item.in_progress?(Item.new(@item_id) |> Item.start(@owner_0, @day))
     refute Item.in_progress?(Item.new(@item_id))
 
     refute Item.in_progress?(
              Item.new(@item_id)
-             |> Item.start(@owner_0, @turn)
-             |> Item.reject(@turn)
+             |> Item.start(@owner_0, @day)
+             |> Item.reject(@day)
            )
 
     refute Item.in_progress?(
              Item.new(@item_id)
-             |> Item.start(@owner_0, @turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
+             |> Item.start(@owner_0, @day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
            )
   end
 
@@ -182,65 +182,65 @@ defmodule ChangebanItemTest do
 
     assert Item.active?(
              Item.new(@item_id)
-             |> Item.start(@owner_0, @turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
+             |> Item.start(@owner_0, @day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
            )
 
     refute Item.active?(
              Item.new(@item_id)
-             |> Item.start(@owner_0, @turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
+             |> Item.start(@owner_0, @day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
            )
   end
 
   test "blocked? test" do
     assert Item.blocked?(
              Item.new(@item_id)
-             |> Item.start(@owner_0, @turn)
-             |> Item.block(@owner_0, @turn)
+             |> Item.start(@owner_0, @day)
+             |> Item.block(@owner_0, @day)
            )
 
     refute Item.blocked?(
              Item.new(@item_id)
-             |> Item.start(@owner_0, @turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
+             |> Item.start(@owner_0, @day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
            )
   end
 
   test "finished? test" do
     assert Item.finished?(
              Item.new(@item_id)
-             |> Item.start(@owner_0, @turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
+             |> Item.start(@owner_0, @day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
            )
 
     refute Item.finished?(Item.new(@item_id))
 
     refute Item.finished?(
              Item.new(@item_id)
-             |> Item.start(@owner_0, @turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
+             |> Item.start(@owner_0, @day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
            )
   end
 
   test "rejected? test" do
-    assert Item.rejected?(Item.new(@item_id) |> Item.reject(@turn))
+    assert Item.rejected?(Item.new(@item_id) |> Item.reject(@day))
     refute Item.rejected?(Item.new(@item_id))
 
     refute Item.rejected?(
              Item.new(@item_id)
-             |> Item.start(@owner_0, @turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
-             |> Item.move_right(@turn)
+             |> Item.start(@owner_0, @day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
+             |> Item.move_right(@day)
            )
   end
 
@@ -384,20 +384,20 @@ defmodule ChangebanItemTest do
   def new_item(), do: Item.new(@item_id)
 
   def in_progress_item(player),
-    do: Item.new(@item_id) |> Item.start(player, @turn) |> Item.move_right(@turn)
+    do: Item.new(@item_id) |> Item.start(player, @day) |> Item.move_right(@day)
 
   def blocked_item(player),
-    do: Item.new(@item_id) |> Item.start(player, @turn) |> Item.block(player, @turn)
+    do: Item.new(@item_id) |> Item.start(player, @day) |> Item.block(player, @day)
 
   def completed_item(player) do
     Item.new(@item_id)
-    |> Item.start(player, @turn)
-    |> Item.move_right(@turn)
-    |> Item.move_right(@turn)
-    |> Item.move_right(@turn)
+    |> Item.start(player, @day)
+    |> Item.move_right(@day)
+    |> Item.move_right(@day)
+    |> Item.move_right(@day)
   end
 
   def rejected_item(_player) do
-    Item.new(@item_id) |> Item.reject(@turn)
+    Item.new(@item_id) |> Item.reject(@day)
   end
 end

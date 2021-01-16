@@ -200,7 +200,7 @@ defmodule ChangebanGameTest do
       assert 10 == Game.calculate_score(min_score_game())
     end
 
-    test "calculate red turn player options" do
+    test "calculate red day player options" do
       player = %Player{id: 0, machine: :red, state: :new, options: Player.empty_options()}
       game = %{Game.new() | players: [player]}
 
@@ -211,7 +211,7 @@ defmodule ChangebanGameTest do
                Player.calculate_player_options(game.items, player, @no_wip_limits)
     end
 
-    test "calculate red turn player options with nothing to move" do
+    test "calculate red day player options with nothing to move" do
       game = min_score_game()
       player = Enum.at(game.players, 0)
 
@@ -225,7 +225,7 @@ defmodule ChangebanGameTest do
       assert expected_player == Player.calculate_player_options(game, player, @no_wip_limits)
     end
 
-    test "calculate help turn player options with nothing to move" do
+    test "calculate help day player options with nothing to move" do
       game = min_score_game()
       player = %Player{id: 0, machine: :red, state: :new, options: Player.empty_options()}
 
@@ -240,7 +240,7 @@ defmodule ChangebanGameTest do
                Player.calculate_player_options(game.items, player, @no_wip_limits)
     end
 
-    test "calculate black turn player start options" do
+    test "calculate black day player start options" do
       player = %Player{id: 0, machine: :black, state: :new, options: Player.empty_options()}
       game = %{Game.new() | players: [player]}
 
@@ -326,12 +326,12 @@ defmodule ChangebanGameTest do
     test "test black starts then does not block" do
       game = game_1()
       %{past: past} = Game.get_player(game, 0)
-      assert 2 == game.turn
+      assert 2 == game.day
       assert nil == past
 
       game = Game.exec_action(game, :start, 1, 0)
       %{options: options, past: past} = Game.get_player(game, 0)
-      assert 2 == game.turn
+      assert 2 == game.day
       assert :started == past
       assert Player.empty_options() == options
     end
@@ -339,18 +339,18 @@ defmodule ChangebanGameTest do
     test "test black blocks then starts" do
       game = game_1()
       %{past: past} = Game.get_player(game, 0)
-      assert 2 == game.turn
+      assert 2 == game.day
       assert nil == past
 
       game = Game.exec_action(game, :block, 0, 0)
       %{options: options, past: past} = Game.get_player(game, 0)
-      assert 2 == game.turn
+      assert 2 == game.day
       assert :blocked == past
       assert %{Player.empty_options() | start: [1, 2], block: []} == options
 
       game = Game.exec_action(game, :start, 1, 0)
       %{options: options, state: state, past: past} = Game.get_player(game, 0)
-      assert 2 == game.turn
+      assert 2 == game.day
       assert :done == state
       assert nil == past
       assert Player.empty_options() == options
@@ -456,32 +456,32 @@ defmodule ChangebanGameTest do
       assert Game.all_blocked?(game)
     end
 
-    test "Getting correct turn colors" do
+    test "Getting correct day colors" do
       {:ok, 0, game0} =
         %{Game.new() | turns: [:red, :black, :red, :black]} |> Game.add_player("AA")
 
       game1 = game0 |> Game.start_game()
-      assert game1.turn == 1
+      assert game1.day == 1
       assert :red == Game.get_player(game1, 0).machine
       game2 = Game.new_turn(game1)
 
-      assert game2.turn == 2
+      assert game2.day == 2
       assert :black == Game.get_player(game2, 0).machine
     end
 
-    test "Getting correct turn color sequence" do
+    test "Getting correct day color sequence" do
       {:ok, 0, game0} =
         %{Game.new() | turns: [:red, :black, :red, :black]} |> Game.add_player("AA")
 
       game1 = game0 |> Game.start_game()
-      assert game1.turn == 1
+      assert game1.day == 1
       assert :red == Game.get_player(game1, 0).machine
       game2 = Game.exec_action(game1, :start, 1, 0)
 
-      assert game2.turn == 2
+      assert game2.day == 2
       assert :black == Game.get_player(game2, 0).machine
       game3 = Game.exec_action(game2, :block, 1, 0) |> Game.exec_action(:start, 2, 0)
-      assert game3.turn == 3
+      assert game3.day == 3
       assert :red == Game.get_player(game3, 0).machine
     end
 
@@ -645,7 +645,7 @@ defmodule ChangebanGameTest do
         efficiency: 0,
         block_count: 0,
         help_count: 0,
-        turn: 0,
+        day: 0,
         score: 0,
         players: 0
       }
@@ -653,7 +653,7 @@ defmodule ChangebanGameTest do
       assert ^expected = Game.stats(Game.new())
     end
 
-    test "Turn stats for shortgame" do
+    test "Day stats for shortgame" do
       game = ChangebanItemHistoryTest.short_game()
 
       expected_turns = [
@@ -685,9 +685,9 @@ defmodule ChangebanGameTest do
       assert %{block_count: 2} = Game.stats(game)
     end
 
-    test "Turn for shortgame" do
+    test "Day for shortgame" do
       game = ChangebanItemHistoryTest.short_game_with_blocks()
-      assert %{turn: 6} = Game.stats(game)
+      assert %{day: 6} = Game.stats(game)
     end
 
     test "Helps for shortgame" do
@@ -732,7 +732,7 @@ defmodule ChangebanGameTest do
         }
       ],
       turns: [:red, :red, :red, :red, :red, :red],
-      turn: 2,
+      day: 2,
       score: 0,
       max_players: 5
     }
@@ -761,7 +761,7 @@ defmodule ChangebanGameTest do
           state: :act
         }
       ],
-      turn: 2,
+      day: 2,
       score: 0,
       max_players: 5
     }
@@ -788,7 +788,7 @@ defmodule ChangebanGameTest do
           state: :act
         }
       ],
-      turn: 2,
+      day: 2,
       score: 0,
       max_players: 5
     }
@@ -900,7 +900,7 @@ defmodule ChangebanGameTest do
           state: :act
         }
       ],
-      turn: 11,
+      day: 11,
       score: 2,
       max_players: 5
     }
@@ -930,7 +930,7 @@ defmodule ChangebanGameTest do
           state: :act
         }
       ],
-      turn: 11,
+      day: 11,
       score: 2,
       max_players: 5
     }
@@ -1000,7 +1000,7 @@ defmodule ChangebanGameTest do
           state: :act
         }
       ],
-      turn: 11,
+      day: 11,
       score: 0,
       max_players: 5
     }
