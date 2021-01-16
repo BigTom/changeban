@@ -177,7 +177,6 @@ defmodule Changeban.GameServer do
     |> Enum.group_by(&(&1.state))
     |> Enum.map(fn {state, items} -> {state, Enum.sort(items, &(&1.moved <= &2.moved))} end )
     |> Enum.into(%{})
-    IO.puts("\n\n new items #{inspect new_items, pretty: true}")
     new_items
   end
 

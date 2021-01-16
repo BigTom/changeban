@@ -36,3 +36,6 @@
 # intellij files
 /.idea/**
 **/*.iml
+
+# runtime log
+/*.log

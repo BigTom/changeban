@@ -16,7 +16,7 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
 
   @impl true
   def mount(%{"game_name" => game_name}, _session, socket) do
-    Logger.info("stats mount")
+    Logger.info("stats mount #{game_name}")
 
     if !GameServer.game_exists?(game_name) do
       msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"

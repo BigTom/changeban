@@ -19,7 +19,7 @@ defmodule GamesRoomWeb.ChangebanLive do
         _session,
         socket
       ) do
-    Logger.debug("Mount")
+    Logger.debug("Mount #{game_name} #{player_id_str} #{player_initials}")
 
     if !GameServer.game_exists?(game_name) do
       msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
@@ -96,7 +96,7 @@ defmodule GamesRoomWeb.ChangebanLive do
         _session,
         socket
       ) do
-    Logger.debug("Mount")
+    Logger.debug("Mount #{game_name}")
 
     if !GameServer.game_exists?(game_name) do
       msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
@@ -139,7 +139,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   @impl true
   def handle_info(:change, %{assigns: assigns} = socket) do
     Logger.debug(
-      "Change notify: #{inspect(assigns.game_name)} seen by: #{inspect(assigns.username)}"
+      "CHANGE TO: #{inspect(assigns.game_name)} seen by: #{inspect(assigns.username)}"
     )
 
     {:noreply, update_only(socket)}
@@ -153,8 +153,6 @@ defmodule GamesRoomWeb.ChangebanLive do
     socket = LiveView.clear_flash(supplied_socket)
 
     if !Enum.empty?(leaves) do
-      IO.puts("PRESENCE CHANGE - Player leaving")
-
       %{initials: initials, player_id: id} =
         leaves
         |> Map.values()
@@ -164,14 +162,14 @@ defmodule GamesRoomWeb.ChangebanLive do
 
       GameServer.remove_player(socket.assigns.game_name, id)
 
-      Logger.debug("Player: #{initials} id: #{id} has left game: #{topic}")
+      Logger.debug("PRESENCE: Player: #{initials} id: #{id} has left game: #{topic}")
 
       {:noreply,
        socket
        |> LiveView.put_flash(:info, "Player: #{initials} has left game #{topic}")
        |> update_only}
     else
-      IO.puts("PRESENCE CHANGE - new player")
+      Logger.debug("PRESENCE CHANGE - new player")
 
       {:noreply,
        socket
@@ -196,7 +194,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   def handle_event("move", %{"id" => id, "type" => type}, supplied_socket) do
     socket = LiveView.clear_flash(supplied_socket)
     type_atom = String.to_existing_atom(type)
-    Logger.debug("MOVE: item: #{id} act: #{type_atom}")
+    Logger.debug("MOVE: player: #{socket.assigns.player.initials} item: #{id} act: #{type_atom}")
 
     GameServer.move(
       socket.assigns.game_name,
@@ -230,37 +228,22 @@ defmodule GamesRoomWeb.ChangebanLive do
         present: Presence.list(socket.assigns.game_name) |> map_size
       )
 
-    Logger.debug("""
-    ASSIGNS:
-    game_name: #{inspect(new_socket.assigns.game_name)}
-    present: #{inspect(new_socket.assigns.present)}
-    name: #{inspect(new_socket.assigns.username)}
-    turn: #{inspect(new_socket.assigns.turn)}
-    game_state: #{inspect(new_socket.assigns.state)}
-    wip_limits: #{inspect(new_socket.assigns.wip_limits)}
-    """)
+    Logger.debug("ASSIGNS: name: #{inspect(new_socket.assigns.username)} game_name: #{inspect(new_socket.assigns.game_name)} present: #{inspect(new_socket.assigns.present)} turn: #{inspect(new_socket.assigns.turn)} game_state: #{inspect(new_socket.assigns.state)} wip_limits: #{inspect(new_socket.assigns.wip_limits)}")
 
     if not is_nil(new_socket.assigns.player) do
-      Logger.debug("""
-      PLAYER_ASSIGNS
-      turn_type: #{inspect(new_socket.assigns.player.machine)}
-      state: #{inspect(new_socket.assigns.player.state)}
-      past: #{inspect(new_socket.assigns.player.past)}
-      options: #{inspect(new_socket.assigns.player.options)}
-      """)
+      Logger.debug("PLAYER_ASSIGNS name: #{inspect(new_socket.assigns.username)} turn_type: #{inspect(new_socket.assigns.player.machine)} state: #{inspect(new_socket.assigns.player.state)} past: #{inspect(new_socket.assigns.player.past)} options: #{inspect(new_socket.assigns.player.options)}")
     end
 
     new_socket
   end
 
   defp update_and_notify(socket) do
-    Logger.debug("UPDATE-AND-NOTIFY - #{socket.assigns.game_name} - #{socket.assigns.username}")
+    Logger.debug("NOTIFY game: #{socket.assigns.game_name} from: #{socket.assigns.username}")
     PubSub.broadcast(GamesRoom.PubSub, socket.assigns.game_name, :change)
     prep_assigns(socket)
   end
 
   defp update_only(socket) do
-    Logger.debug("UPDATE-ONLY - #{socket.assigns.game_name} - #{socket.assigns.username}")
     prep_assigns(socket)
   end
 
