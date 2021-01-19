@@ -122,8 +122,8 @@ defmodule Changeban.Game do
   end
 
   def joinable?(%Game{state: state} = game) do
-    player_count(game) < @max_player_id + 1 &&
-      state == :setup
+    state == :setup &&
+      player_count(game) < @max_player_id + 1
   end
 
   def player_count(%Game{players: players}) do
@@ -146,7 +146,7 @@ defmodule Changeban.Game do
       all_blocked?(new_game) ->
         %{
           new_game
-          | players: Enum.map(players, &%{&1 | machine: :red, state: :act, past: nil}),
+          | players: Enum.map(players, &Player.set_player(&1, :red, :act, nil)),
             day: day + 1
         }
         |> recalculate_state
@@ -157,7 +157,7 @@ defmodule Changeban.Game do
           | players:
               Enum.map(
                 players,
-                &%{&1 | machine: red_or_black(new_game, &1, day), state: :act, past: nil}
+                &Player.set_player(&1, red_or_black(new_game, &1.id, day), :act, nil)
               ),
             day: day + 1
         }
@@ -165,7 +165,7 @@ defmodule Changeban.Game do
     end
   end
 
-  def red_or_black(%Game{turns: turns, players: players}, %Player{id: player_id}, day) do
+  def red_or_black(%Game{turns: turns, players: players}, player_id, day) do
     position = rem(day * Enum.count(players) + player_id, @turn_cycle)
     Enum.at(turns, position)
   end
@@ -278,18 +278,18 @@ defmodule Changeban.Game do
   end
 
   def action(:unblock, item, player, day),
-    do: {Item.unblock(item, day), %{player | state: :done}}
+    do: {Item.unblock(item, day), Player.turn_done(player)}
 
   def action(:hlp_unblk, item, player, day),
-    do: {Item.help_unblock(item, day), %{player | state: :done}}
+    do: {Item.help_unblock(item, day), Player.turn_done(player)}
 
-  def action(:reject, item, player, day), do: {Item.reject(item, day), %{player | state: :done}}
+  def action(:reject, item, player, day), do: {Item.reject(item, day), Player.turn_done(player)}
 
   def action(:start, item, %Player{machine: machine} = player, day) do
     player_ =
       case machine do
         :red ->
-          %{player | state: :done}
+          Player.turn_done(player)
 
         :black ->
           case player.past do
@@ -327,7 +327,7 @@ defmodule Changeban.Game do
     if Item.complete?(item) do
       %{player | past: :completed}
     else
-      %{player | state: :done}
+      Player.turn_done(player)
     end
   end
 

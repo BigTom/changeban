@@ -74,6 +74,10 @@ defmodule Changeban.Player do
      %Player{id: id, options: empty_options(), initials: initials}
   end
 
+  def turn_done(%Player{} = player), do: %{player | state: :done}
+
+  def set_player(%Player{} = player, machine, state, past), do: %{player | machine: machine, state: state, past: past}
+
   def empty_options(), do: %{start: [], move: [], unblock: [], block: [], hlp_mv: [], hlp_unblk: [], reject: []}
 
   def calculate_player_options(_items, %Player{state: :done} = player, _is_wip_open), do: %{player | options: Player.empty_options()}

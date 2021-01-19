@@ -10,6 +10,11 @@ defmodule ChangebanPlayerTest do
     assert %Player{id: 0, machine: nil, state: nil, options: Player.empty_options, initials: "AA"} == Player.new(0, "AA")
   end
 
+  test "Turn done" do
+    assert %{Player.new(0, "AA") | state: :done} == Player.turn_done(Player.new(0, "AA"))
+  end
+
+
   test "calculate black day player block options" do
     player = %Player{id: 0, machine: :black, state: :new, options: Map.new}
     items =
