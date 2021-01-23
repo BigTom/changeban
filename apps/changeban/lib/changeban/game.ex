@@ -7,6 +7,12 @@ defmodule Changeban.Game do
   A game has:
     players - list of players how can own items
     items - map of item_ids to items
+    day   - today's number
+    state - current state of game
+            setup
+            running (day|night)
+            done
+
 
   Score:
     1 per accepted item up to 4 for each color e.g. max 8
@@ -17,18 +23,6 @@ defmodule Changeban.Game do
 
   future
     moves - the list of :red and :black moves
-    day - current day number
-
-  states
-    0 AU  Agree Urgency
-    1 NC  Negotiate Change
-    2 VA  Validate Adoption
-    3 VP  Verify Performance
-    4 C   Complete
-    5 RAU Rejected - Agree Urgency
-    6 RNC Rejected - Negotiate Change
-    7 RVA Rejected - Validate Adoption
-    8 RVP Rejected - Verify Performance
   """
   @states 0..8
   @max_player_id 4
@@ -92,10 +86,10 @@ defmodule Changeban.Game do
     end
   end
 
-  def remove_player(%Game{players: players, items: items, state: state} = game, player_id) do
+  def remove_player(%Game{players: players, items: items} = game, player_id) do
     new_players = Enum.reject(players, &(&1.id == player_id))
 
-    if state == :running && Enum.count(new_players) > 0 do
+    if running?(game) && Enum.count(new_players) > 0 do
       items_to_reassign =
         items
         |> Enum.filter(&(&1.owner == player_id))
@@ -126,17 +120,19 @@ defmodule Changeban.Game do
       player_count(game) < @max_player_id + 1
   end
 
+  def running?(%Game{state: state}), do: state == :day || state == :night
+
   def player_count(%Game{players: players}) do
     Enum.count(players)
   end
 
   def start_game(%Game{players: []}), do: {:error, "No players"}
-  def start_game(%Game{day: 0, state: :setup} = game), do: new_turn(%{game | state: :running})
+  def start_game(%Game{day: 0, state: :setup} = game), do: new_day(%{game | state: :day})
   def start_game(game), do: game
 
-  def new_turn(%Game{state: :done} = game), do: game
+  def new_day(%Game{state: :done} = game), do: game
 
-  def new_turn(%Game{players: players, day: day} = game) do
+  def new_day(%Game{players: players, day: day} = game) do
     new_game = update_history(game)
 
     cond do
@@ -228,7 +224,7 @@ defmodule Changeban.Game do
     game_ = %{game | score: score, players: players}
 
     case Enum.find(players, &(&1.state != :done)) do
-      nil -> new_turn(game_)
+      nil -> new_day(game_)
       _ -> game_
     end
   end

@@ -3,21 +3,21 @@ defmodule Changeban.Item do
   Manages the item state.
 
   An item has:
-    type     - atom    - it can be a :task, or a :change
-    id       - integer - unique task id
+    type    - atom    - it can be a :task, or a :change
+    id      - integer - unique task id
     state   - integer - current active state of task.  Values are:
-                          0 AU  Agree Urgency
-                          1 NC  Negotiate Change
-                          2 VA  Validate Adoption
-                          3 VP  Verify Performance
-                          4 C   Complete
-                          5 RAU Rejected - Agree Urgency
-                          6 RNC Rejected - Negotiate Change
-                          7 RVA Rejected - Validate Adoption
-                          8 RVP Rejected - Verify Performance
+                        0 AU  Agree Urgency
+                        1 NC  Negotiate Change
+                        2 VA  Validate Adoption
+                        3 VP  Verify Performance
+                        4 C   Complete
+                        5 RAU Rejected - Agree Urgency
+                        6 RNC Rejected - Negotiate Change
+                        7 RVA Rejected - Validate Adoption
+                        8 RVP Rejected - Verify Performance
 
-    owner    - integer - owner id of task.  nil for items in Agree Urgency state
-    blocked  - boolean - true if the item is currently blocked
+    owner   - integer - owner id of task.  nil for items in Agree Urgency state
+    blocked - boolean - true if the item is currently blocked
 
   future - track history of game
     moves        - the list of :red and :black moves

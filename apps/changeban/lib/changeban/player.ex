@@ -17,8 +17,8 @@ defmodule Changeban.Player do
     :red state machine
     before   act       after      + found available acts
     ------   ------    -------    -------------------------
-    -        new_turn  :act       self n start|move|unblock
-    -        new_turn  ->help     self 0 start|move|unblock
+    -        new_day   :act       self n start|move|unblock
+    -        new_day   ->help     self 0 start|move|unblock
     :act     *calc     :act       self n start|move|unblock
     :act     *calc     ->help     self 0 start|move|unblock
     :act     ! accept  :done      -

@@ -322,7 +322,8 @@ defmodule GamesRoomWeb.ChangebanLive do
   def render_state_instructions(assigns) do
     case assigns.state do
       :setup -> render_joining_instructions(assigns)
-      :running -> render_turn_instructions(assigns)
+      :day -> render_turn_instructions(assigns)
+      :night -> render_turn_instructions(assigns)
       :done -> render_simulation_over(assigns)
     end
   end
@@ -660,7 +661,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   def active_items(assigns, state_id) do
     ~L"""
       <div class="flex flex-wrap">
-        <%= if @state == :running do %>
+        <%= if @state == :day || @state == :night do %>
           <%= for item <- Map.get(assigns.items, state_id, []) do %>
             <%= collect_item_data(item, assigns.players, @player) |> render_active_item() %>
           <% end %>

@@ -463,7 +463,7 @@ defmodule ChangebanGameTest do
       game1 = game0 |> Game.start_game()
       assert game1.day == 1
       assert :red == Game.get_player(game1, 0).machine
-      game2 = Game.new_turn(game1)
+      game2 = Game.new_day(game1)
 
       assert game2.day == 2
       assert :black == Game.get_player(game2, 0).machine
@@ -587,7 +587,7 @@ defmodule ChangebanGameTest do
           %Changeban.Player{id: 1, machine: :red, options: Player.empty_options()},
           %Changeban.Player{id: 2, machine: :red, options: Player.empty_options()}
         ],
-        state: :running
+        state: :day
       }
 
       game_after = Game.remove_player(game, 0)
@@ -618,7 +618,7 @@ defmodule ChangebanGameTest do
           %Changeban.Player{id: 1, machine: :red, options: Player.empty_options()},
           %Changeban.Player{id: 2, machine: :red, options: Player.empty_options()}
         ],
-        state: :running
+        state: :day
       }
 
       game_after = Game.remove_player(game, 0)
