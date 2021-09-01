@@ -48,8 +48,12 @@ module.exports = {
     },
     keyframes: {
       arrive: {
-        '0%, 100%': { transform: 'rotate(-15deg)' },
-        '50%': { transform: 'rotate(15deg)' },
+        '0%, 20%, 40%, 60%, 80%, 100%': { transform: 'translate(0px, 0px)' },
+        '10%': { transform: 'translate(0px, -10px)' },
+        '30%': { transform: 'translate(0px, -8px)' },
+        '50%': { transform: 'translate(0px, -6px)' },
+        '70%': { transform: 'translate(0px, -4px)' },
+        '90%': { transform: 'translate(0px, -2px)' },
       }
     },
     animation: {
