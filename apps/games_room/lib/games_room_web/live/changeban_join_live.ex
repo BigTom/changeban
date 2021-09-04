@@ -130,7 +130,7 @@ defmodule GamesRoomWeb.ChangebanJoinLive do
 
   @impl true
   def render(assigns) do
-    ~L"""
+    ~H"""
     <div class="flex h-screen">
       <div class="w-1/2 overflow-y-scroll m-4">
         <article class="prose-sm lg:prose-xs">
@@ -240,8 +240,8 @@ defmodule GamesRoomWeb.ChangebanJoinLive do
             <label class="col-start-1 row-start-1 text-gray-700 text-sm font-bold" for="game_name">Game Name:</label>
             <input class="col-start-1 row-start-row-2 shadow appearance-none border rounded text-gray-700 uppercase
                           placeholder-gray-300 focus:outline-none focus:shadow-outline"
-                    placeholder="XXXXXX" name="game_name" id="game_name" type="text" maxlength="6"
-                    <%= if ! is_nil(@game_name) do %> value="<%= @game_name %>" <% end %> >
+                    placeholder="XXXXXX" name="game_name"
+                    id="game_name" type="text" maxlength="6" >
             <label class="col-start-2 row-start-1 text-gray-700 text-sm font-bold" for="initials" placeholder="XX">Initials:</label>
             <input class="col-start-2 row-start-2 shadow appearance-none border rounded focus:outline-none focus:shadow-outline placeholder-gray-300"
                     name="initials" id="initials" type="text" maxlength="2" placeholder="XX">
@@ -261,8 +261,8 @@ defmodule GamesRoomWeb.ChangebanJoinLive do
             <label class="col-start-1 row-start-1 text-gray-700 text-sm font-bold" for="game_name">Game Name:</label>
             <input class="col-start-1 row-start-row-2 shadow appearance-none border rounded text-gray-700 uppercase
                           placeholder-gray-300 focus:outline-none focus:shadow-outline"
-                    placeholder="XXXXXX" name="game_name" id="game_name" type="text" maxlength="6"
-                    <%= if ! is_nil(@game_name) do %> value="<%= @game_name %>" <% end %> >
+                    placeholder="XXXXXX" name="game_name"
+                    id="game_name" type="text" maxlength="6" >
             <button type="submit" class="col-start-3 row-start-2  bg-green-300 hover:bg-green-700 text-white font-bold
                                           rounded focus:outline-none focus:shadow-outline" >
               Observe Game
