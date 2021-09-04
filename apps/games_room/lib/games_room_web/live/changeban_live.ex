@@ -129,7 +129,7 @@ defmodule GamesRoomWeb.ChangebanLive do
     {:ok,
      socket
      |> put_flash(:error, msg)
-     |> LiveView.redirect(to: "/join", replace: true)}
+     |> LiveView.redirect(to: "/join")}
   end
 
   @doc """
@@ -253,7 +253,7 @@ defmodule GamesRoomWeb.ChangebanLive do
 
   @impl true
   def render(assigns) do
-    ~L"""
+    ~H"""
     <div class="relative">
     <div class="z-20">
     <div class="flex justify-between pt-4 h-32">
@@ -265,54 +265,54 @@ defmodule GamesRoomWeb.ChangebanLive do
     </div>
     <%= render_game_grid(assigns) %>
     </div>
-    <p class="class="text-gray-900 text-base text-center border-2 border-gray-500>
-    Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
-    Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
+    <p class="text-gray-900 text-base text-center border-2 border-gray-500">
+      Game name: <%= @game_name %> Player Count: <%= Enum.count(@players) %>
+      Current users: <b><%= @present %></b> You are logged in as: <b><%= @username %></b>
     </p>
     </div>
     """
   end
 
   def render_game_grid(assigns) do
-    ~L"""
+    ~H"""
     <div class="grid grid-cols-cb grid-rows-cb my-3 container border border-gray-800 text-center">
       <%= headers(assigns) %>
       <div class="col-start-1 row-start-3 row-span-5 border border-gray-800 bg-contain"
-           style="background-image: url('<%= image("au_text.svg") %>'); background-repeat: no-repeat">
+           style={"background-image: url('#{image("au_text.svg")}'); background-repeat: no-repeat"}>
         <%= active_items(assigns, 0) %>
       </div>
       <div class="col-start-2 row-start-3 row-span-5 border border-gray-800 bg-contain"
-           style="background-image: url('<%= image("nc_text.svg") %>'); background-repeat: no-repeat">
+           style={"background-image: url('#{image("nc_text.svg")}'); background-repeat: no-repeat"}>
         <%= active_items(assigns, 1) %>
       </div>
       <div class="col-start-3 row-start-3 row-span-5 border border-gray-800 bg-contain"
-           style="background-image: url('<%= image("va_text.svg") %>'); background-repeat: no-repeat">
+           style={"background-image: url('#{image("va_text.svg")}'); background-repeat: no-repeat"}>
         <%= active_items(assigns, 2) %>
       </div>
       <div class="col-start-4 row-start-3 row-span-5 border border-gray-800 bg-contain"
-           style="background-image: url('<%= image("vp_text.svg") %>'); background-repeat: no-repeat">
+           style={"background-image: url('#{image("vp_text.svg")}'); background-repeat: no-repeat"}>
         <%= active_items(assigns, 3) %>
       </div>
 
       <div class="col-start-5 row-start-4 col-span-4 border border-gray-800 bg-contain"
-           style="background-image: url('<%= image("dn_text.svg") %>'); background-repeat: no-repeat; background-position: center;">
+           style={"background-image: url('#{image("dn_text.svg")}'); background-repeat: no-repeat; background-position: center;"}>
         <%= completed_items(assigns, 4) %>
       </div>
 
       <div class="col-start-5 row-start-7 row-span-2 border border-gray-800 bg-contain"
-           style="background-image: url('<%= image("rj_text.svg") %>'); background-repeat: no-repeat">
+           style={"background-image: url('#{image("rj_text.svg")}'); background-repeat: no-repeat"}>
         <%= completed_items(assigns, 5) %>
       </div>
       <div class="col-start-6 row-start-7 row-span-2 border border-gray-800 bg-contain"
-           style="background-image: url('<%= image("rj_text.svg") %>'); background-repeat: no-repeat">
+           style={"background-image: url('#{image("rj_text.svg")}'); background-repeat: no-repeat"}>
         <%= completed_items(assigns, 6) %>
       </div>
       <div class="col-start-7 row-start-7 row-span-2 border border-gray-800 bg-contain"
-           style="background-image: url('<%= image("rj_text.svg") %>'); background-repeat: no-repeat">
+           style={"background-image: url('#{image("rj_text.svg")}'); background-repeat: no-repeat"}>
         <%= completed_items(assigns, 7) %>
       </div>
       <div class="col-start-8 row-start-7 row-span-2 border border-gray-800 bg-contain"
-           style="background-image: url('<%= image("rj_text.svg") %>'); background-repeat: no-repeat">
+           style={"background-image: url('#{image("rj_text.svg")}'); background-repeat: no-repeat"}>
         <%= completed_items(assigns, 8) %>
       </div>
     </div>
@@ -329,7 +329,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_joining_instructions(assigns) do
-    ~L"""
+    ~H"""
       <div class="w-1/2 flex-grow flex flex-col border-2 rounded-md
                   border-green-600 text-green-600
                   items-center text-center">
@@ -341,11 +341,11 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_observer_instructions(assigns) do
-    ~L"""
+    ~H"""
     <div class="flex-grow flex flex-col items-center">
       <p class="text-gray-600">You are observing game <%= @game_name %></p>
       <p class="text-gray-600">You can watch the game in progress here.</p>
-      <a href="/stats/<%= @game_name %>"
+      <a href={"/stats/#{@game_name}"}
           target="_blank"
           class="mt-2 border-2 rounded-md w-1/2
                  border-gray-800 bg-gray-400
@@ -357,12 +357,12 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_simulation_over(assigns) do
-    ~L"""
+    ~H"""
       <div class="w-1/2 flex-grow flex flex-col border-2 rounded-md
                   border-green-600 text-green-600
                   items-center text-center">
         <p class="text-2xl text-center">SIMULATION COMPLETED</p>
-        <a href="/stats/<%= @game_name %>"
+        <a href={"/stats/#{@game_name}"}
         target="_blank"
         class="mt-2 border-2 rounded-md w-1/2
                border-gray-800 bg-green-400
@@ -374,7 +374,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_turn_instructions(assigns) do
-    ~L"""
+    ~H"""
     <div class="w-1/2 flex-grow flex flex-col border-2 rounded-md
                 border-gray-700
                 text-sm text-center">
@@ -406,13 +406,13 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_done_instructions(assigns) do
-    ~L"""
+    ~H"""
     <p class="text-gray-600">You are waiting for the other players to go</p>
     """
   end
 
   def render_help_instructions(assigns) do
-    ~L"""
+    ~H"""
     <p class="text-base font-bold">Instructions</p>
     <p>You cannot move your own items so you can help someone!</p>
     <p class="font-black" >Unblock or move someone else's item</p>
@@ -420,7 +420,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_reject_instructions(assigns) do
-    ~L"""
+    ~H"""
     <p class="text-base font-bold">Instructions</p>
     <p>You have accepted an item</p>
     <p>Now you can reject any item on the board</p>
@@ -432,21 +432,21 @@ defmodule GamesRoomWeb.ChangebanLive do
   def can_class(_), do: "text-gray-500"
 
   def render_black_instructions(assigns) do
-    ~L"""
+    ~H"""
       <p class="text-base font-bold">Instructions</p>
       <p>You must both:</p>
-      <p class="<%= can_class(@options.block) %>">block one unblocked item</p>
-      <p class="<%= can_class(@options.start) %>">and start one new item</p>
+      <p class={can_class(@options.block)} >block one unblocked item</p>
+      <p class={can_class(@options.start)} >and start one new item</p>
     """
   end
 
   def render_red_instructions(assigns) do
-    ~L"""
+    ~H"""
       <p class="text-base font-bold">Instructions</p>
       <p>You must either:</p>
-      <p class="<%= can_class(@options.move) %>">move one of your unblocked items one column right</p>
-      <p class="<%= can_class(@options.unblock) %>">or unblock one of your blocked items</p>
-      <p class="<%= can_class(@options.start) %>">or start one new item</p>
+      <p class={can_class(@options.move)} >move one of your unblocked items one column right</p>
+      <p class={can_class(@options.unblock)} >or unblock one of your blocked items</p>
+      <p class={can_class(@options.start)} >or start one new item</p>
     """
   end
 
@@ -457,7 +457,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   def rejecting?(%{reject: reject}), do: not Enum.empty?(reject)
 
   def render_other_player_state(assigns) do
-    ~L"""
+    ~H"""
       <div class="flex-grow mx-1 w-1/12 flex flex-col">
         <%= for player <- Enum.reject(@players, fn p -> p.id == @player_id end) do %>
           <%= cond do %>
@@ -487,7 +487,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_non_turn_display(assigns) do
-    ~L"""
+    ~H"""
       <div class="w-1/6 flex-grow border-2 rounded-md
                   border-gray-400
                   flex">
@@ -495,7 +495,9 @@ defmodule GamesRoomWeb.ChangebanLive do
         </div>
         <div class="w-2/4 flex flex-col justify-center">
           <div class="text-center text-gray-400 text-2xl">Day:</div>
-          <div class="text-center text-gray-400 text-2xl"><%= to_string(@nr) %></div>
+          <div class="text-center text-gray-400 text-2xl">
+            <%= to_string(@nr) %>
+          </div>
         </div>
         <div class="w-1/4 flex flex-col flex-col-reverse">
         </div>
@@ -504,45 +506,49 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_black_turn_display(assigns) do
-    ~L"""
+    ~H"""
       <div class="w-1/6 flex-grow border-2 rounded-md
                   border-black
                   flex">
         <div class="w-1/4 flex flex-col flex-col-reverse">
-          <img class="p-1 object-contain" src="<%= image("black_spade.svg") %>" alt="black spade">
+          <img class="p-1 object-contain" src={image("black_spade.svg")} alt="black spade">
         </div>
         <div class="w-2/4 flex flex-col justify-center">
           <div class="text-center text-black text-2xl">Day:</div>
-          <div class="text-center text-black text-2xl"><%= to_string(@nr) %></div>
+          <div class="text-center text-black text-2xl">
+            <%= to_string(@nr) %>
+          </div>
         </div>
         <div class="w-1/4 flex flex-col">
-          <img class="p-1 object-contain" src="<%= image("black_club.svg") %>" alt="black club">
+          <img class="p-1 object-contain" src={image("black_club.svg")} alt="black club">
         </div>
       </div>
     """
   end
 
   def render_red_turn_display(assigns) do
-    ~L"""
+    ~H"""
       <div class="w-1/6 flex-grow border-2 rounded-md
                   border-red-700
                   flex">
         <div class="w-1/4 flex flex-col">
-          <img class="p-1 object-contain" src="<%= image("red_diamond.svg") %>" alt="red diamond">
+          <img class="p-1 object-contain" src={image("red_diamond.svg")} alt="red diamond">
         </div>
         <div class="w-2/4 flex flex-col justify-center">
           <div class="text-center text-red-700 text-2xl">Day:</div>
-          <div class="text-center text-red-700 text-2xl"><%= to_string(@nr) %></div>
+          <div class="text-center text-red-700 text-2xl">
+            <%= to_string(@nr) %>
+          </div>
         </div>
         <div class="w-1/4 flex flex-col flex-col-reverse">
-          <img class="p-1 object-contain" src="<%= image("red_heart.svg") %>" alt="red heart">
+          <img class="p-1 object-contain" src={image("red_heart.svg")} alt="red heart">
         </div>
       </div>
     """
   end
 
   def render_score_display(assigns) do
-    ~L"""
+    ~H"""
       <div class="w-1/6 flex-grow border-2 rounded-md
                   border-black text-black
                   flex flex-col text-2xl">
@@ -612,16 +618,17 @@ defmodule GamesRoomWeb.ChangebanLive do
   def block_scheme(_), do: "bg-red-500"
 
   def render_item_body(assigns) do
-    ~L"""
+    ~H"""
       <div class="flex flex-col ml-1">
         <div class="text-sm font-bold"><%= @initials %></div>
       </div>
       <div class="w-4 flex flex-col">
         <div class="text-xs"><%= @id %></div>
         <%= if @blocked do %>
-          <div class="transform rotate-45 font-black
-                      animate-arrive
-                      <%= block_scheme(@action) %> text-xs px-1">
+          <div class={[block_scheme(@action),
+                       "transform rotate-45 font-black",
+                       "animate-arrive",
+                       "text-xs px-1"]}>
            B
           </div>
         <% end %>
@@ -630,25 +637,25 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def render_active_item(%{action: action} = assigns) when is_nil(action) do
-    ~L"""
-      <div class="flex justify-between border-2 <%= card_scheme(%{type: @type, action: @action}) %>
-                  animate-arrive
-                  w-16 h-10 m-1">
+    ~H"""
+      <div class={[card_scheme(%{type: @type, action: @action}),
+                  "flex justify-between border-2",
+                  "animate-arrive",
+                  "w-16 h-10 m-1"]}>
         <%= render_item_body(assigns) %>
       </div>
     """
   end
 
   def render_active_item(%{action: action} = assigns) do
-    ~L"""
-      <div class="cursor-pointer flex justify-between border-2
-                  <%= card_scheme(%{type: @type, action: @action}) %>
-                  w-16 h-10 m-1
-                  animate-arrive
-                  hover:shadow-xl transform hover:-translate-y-px hover:-translate-x-px"
+    ~H"""
+      <div class={[card_scheme(%{type: @type, action: @action}),
+                  "cursor-pointer flex justify-between border-2 w-16 h-10 m-1",
+                  "animate-arrive",
+                  "hover:shadow-xl transform hover:-translate-y-px hover:-translate-x-px"]}
           phx-click="move"
-          phx-value-type="<%= action %>"
-          phx-value-id="<%= @id %>">
+          phx-value-type={@action}
+          phx-value-id={@id}>
           <%= render_item_body(assigns) %>
       </div>
     """
@@ -659,7 +666,7 @@ defmodule GamesRoomWeb.ChangebanLive do
   render_active_item/1
   """
   def active_items(assigns, state_id) do
-    ~L"""
+    ~H"""
       <div class="flex flex-wrap">
         <%= if @state == :day || @state == :night do %>
           <%= for item <- Map.get(assigns.items, state_id, []) do %>
@@ -671,12 +678,11 @@ defmodule GamesRoomWeb.ChangebanLive do
   end
 
   def completed_items(assigns, state_id) do
-    ~L"""
+    ~H"""
     <div class="flex flex-wrap">
       <%= for item <- Map.get(assigns.items, state_id, []) do %>
-        <div class="border-2 <%= card_scheme(%{type: item.type, action: nil}) %>
-                    animate-arrive
-                    w-5 h-8 mt-1 ml-1"></div>
+        <div class={[card_scheme(%{type: item.type, action: nil}),
+                    "border-2 animate-arrive w-5 h-8 mt-1 ml-1"]}></div>
       <% end %>
     </div>
     """
@@ -692,14 +698,18 @@ defmodule GamesRoomWeb.ChangebanLive do
   def wip_limit({_, value}), do: value
 
   def headers(assigns) do
-    ~L"""
+    ~H"""
     <div class="col-start-1 row-start-1 row-span-2 border border-gray-800">Agree Urgency</div>
     <div class="col-start-2 col-span-3 row-start-1 border border-gray-800 py-0">
       <p>In progress</p>
       <div class="grid place-items-center">
-        <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items, [1,2,3]) %></div>
+        <div class="col-start-1 row-start-1">
+          WIP: <%= calculate_wip_for_state(@items, [1,2,3]) %>
+        </div>
         <%= if is_wip_type?(@wip_limits, :agg) do %>
-          <div class="col-start-2 row-start-1">Limit: <%= wip_limit(@wip_limits) %></div>
+          <div class="col-start-2 row-start-1">
+            Limit: <%= wip_limit(@wip_limits) %>
+          </div>
         <% end %>
       </div>
      </div>
@@ -708,27 +718,39 @@ defmodule GamesRoomWeb.ChangebanLive do
     <div class="col-start-2 row-start-2 border border-gray-800">
       <p>Negotiate Change</p>
       <div class="grid place-items-center">
-        <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items, [1]) %></div>
+        <div class="col-start-1 row-start-1">
+          WIP: <%= calculate_wip_for_state(@items, [1]) %>
+        </div>
         <%= if is_wip_type?(@wip_limits, :std) do %>
-          <div class="col-start-2 row-start-1">Limit: <%= wip_limit(@wip_limits) %></div>
+          <div class="col-start-2 row-start-1">
+            Limit: <%= wip_limit(@wip_limits) %>
+          </div>
         <% end %>
       </div>
     </div>
     <div class="col-start-3 row-start-2 border border-gray-800">
       <p>Validate Adoption</p>
       <div class="grid place-items-center">
-        <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items,[2]) %></div>
+        <div class="col-start-1 row-start-1">
+          WIP: <%= calculate_wip_for_state(@items,[2]) %>
+        </div>
         <%= if is_wip_type?(@wip_limits, :std) do %>
-          <div class="col-start-2 row-start-1">Limit: <%= wip_limit(@wip_limits) %></div>
+          <div class="col-start-2 row-start-1">
+            Limit: <%= wip_limit(@wip_limits) %>
+          </div>
         <% end %>
       </div>
     </div>
     <div class="col-start-4 row-start-2 border border-gray-800">
       <p>Verify Performance</p>
       <div class="grid place-items-center">
-        <div class="col-start-1 row-start-1">WIP: <%= calculate_wip_for_state(@items, [3]) %></div>
+        <div class="col-start-1 row-start-1">
+          WIP: <%= calculate_wip_for_state(@items, [3]) %>
+        </div>
         <%= if is_wip_type?(@wip_limits, :std) do %>
-          <div class="col-start-2 row-start-1">Limit: <%= wip_limit(@wip_limits) %></div>
+          <div class="col-start-2 row-start-1">
+            Limit: <%= wip_limit(@wip_limits) %>
+          </div>
         <% end %>
       </div>
     </div>
