@@ -78,7 +78,7 @@ defmodule GamesRoomWeb.ChangebanStatsLive do
 
   @impl true
   def render(assigns) do
-    ~L"""
+    ~H"""
       <div class="flex flex-col">
         <div class="text-center text-xl flex justify-around mt-4 border-2">
           <div class="w-1/4 m-2 border-2">Game name: <%= @game_name %></div>
