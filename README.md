@@ -68,10 +68,12 @@ changeban does not use a database so teh setup is pretty easy.
 changeban is a simple elixir umbrella app
 
 ```bash
-git clone https://github.com/BigTom/changeban.git && cd changeban
+git clone https://github.com/BigTom/changeban.git
+cd changeban
 mix deps.get
-cd apps/games_room/assets/ && npm install
-cd ../../..
+cd /assets/
+npm install
+cd ..
 mix phx.server
 ```
 # Deployment
