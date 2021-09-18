@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <%= csrf_meta_tag() %>
+    <%= live_title_tag assigns[:page_title] || "Changeban", suffix: " · Phoenix Framework" %>
+    <link rel='stylesheet' href={Routes.static_path(@conn, "/assets/app.css")}/>
+    <script defer type='text/javascript' src={Routes.static_path(@conn, "/assets/app.js")}></script>
+  </head>
+  <body class="bg-gray-100 px-8 py-4">
+    <header>
+      <div class="text-gray-900 text-4xl text-center border-2 border-gray-500">
+        Changeban
+      </div>
+    </header>
+    <%= @inner_content %>
+    <footer class="pt-4">
+      <p class="text-gray-900 text-base text-center border-2 border-gray-500">
+        Developed by Tom Ayerst.
+      </p>
+    </footer>
+  </body>
+</html>

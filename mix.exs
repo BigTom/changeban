@@ -1,46 +1,54 @@
-defmodule Changeban.Umbrella.MixProject do
+defmodule Changeban.MixProject do
   use Mix.Project
 
   def project do
     [
-      apps_path: "apps",
+      app: :changeban,
       version: "0.1.0",
+      elixir: "~> 1.12",
+      elixirc_paths: elixirc_paths(Mix.env()),
+      compilers: [:gettext] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
-      deps: deps(),
-      aliases: aliases()
+      aliases: aliases(),
+      deps: deps()
     ]
   end
 
-  # Dependencies can be Hex packages:
+  # Configuration for the OTP application.
   #
-  #   {:mydep, "~> 0.3.0"}
-  #
-  # Or git/path repositories:
-  #
-  #   {:mydep, git: "https://github.com/elixir-lang/mydep.git", tag: "0.1.0"}
-  #
-  # Type "mix help deps" for more examples and options.
-  #
-  # Dependencies listed here are available only for this project
-  # and cannot be accessed from applications inside the apps/ folder.
-  defp deps do
-    []
+  # Type `mix help compile.app` for more information.
+  def application do
+    [
+      mod: {Changeban.Application, []},
+      extra_applications: [:logger, :runtime_tools],
+      # start_phases: [go: []]
+    ]
   end
 
-  # Umbrella projects require releases to be explicitly defined with a non-empty
-  # applications key that chooses which umbrella children should be part of the releases:
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
-  # releases: [
-    # changeban: [
-      # applications: [child_app_changeban: :permanent]
-    # ],
-    # games_room: [
-      # applications: [child_app_games_room: :permanent]
-    # ]
-  # ]
-
-  # Alternatively you can perform the release from the children applications
-
+  # Specifies your project dependencies.
+  #
+  # Type `mix help deps` for examples and options.
+  defp deps do
+    [
+      {:phoenix, "~> 1.6.0-rc.0", override: true},
+      {:phoenix_html, "~> 3.0"},
+      {:phoenix_live_reload, "~> 1.2", only: :dev},
+      {:phoenix_live_view, "~> 0.16.0"},
+      {:floki, ">= 0.30.0", only: :test},
+      {:phoenix_live_dashboard, "~> 0.5"},
+      {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
+      {:swoosh, "~> 1.3"},
+      {:telemetry_metrics, "~> 0.6"},
+      {:telemetry_poller, "~> 1.0"},
+      {:gettext, "~> 0.18"},
+      {:jason, "~> 1.2"},
+      {:plug_cowboy, "~> 2.5"}
+    ]
+  end
 
   # Aliases are shortcuts or tasks specific to the current project.
   # For example, to install project dependencies and perform other setup tasks, run:
@@ -48,13 +56,10 @@ defmodule Changeban.Umbrella.MixProject do
   #     $ mix setup
   #
   # See the documentation for `Mix` for more info on aliases.
-  #
-  # Aliases listed here are available only for this project
-  # and cannot be accessed from applications inside the apps/ folder.
   defp aliases do
     [
-      # run `mix setup` in all child apps
-      setup: ["cmd mix setup"]
+      setup: ["deps.get"],
+      "assets.deploy": ["esbuild default --minify", "phx.digest"]
     ]
   end
 end
