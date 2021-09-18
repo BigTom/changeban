@@ -38,4 +38,4 @@ npm-debug.log
 
 # runtime log
 /*.log
-/.DS_Store/
+# /.DS_Store/
