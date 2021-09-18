@@ -29,13 +29,14 @@ changeban-*.tar
 npm-debug.log
 /assets/node_modules/
 
-# intellij files
+# ide files
 /.idea/**
 **/*.iml
-
-# vscode files
 /.vscode/
 
 # runtime log
 /*.log
-# /.DS_Store/
+
+# generated stuff
+/.DS_Store/
+/.elixir_ls/
