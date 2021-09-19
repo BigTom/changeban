@@ -63,9 +63,9 @@ Each player is issued a move type (RED or BLACK)
 ---
 # Getting up and running locally
 
-changeban does not use a database so teh setup is pretty easy.
+changeban does not use a database so the setup is pretty easy.
 
-changeban is a simple elixir umbrella app
+changeban is a simple elixir phoenix app
 
 ```bash
 git clone https://github.com/BigTom/changeban.git
@@ -75,6 +75,13 @@ cd /assets/
 npm install
 cd ..
 mix phx.server
+```
+
+# Testing
+Run tests with coverage like this:
+
+```bash
+mix test --cover
 ```
 # Deployment
 
