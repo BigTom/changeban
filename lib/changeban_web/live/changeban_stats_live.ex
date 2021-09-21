@@ -21,10 +21,7 @@ defmodule ChangebanWeb.ChangebanStatsLive do
     if !GameServer.game_exists?(game_name) do
       msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
       Logger.info(msg)
-      {:ok,
-       socket
-       |> put_flash(:error, msg)
-       |> LiveView.redirect(to: "/join", replace: true)}
+      redirect_to_join(socket, msg)
     else
       PubSub.subscribe(Changeban.PubSub, game_name)
       game_stats = GameServer.stats(game_name)
@@ -35,6 +32,13 @@ defmodule ChangebanWeb.ChangebanStatsLive do
        |> assign(game_stats: game_stats)
        |> push_event("chart_data", generate_charts(game_stats))}
     end
+  end
+
+  def redirect_to_join(socket, msg) do
+    {:ok,
+     socket
+     |> put_flash(:error, msg)
+     |> LiveView.redirect(to: "/join")}
   end
 
   @impl true

@@ -73,7 +73,6 @@ defmodule ChangebanWeb.ChangebanJoinLive do
       true ->
         game_name = gen_game_name()
         wip_type = String.to_existing_atom(supplied_wip_type)
-        # wip_type = :std
 
         Logger.debug(
           "new_game: #{inspect(game_name)} with WIP limit type #{wip_type} and player: #{initials}"
