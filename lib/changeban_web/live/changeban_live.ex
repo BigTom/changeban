@@ -55,9 +55,7 @@ defmodule ChangebanWeb.ChangebanLive do
         player.initials != player_initials ->
           redirect_to_join(
             socket,
-            "Game #{game_name} - Supplied initials #{player_initials} do not match those in game #{
-              player.initials
-            }"
+            "Game #{game_name} - Supplied initials #{player_initials} do not match those in game #{player.initials}"
           )
 
         true ->
@@ -103,25 +101,24 @@ defmodule ChangebanWeb.ChangebanLive do
       Logger.info(msg)
       redirect_to_join(socket, msg)
     else
-
       {items, players, day, score, state, wip_limits} = GameServer.view(game_name)
 
       PubSub.subscribe(Changeban.PubSub, game_name)
 
       {:ok,
-      assign(socket,
-        game_name: game_name,
-        items: items,
-        players: players,
-        day: day,
-        score: score,
-        state: state,
-        wip_limits: wip_limits,
-        present: Presence.list(game_name) |> map_size,
-        player: nil,
-        player_id: nil,
-        username: nil
-      )}
+       assign(socket,
+         game_name: game_name,
+         items: items,
+         players: players,
+         day: day,
+         score: score,
+         state: state,
+         wip_limits: wip_limits,
+         present: Presence.list(game_name) |> map_size,
+         player: nil,
+         player_id: nil,
+         username: nil
+       )}
     end
   end
 
@@ -138,9 +135,7 @@ defmodule ChangebanWeb.ChangebanLive do
   """
   @impl true
   def handle_info(:change, %{assigns: assigns} = socket) do
-    Logger.debug(
-      "CHANGE TO: #{inspect(assigns.game_name)} seen by: #{inspect(assigns.username)}"
-    )
+    Logger.debug("CHANGE TO: #{inspect(assigns.game_name)} seen by: #{inspect(assigns.username)}")
 
     {:noreply, update_only(socket)}
   end
@@ -611,7 +606,9 @@ defmodule ChangebanWeb.ChangebanLive do
   def card_scheme(%{type: :task, action: nil}), do: "bg-green-300 border-green-500 text-gray-500"
   def card_scheme(%{type: :task, action: _}), do: "bg-green-500 border-green-800"
 
-  def card_scheme(%{type: :change, action: nil}), do: "bg-yellow-300 border-yellow-500 text-gray-500"
+  def card_scheme(%{type: :change, action: nil}),
+    do: "bg-yellow-300 border-yellow-500 text-gray-500"
+
   def card_scheme(%{type: :change, action: _}), do: "bg-yellow-300 border-yellow-800"
 
   def block_scheme(nil), do: "bg-red-300"

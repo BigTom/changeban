@@ -99,28 +99,6 @@ defmodule ChangebanItemTest do
                  fn -> Item.block(item, @owner_0, @day) end
   end
 
-  test "block failure cannot block completed item test" do
-    item =
-      Item.new(@item_id)
-      |> Item.start(@owner_0, @day)
-      |> Item.move_right(@day)
-      |> Item.move_right(@day)
-      |> Item.move_right(@day)
-
-    assert_raise UndefinedFunctionError,
-                 "function Changeban.Item.block/2 is undefined or private",
-                 fn -> Item.block(item, 0) end
-  end
-
-  test "block failure cannot block rejected item test" do
-    item =
-      Item.new(@item_id)
-      |> Item.reject(@day)
-
-    assert_raise UndefinedFunctionError,
-                 "function Changeban.Item.block/2 is undefined or private",
-                 fn -> Item.block(item, 0) end
-  end
 
   test "basic unblock test" do
     item =
@@ -356,8 +334,10 @@ defmodule ChangebanItemTest do
           type: :task
         }
       ]
+
       assert 5 = Item.median_age(items)
     end
+
     test "median age test even number half value" do
       items = [
         %Changeban.Item{
@@ -375,8 +355,9 @@ defmodule ChangebanItemTest do
           owner: 1,
           state: 6,
           type: :change
-        },
+        }
       ]
+
       assert 4.5 = Item.median_age(items)
     end
   end

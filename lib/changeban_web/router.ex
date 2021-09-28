@@ -5,8 +5,7 @@ defmodule ChangebanWeb.Router do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_live_flash
-    plug :put_root_layout, {ChangebanWeb
-    .LayoutView, :root}
+    plug :put_root_layout, {ChangebanWeb.LayoutView, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
   end
@@ -17,8 +16,7 @@ defmodule ChangebanWeb.Router do
     plug :fetch_session
   end
 
-  scope "/", ChangebanWeb
-   do
+  scope "/", ChangebanWeb do
     pipe_through :browser
 
     # TODO # get "/new_stats", StatsController, :stats
@@ -30,8 +28,7 @@ defmodule ChangebanWeb.Router do
     live "/game/:game_name", ChangebanLive, :index
   end
 
-  scope "/api", ChangebanWeb
-   do
+  scope "/api", ChangebanWeb do
     pipe_through :api
   end
 

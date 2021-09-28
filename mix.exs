@@ -20,7 +20,7 @@ defmodule Changeban.MixProject do
   def application do
     [
       mod: {Changeban.Application, []},
-      extra_applications: [:logger, :runtime_tools],
+      extra_applications: [:logger, :runtime_tools]
       # start_phases: [go: []]
     ]
   end

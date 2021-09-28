@@ -10,7 +10,6 @@ defmodule ChangebanWeb.ChangebanJoinLive do
     {:ok, assign(socket, game_name: nil)}
   end
 
-
   @impl true
   def handle_event(
         "join_game",
@@ -19,38 +18,41 @@ defmodule ChangebanWeb.ChangebanJoinLive do
       ) do
     Logger.debug("joining  existing game")
     socket = LiveView.clear_flash(supplied_socket)
-    initials = String.trim(supplied_initials) |> String.upcase
-    game_name = String.trim(supplied_game_name) |> String.upcase
+    initials = String.trim(supplied_initials) |> String.upcase()
+    game_name = String.trim(supplied_game_name) |> String.upcase()
     Logger.debug("adding player: #{inspect(initials)} to existing game: #{inspect(game_name)}")
 
     cond do
       String.length(game_name) == 0 ->
         Logger.info("Non existant game")
-        {:noreply,
-          LiveView.put_flash(socket, :error, "No game name supplied")}
+        {:noreply, LiveView.put_flash(socket, :error, "No game name supplied")}
 
       String.length(initials) == 0 ->
         Logger.info("Non existant game")
-        {:noreply,
-          LiveView.put_flash(socket, :error, "No initials supplied")}
+        {:noreply, LiveView.put_flash(socket, :error, "No initials supplied")}
 
       GameServer.joinable?(game_name) ->
         Logger.debug("Allow player to join game: #{game_name}")
         {:ok, player_id, _player} = GameServer.add_player(game_name, initials)
+
         {:noreply,
-          LiveView.push_redirect(socket, to: "/game/#{game_name}/#{player_id}/#{initials}",
-          replace: true)}
+         LiveView.push_redirect(socket,
+           to: "/game/#{game_name}/#{player_id}/#{initials}",
+           replace: true
+         )}
 
       GameServer.game_exists?(game_name) ->
         Logger.debug("Allow player to view game game: #{game_name}")
+
         {:noreply,
-          LiveView.push_redirect(socket, to: "/game/#{game_name}",
-          replace: true)}
+         LiveView.push_redirect(socket,
+           to: "/game/#{game_name}",
+           replace: true
+         )}
 
       true ->
         Logger.info("Non existant game")
-        {:noreply,
-          LiveView.put_flash(socket, :error, "Game #{game_name} does not exist")}
+        {:noreply, LiveView.put_flash(socket, :error, "Game #{game_name} does not exist")}
     end
   end
 
@@ -62,29 +64,15 @@ defmodule ChangebanWeb.ChangebanJoinLive do
       ) do
     Logger.debug("event new_game: #{supplied_initials} -#{supplied_wip_type}-")
     socket = LiveView.clear_flash(supplied_socket)
-    initials = String.trim(supplied_initials) |> String.upcase
+    initials = String.trim(supplied_initials) |> String.upcase()
 
     cond do
-      String.length(String.trim initials) == 0 ->
-        Logger.info("Non existant game")
-        {:noreply,
-          LiveView.put_flash(socket, :error, "No initials supplied")}
+      String.length(String.trim(initials)) == 0 ->
+        Logger.info("No initials supplied")
+        {:noreply, LiveView.put_flash(socket, :error, "No initials supplied")}
 
       true ->
-        game_name = gen_game_name()
-        wip_type = String.to_existing_atom(supplied_wip_type)
-
-        Logger.debug(
-          "new_game: #{inspect(game_name)} with WIP limit type #{wip_type} and player: #{initials}"
-        )
-
-        g = GameSupervisor.create_game(game_name)
-        Logger.debug("Game #{game_name} created: #{inspect(g)}")
-        GameServer.set_wip(game_name, wip_type, 2)
-        {:ok, player_id, _player} = GameServer.add_player(game_name, initials)
-        {:noreply,
-          LiveView.push_redirect(socket, to: "/game/#{game_name}/#{player_id}/#{initials}",
-          replace: true)}
+        start_game(socket, pick_wip_limit(supplied_wip_type), gen_game_name(), initials)
     end
   end
 
@@ -95,25 +83,26 @@ defmodule ChangebanWeb.ChangebanJoinLive do
         supplied_socket
       ) do
     socket = LiveView.clear_flash(supplied_socket)
-    game_name = String.trim(supplied_game_name) |> String.upcase
+    game_name = String.trim(supplied_game_name) |> String.upcase()
     Logger.debug("attempting to observe game: #{inspect(game_name)}")
 
     cond do
       String.length(game_name) == 0 ->
         Logger.info("Tried to observe without game name")
-        {:noreply,
-          LiveView.put_flash(socket, :error, "No game name supplied")}
+        {:noreply, LiveView.put_flash(socket, :error, "No game name supplied")}
 
       GameServer.game_exists?(game_name) ->
         Logger.debug("observing game: #{game_name}")
+
         {:noreply,
-          LiveView.push_redirect(socket, to: "/game/#{game_name}",
-          replace: true)}
+         LiveView.push_redirect(socket,
+           to: "/game/#{game_name}",
+           replace: true
+         )}
 
       true ->
         Logger.info("Tried to observe non-existant game: #{game_name} ")
-        {:noreply,
-          LiveView.put_flash(socket, :error, "Game #{game_name} does not exist")}
+        {:noreply, LiveView.put_flash(socket, :error, "Game #{game_name} does not exist")}
     end
   end
 
@@ -121,6 +110,45 @@ defmodule ChangebanWeb.ChangebanJoinLive do
   def handle_info(evt, socket) do
     Logger.warn("**** UNKNOWN-EVENT #{inspect(evt)}")
     {:noreply, socket}
+  end
+
+  def pick_wip_limit(type) do
+    case type do
+      "none" ->
+        :none
+
+      "std" ->
+        :std
+
+      "cap" ->
+        :cap
+
+      _ ->
+        Logger.info("#{type} is not a valid WIP type")
+        :error
+    end
+  end
+
+  def start_game(socket, :error, _game_name, _initials) do
+    Logger.info("Invalid WIP type")
+    {:noreply, LiveView.put_flash(socket, :error, "Internal Error.  Please retry")}
+  end
+
+  def start_game(socket, wip_type, game_name, initials) do
+    Logger.debug(
+      "new_game: #{inspect(game_name)} with WIP limit type #{wip_type} and player: #{initials}"
+    )
+
+    g = GameSupervisor.create_game(game_name)
+    Logger.debug("Game #{game_name} created: #{inspect(g)}")
+    GameServer.set_wip(game_name, wip_type, 2)
+    {:ok, player_id, _player} = GameServer.add_player(game_name, initials)
+
+    {:noreply,
+     LiveView.push_redirect(socket,
+       to: "/game/#{game_name}/#{player_id}/#{initials}",
+       replace: true
+     )}
   end
 
   defp gen_game_name() do
@@ -223,11 +251,11 @@ defmodule ChangebanWeb.ChangebanJoinLive do
             </div>
               <div class="col-start-2 row-start-3">
               <input type="radio" id="std" name="wip" value="std">
-              <label for="std">Column WIP limits</label>
+              <label for="std">Col WIP Limits</label>
             </div>
             <div class="col-start-3 row-start-3">
               <input type="radio" id="agg" name="wip" value="agg">
-              <label for="agg">Aggregate WIP Limits</label>
+              <label for="agg">Cap WIP Limits</label>
             </div>
           </div>
         </form>

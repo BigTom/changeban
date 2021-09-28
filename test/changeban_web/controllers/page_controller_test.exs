@@ -3,6 +3,8 @@ defmodule ChangebanWeb.PageControllerTest do
 
   test "GET /", %{conn: conn} do
     conn = get(conn, "/")
-    assert html_response(conn, 200) =~ "<p>Changeban is a Lean Startup-flavoured Kanban simulation game.</p>"
+
+    assert html_response(conn, 200) =~
+             "<p>Changeban is a Lean Startup-flavoured Kanban simulation game.</p>"
   end
 end

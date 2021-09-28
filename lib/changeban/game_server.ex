@@ -6,12 +6,16 @@ defmodule Changeban.GameServer do
   require Logger
   @timeout :timer.hours(1)
 
-
   def start_link(game_name) do
     Logger.debug("Starting GameServer with: #{inspect(game_name)}")
-    r = GenServer.start_link(__MODULE__,
-                         game_name,
-                         name: via_tuple(game_name))
+
+    r =
+      GenServer.start_link(
+        __MODULE__,
+        game_name,
+        name: via_tuple(game_name)
+      )
+
     Logger.debug("GameServer started: #{inspect(r)}")
     r
   end
@@ -41,6 +45,7 @@ defmodule Changeban.GameServer do
   end
 
   def joinable?(nil), do: false
+
   def joinable?(game_name) do
     if game_exists?(game_name) do
       GenServer.call(via_tuple(game_name), {:joinable?})
@@ -58,6 +63,7 @@ defmodule Changeban.GameServer do
   end
 
   def game_exists?(nil), do: false
+
   def game_exists?(game_name) do
     not Enum.empty?(Registry.lookup(Changeban.GameRegistry, game_name))
   end
@@ -81,7 +87,6 @@ defmodule Changeban.GameServer do
     |> GenServer.whereis()
   end
 
-
   # Server Callbacks
 
   def init(game_name) do
@@ -103,8 +108,11 @@ defmodule Changeban.GameServer do
 
   def handle_call({:add_player, initials}, _from, game) do
     case Game.add_player(game, initials) do
-      {:ok, player_id, updated_game} -> {:reply, {:ok, player_id, updated_game}, updated_game, @timeout}
-      {:error, msg} -> {:reply, {:error, msg}, game, @timeout}
+      {:ok, player_id, updated_game} ->
+        {:reply, {:ok, player_id, updated_game}, updated_game, @timeout}
+
+      {:error, msg} ->
+        {:reply, {:error, msg}, game, @timeout}
     end
   end
 
@@ -167,23 +175,20 @@ defmodule Changeban.GameServer do
   # end
 
   def view_game(game) do
-    {collate_items(game.items),
-     game.players,
-     game.day,
-     game.score,
-     game.state,
-     game.wip_limits}
+    {collate_items(game.items), game.players, game.day, game.score, game.state, game.wip_limits}
   end
 
   defp collate_items(items) do
-    new_items = items
-    |> Enum.group_by(&(&1.state))
-    |> Enum.map(fn {state, items} -> {state, Enum.sort(items, &(&1.moved <= &2.moved))} end )
-    |> Enum.into(%{})
+    new_items =
+      items
+      |> Enum.group_by(& &1.state)
+      |> Enum.map(fn {state, items} -> {state, Enum.sort(items, &(&1.moved <= &2.moved))} end)
+      |> Enum.into(%{})
+
     new_items
   end
 
   defp my_game_name do
-    Registry.keys(Changeban.GameRegistry, self()) |> List.first
+    Registry.keys(Changeban.GameRegistry, self()) |> List.first()
   end
 end

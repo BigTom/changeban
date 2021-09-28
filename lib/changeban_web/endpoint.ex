@@ -6,7 +6,8 @@ defmodule ChangebanWeb.Endpoint do
   # Set :encryption_salt if you would also like to encrypt it.
   @session_options [
     store: :cookie,
-    max_age: 10800,  # 3 hours
+    # 3 hours
+    max_age: 10800,
     key: "_changeban_key",
     signing_salt: "M9Ve8fvhUAY0WPRgjJz84yWpNoCdZY4j"
   ]
@@ -15,8 +16,7 @@ defmodule ChangebanWeb.Endpoint do
   #   websocket: true,
   #   longpoll: false
 
-  socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]]
+  socket "/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]]
 
   # Serve at "/" the static files from "priv/static" directory.
   #

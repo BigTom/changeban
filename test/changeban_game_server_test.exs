@@ -5,11 +5,11 @@ defmodule ChangebanGameServerTest do
   alias Changeban.{GameSupervisor, GameServer, Game}
 
   setup do
-    game_name = "#{Enum.random(0..999999)}"
+    game_name = "#{Enum.random(0..999_999)}"
 
-    on_exit fn ->
+    on_exit(fn ->
       GameSupervisor.close_game(game_name)
-    end
+    end)
 
     GameSupervisor.create_game(game_name)
 

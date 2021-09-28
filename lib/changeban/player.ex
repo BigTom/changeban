@@ -68,28 +68,44 @@ defmodule Changeban.Player do
   """
   alias Changeban.{Player, Item}
 
-  defstruct id: nil, machine: nil, state: nil, past: nil, options: Map.new, initials: nil, name: nil
+  defstruct id: nil,
+            machine: nil,
+            state: nil,
+            past: nil,
+            options: Map.new(),
+            initials: nil,
+            name: nil
 
   def new(id, initials) do
-     %Player{id: id, options: empty_options(), initials: initials}
+    %Player{id: id, options: empty_options(), initials: initials}
   end
 
   def turn_done(%Player{} = player), do: %{player | state: :done}
 
-  def set_player(%Player{} = player, machine, state, past), do: %{player | machine: machine, state: state, past: past}
+  def set_player(%Player{} = player, machine, state, past),
+    do: %{player | machine: machine, state: state, past: past}
 
-  def empty_options(), do: %{start: [], move: [], unblock: [], block: [], hlp_mv: [], hlp_unblk: [], reject: []}
+  def empty_options(),
+    do: %{start: [], move: [], unblock: [], block: [], hlp_mv: [], hlp_unblk: [], reject: []}
 
-  def calculate_player_options(_items, %Player{state: :done} = player, _is_wip_open), do: %{player | options: Player.empty_options()}
-  def calculate_player_options(items, %Player{machine: machine, state: state, past: past} = player, is_wip_open) do
+  def calculate_player_options(_items, %Player{state: :done} = player, _is_wip_open),
+    do: %{player | options: Player.empty_options()}
+
+  def calculate_player_options(
+        items,
+        %Player{machine: machine, state: state, past: past} = player,
+        is_wip_open
+      ) do
     player_ = %{player | options: empty_options()}
+
     if (state == :act || state == :help) && past == :completed do
       rejectable = for %{id: id} = item <- items, Item.active?(item), do: id
+
       if Enum.empty?(rejectable) do
-        %{player_ | state: :done, past: nil }
+        %{player_ | state: :done, past: nil}
       else
-        options_ = %{Player.empty_options() | reject: rejectable }
-        %{player_ | options: options_ }
+        options_ = %{Player.empty_options() | reject: rejectable}
+        %{player_ | options: options_}
       end
     else
       case machine do
@@ -99,7 +115,7 @@ defmodule Changeban.Player do
     end
   end
 
-  @doc"""
+  @doc """
   Identifies the possible actions for a player on a "red" day.any()
 
   Returns:
@@ -118,14 +134,19 @@ defmodule Changeban.Player do
     start = for %{id: id} = item <- items, Item.can_start?(item, is_wip_open), do: id
     move = for %{id: id} = item <- items, Item.can_move?(item, pid, is_wip_open), do: id
     unblock = for %{id: id} = item <- items, Item.can_unblock?(item, pid), do: id
+
     if Enum.empty?(start) && Enum.empty?(move) && Enum.empty?(unblock) do
       help_options(items, player, is_wip_open)
     else
-      %{player | state: :act, options: %{Player.empty_options() | move: move, unblock: unblock, start: start}}
+      %{
+        player
+        | state: :act,
+          options: %{Player.empty_options() | move: move, unblock: unblock, start: start}
+      }
     end
   end
 
-  @doc"""
+  @doc """
 
   Returns either:
   %Player{machine: :black, state: (:act|:done), past:(:blocked|:started), ...}
@@ -143,21 +164,25 @@ defmodule Changeban.Player do
     start = for %{id: id} = item <- items, Item.can_start?(item, is_wip_open), do: id
 
     case past do
-      :blocked -> cond do
+      :blocked ->
+        cond do
           Enum.empty?(start) -> help_options(items, player, is_wip_open)
-          :true -> %{player | state: :act, options: %{player.options | start: start}}
+          true -> %{player | state: :act, options: %{player.options | start: start}}
         end
+
       :started ->
         %{player | state: :done, options: Player.empty_options()}
-      nil -> cond do
+
+      nil ->
+        cond do
           Enum.empty?(block) && Enum.empty?(start) -> help_options(items, player, is_wip_open)
           Enum.empty?(block) -> %{player | state: :act, options: %{player.options | start: start}}
-          :true -> %{player | state: :act, options: %{player.options | block: block}}
+          true -> %{player | state: :act, options: %{player.options | block: block}}
         end
     end
   end
 
-  @doc"""
+  @doc """
     If you cannot MOVE, HELP someone!
     Advance or unblock ONE item from another player
 
