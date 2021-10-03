@@ -165,9 +165,10 @@ defmodule Changeban.Player do
 
     case past do
       :blocked ->
-        cond do
-          Enum.empty?(start) -> help_options(items, player, is_wip_open)
-          true -> %{player | state: :act, options: %{player.options | start: start}}
+        if Enum.empty?(start) do
+          help_options(items, player, is_wip_open)
+        else
+          %{player | state: :act, options: %{player.options | start: start}}
         end
 
       :started ->

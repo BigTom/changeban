@@ -546,7 +546,7 @@ defmodule ChangebanGameTest do
 
       game_after = Game.remove_player(game, 0)
       assert game.items == game_after.items
-      assert 0 == Enum.count(game_after.players)
+      assert Enum.empty?(game_after.players)
     end
 
     test "removing player during game setup does not affect items" do

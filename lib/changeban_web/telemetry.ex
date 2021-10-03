@@ -1,4 +1,9 @@
 defmodule ChangebanWeb.Telemetry do
+  @moduledoc """
+  The basic telemetry framework
+
+  TODO: can we track games played here?
+  """
   use Supervisor
   import Telemetry.Metrics
 

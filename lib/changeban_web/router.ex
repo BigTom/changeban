@@ -19,8 +19,6 @@ defmodule ChangebanWeb.Router do
   scope "/", ChangebanWeb do
     pipe_through :browser
 
-    # TODO # get "/new_stats", StatsController, :stats
-
     live "/", ChangebanJoinLive, :index
     live "/join", ChangebanJoinLive, :index
     live "/stats/:game_name", ChangebanStatsLive, :index

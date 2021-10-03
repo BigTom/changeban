@@ -1,4 +1,7 @@
 defmodule ChangebanWeb.ChangebanStatsLive do
+  @moduledoc """
+  Liveview to show stats for a given game
+  """
   require Logger
   use ChangebanWeb, :live_view
 
@@ -18,11 +21,7 @@ defmodule ChangebanWeb.ChangebanStatsLive do
   def mount(%{"game_name" => game_name}, _session, socket) do
     Logger.info("stats mount #{game_name}")
 
-    if !GameServer.game_exists?(game_name) do
-      msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
-      Logger.info(msg)
-      redirect_to_join(socket, msg)
-    else
+    if GameServer.game_exists?(game_name) do
       PubSub.subscribe(Changeban.PubSub, game_name)
       game_stats = GameServer.stats(game_name)
 
@@ -31,6 +30,10 @@ defmodule ChangebanWeb.ChangebanStatsLive do
        |> assign(game_name: game_name)
        |> assign(game_stats: game_stats)
        |> push_event("chart_data", generate_charts(game_stats))}
+    else
+      msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
+      Logger.info(msg)
+      redirect_to_join(socket, msg)
     end
   end
 

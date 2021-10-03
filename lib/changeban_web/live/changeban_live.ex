@@ -1,4 +1,7 @@
 defmodule ChangebanWeb.ChangebanLive do
+  @moduledoc """
+  Liveview to play specific game
+  """
   require Logger
   use ChangebanWeb, :live_view
 
@@ -21,11 +24,7 @@ defmodule ChangebanWeb.ChangebanLive do
       ) do
     Logger.debug("Mount #{game_name} #{player_id_str} #{player_initials}")
 
-    if !GameServer.game_exists?(game_name) do
-      msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
-      Logger.info(msg)
-      redirect_to_join(socket, msg)
-    else
+    if GameServer.game_exists?(game_name) do
       player_id = String.to_integer(player_id_str)
 
       already_present =
@@ -85,6 +84,10 @@ defmodule ChangebanWeb.ChangebanLive do
 
           {:ok, new_socket}
       end
+    else
+      msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
+      Logger.info(msg)
+      redirect_to_join(socket, msg)
     end
   end
 
@@ -96,11 +99,7 @@ defmodule ChangebanWeb.ChangebanLive do
       ) do
     Logger.debug("Mount #{game_name}")
 
-    if !GameServer.game_exists?(game_name) do
-      msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
-      Logger.info(msg)
-      redirect_to_join(socket, msg)
-    else
+    if GameServer.game_exists?(game_name) do
       {items, players, day, score, state, wip_limits} = GameServer.view(game_name)
 
       PubSub.subscribe(Changeban.PubSub, game_name)
@@ -119,6 +118,10 @@ defmodule ChangebanWeb.ChangebanLive do
          player_id: nil,
          username: nil
        )}
+    else
+      msg = "Game #{game_name} does not exist, it may have timed out after a period of inactivity"
+      Logger.info(msg)
+      redirect_to_join(socket, msg)
     end
   end
 
@@ -147,7 +150,13 @@ defmodule ChangebanWeb.ChangebanLive do
       ) do
     socket = LiveView.clear_flash(supplied_socket)
 
-    if !Enum.empty?(leaves) do
+    if Enum.empty?(leaves) do
+      Logger.debug("PRESENCE CHANGE - new player")
+
+      {:noreply,
+       socket
+       |> update_only}
+    else
       %{initials: initials, player_id: id} =
         leaves
         |> Map.values()
@@ -162,12 +171,6 @@ defmodule ChangebanWeb.ChangebanLive do
       {:noreply,
        socket
        |> LiveView.put_flash(:info, "Player: #{initials} has left game #{topic}")
-       |> update_only}
-    else
-      Logger.debug("PRESENCE CHANGE - new player")
-
-      {:noreply,
-       socket
        |> update_only}
     end
   end

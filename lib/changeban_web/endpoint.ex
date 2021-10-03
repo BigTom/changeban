@@ -7,7 +7,7 @@ defmodule ChangebanWeb.Endpoint do
   @session_options [
     store: :cookie,
     # 3 hours
-    max_age: 10800,
+    max_age: 10_800,
     key: "_changeban_key",
     signing_salt: "M9Ve8fvhUAY0WPRgjJz84yWpNoCdZY4j"
   ]

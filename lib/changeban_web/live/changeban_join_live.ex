@@ -1,4 +1,8 @@
 defmodule ChangebanWeb.ChangebanJoinLive do
+  @moduledoc """
+  Landing page for changeban
+  """
+
   require Logger
   use ChangebanWeb, :live_view
 
@@ -66,12 +70,10 @@ defmodule ChangebanWeb.ChangebanJoinLive do
     socket = LiveView.clear_flash(supplied_socket)
     initials = String.trim(supplied_initials) |> String.upcase()
 
-    cond do
-      String.length(String.trim(initials)) == 0 ->
+    if String.length(String.trim(initials)) == 0 do
         Logger.info("No initials supplied")
         {:noreply, LiveView.put_flash(socket, :error, "No initials supplied")}
-
-      true ->
+    else
         start_game(socket, pick_wip_limit(supplied_wip_type), gen_game_name(), initials)
     end
   end

@@ -1,4 +1,8 @@
 defmodule Changeban.ItemHistory do
+  @moduledoc """
+  Structure and functions to manage the history of a work item
+  """
+
   alias Changeban.ItemHistory
 
   defstruct start: nil, done: nil, blocked: [], helped: []

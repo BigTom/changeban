@@ -49,8 +49,7 @@ defmodule Changeban.GameDisplay do
 
   def print_line(items, n) do
     for(i <- 0..17, do: {rem(i, 2) == 0, Map.get(items, i, []) |> Enum.at(n)})
-    |> Enum.map(&print_item(elem(&1, 1), elem(&1, 0)))
-    |> Enum.join()
+    |> Enum.map_join(&print_item(elem(&1, 1), elem(&1, 0)))
     |> IO.write()
 
     IO.puts("|")

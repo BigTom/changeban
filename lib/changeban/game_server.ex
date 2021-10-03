@@ -1,4 +1,9 @@
 defmodule Changeban.GameServer do
+  @moduledoc """
+  Genserver to manage state of a specific game
+
+  The state is simply the Chageban.Game structure
+  """
   use GenServer, restart: :transient
 
   alias Changeban.{Game}
