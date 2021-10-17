@@ -43,7 +43,7 @@ defmodule Changeban.Game do
   # Valid wip limits:
   # {:none, 0} - default
   # {:std, [n,n,n]}
-  # {:agg, n}
+  # {:cap, n}
 
   alias Changeban.{Game, Item, ItemHistory, Player}
 
@@ -331,11 +331,11 @@ defmodule Changeban.Game do
   # Valid wip limits:
   # {:none, 0} - default
   # {:std, [n,n,n]}
-  # {:agg, n}
+  # {:cap, n}
 
   def set_wip(game, :none, _), do: %{game | wip_limits: {:none, 0}}
   def set_wip(game, :std, limit), do: %{game | wip_limits: {:std, limit}}
-  def set_wip(game, :agg, limit), do: %{game | wip_limits: {:agg, limit}}
+  def set_wip(game, :cap, limit), do: %{game | wip_limits: {:cap, limit}}
 
   def wip_limited_states(%Game{wip_limits: {:none, _}}), do: @no_wip_limits
 
@@ -346,7 +346,7 @@ defmodule Changeban.Game do
   end
 
   # conwip stops you starting
-  def wip_limited_states(%Game{items: items, wip_limits: {:agg, limit}}) do
+  def wip_limited_states(%Game{items: items, wip_limits: {:cap, limit}}) do
     c = Enum.map([1, 2, 3], &item_count_for_state(items, &1)) |> Enum.sum()
 
     cond do

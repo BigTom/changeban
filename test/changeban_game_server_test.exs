@@ -47,8 +47,8 @@ defmodule ChangebanGameServerTest do
   end
 
   test "set conwip", %{game_name: game_name} do
-    game = GameServer.set_wip(game_name, :agg, 2)
-    assert {:agg, 2} == game.wip_limits
+    game = GameServer.set_wip(game_name, :cap, 2)
+    assert {:cap, 2} == game.wip_limits
   end
 
   test "set stdwip", %{game_name: game_name} do

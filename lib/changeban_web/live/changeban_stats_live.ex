@@ -75,7 +75,7 @@ defmodule ChangebanWeb.ChangebanStatsLive do
     case type do
       :none -> "No WIP Limits"
       :std -> "Column WIP limit of #{size}"
-      :agg -> "Aggregate WIP limit of #{size}"
+      :cap -> "Aggregate WIP limit of #{size}"
     end
   end
 

@@ -71,10 +71,10 @@ defmodule ChangebanWeb.ChangebanJoinLive do
     initials = String.trim(supplied_initials) |> String.upcase()
 
     if String.length(String.trim(initials)) == 0 do
-        Logger.info("No initials supplied")
-        {:noreply, LiveView.put_flash(socket, :error, "No initials supplied")}
+      Logger.info("No initials supplied")
+      {:noreply, LiveView.put_flash(socket, :error, "No initials supplied")}
     else
-        start_game(socket, pick_wip_limit(supplied_wip_type), gen_game_name(), initials)
+      start_game(socket, pick_wip_limit(supplied_wip_type), gen_game_name(), initials)
     end
   end
 
@@ -256,8 +256,8 @@ defmodule ChangebanWeb.ChangebanJoinLive do
               <label for="std">Col WIP Limits</label>
             </div>
             <div class="col-start-3 row-start-3">
-              <input type="radio" id="agg" name="wip" value="agg">
-              <label for="agg">Cap WIP Limits</label>
+              <input type="radio" id="cap" name="wip" value="cap">
+              <label for="cap">Cap WIP Limits</label>
             </div>
           </div>
         </form>

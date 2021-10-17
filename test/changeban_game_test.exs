@@ -515,16 +515,16 @@ defmodule ChangebanGameTest do
       assert %{1 => false, 2 => false, 3 => true} = Game.wip_limited_states(game)
     end
 
-    test "Agg WIP limits integrate with open 2 limit" do
-      game = %{Game.new() | wip_limits: {:agg, 2}} |> add_player("X") |> Game.start_game()
+    test "CAP WIP limits integrate with open 2 limit" do
+      game = %{Game.new() | wip_limits: {:cap, 2}} |> add_player("X") |> Game.start_game()
 
       assert %{1 => true, 2 => true, 3 => true} =
                Game.wip_limited_states(Game.exec_action(game, :start, 0, 0))
     end
 
-    test "Agg WIP limits integrate with open" do
+    test "CAP WIP limits integrate with open" do
       game =
-        %{Game.new() | wip_limits: {:agg, 1}, turns: [:red, :red, :red, :red]}
+        %{Game.new() | wip_limits: {:cap, 1}, turns: [:red, :red, :red, :red]}
         |> add_player("X")
         |> Game.start_game()
 

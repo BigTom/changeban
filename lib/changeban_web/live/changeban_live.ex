@@ -706,7 +706,7 @@ defmodule ChangebanWeb.ChangebanLive do
         <div class="col-start-1 row-start-1">
           WIP: <%= calculate_wip_for_state(@items, [1,2,3]) %>
         </div>
-        <%= if is_wip_type?(@wip_limits, :agg) do %>
+        <%= if is_wip_type?(@wip_limits, :cap) do %>
           <div class="col-start-2 row-start-1">
             Limit: <%= wip_limit(@wip_limits) %>
           </div>
