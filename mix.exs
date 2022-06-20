@@ -34,12 +34,12 @@ defmodule Changeban.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.6.0", override: true},
-      {:phoenix_html, "~> 3.0"},
+      {:phoenix, "~> 1.6", override: true},
+      {:phoenix_html, "~> 3.2"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 0.16.0"},
+      {:phoenix_live_view, "~> 0.17"},
       {:floki, ">= 0.30.0", only: :test},
-      {:phoenix_live_dashboard, "~> 0.5"},
+      {:phoenix_live_dashboard, "~> 0.6.5"},
       {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
       {:swoosh, "~> 1.3"},
       {:telemetry_metrics, "~> 0.6"},
@@ -48,7 +48,7 @@ defmodule Changeban.MixProject do
       {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.5"},
       {:credo, "~> 1.6.0-rc.1", only: [:dev, :test], runtime: false},
-      {:prom_ex, "~> 1.4.1"}
+      {:prom_ex, "~> 1.7"}
     ]
   end
 

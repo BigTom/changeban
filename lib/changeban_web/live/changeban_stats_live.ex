@@ -92,14 +92,14 @@ defmodule ChangebanWeb.ChangebanStatsLive do
         <div class="flex mt-4 text-xl text-center border-2">
           <div class="w-1/2 relative ">
             <p>Culmulative Flow</p>
-            <div phx-update="ignore">
+            <div id="divCFD" phx-update="ignore">
               <canvas id="myCFD" phx-hook="cfd" aria-label="CFD chart for current state of game" role="img"></canvas>
             </div>
           </div>
 
           <div class="w-1/2 relative">
             <p>Ticket Age on Completion</p>
-            <div phx-update="ignore">
+            <div id="divAge" phx-update="ignore">
               <canvas id="myAge" phx-hook="age" aria-label="Arrival age chart for current state of game" role="img"></canvas>
             </div>
           </div>
